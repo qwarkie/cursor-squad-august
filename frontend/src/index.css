@@ -1,0 +1,8 @@
+@import 'tailwindcss';
+
+/* Pin the page background explicitly: without it the body is transparent and
+   picks up whatever the host/browser theme paints behind it, which makes the
+   dark slate text unreadable in dark mode. */
+body {
+  @apply bg-slate-50 text-slate-900;
+}
