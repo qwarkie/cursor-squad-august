@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "setup": "npm --prefix frontend install && cd backend && uv sync && uv run alembic upgrade head",
+    "setup": "npm install && npm --prefix frontend install && cd backend && uv sync && uv run alembic upgrade head",
     "dev": "concurrently -n api,web -c blue,green \"npm run dev:api\" \"npm run dev:web\"",
     "dev:api": "cd backend && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload",
     "dev:web": "npm --prefix frontend run dev",
