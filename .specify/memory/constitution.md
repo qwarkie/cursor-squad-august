@@ -1,5 +1,19 @@
 <!--
-SYNC IMPACT REPORT (v1.1.0)
+SYNC IMPACT REPORT (v1.1.1)
+Version change: 1.1.0 → 1.1.1
+Rationale: PATCH. Gives an existing requirement an enforceable home. No principle or section
+added, removed, or redefined; one bullet appended to Additional Constraints.
+
+  SR-2 ("every write path surfaces its failure in the UI") was recorded only as a comment on the
+  GitHub tracking issue. /speckit.specify reads the theme prompt and /speckit.plan reads this
+  file; neither reads issue comments. A requirement whose only home is a comment thread does not
+  survive contact with /speckit.tasks. Now in Additional Constraints, so the plan Constitution
+  Check gate enforces it for free.
+
+  SR-1 needed no change — already carried twice, by the backend clause and by the checked-in
+  fixtures clause.
+
+--- superseded v1.1.0 report follows ---
 Version change: 1.0.0 → 1.1.0
 Rationale: MINOR. Two internal contradictions in v1.0.0, both found by adversarial review before
 the clock started, resolved by materially expanded guidance. No principle removed or redefined.
@@ -123,6 +137,10 @@ tasks must never block each other, and each must be independently mergeable into
   running app. A README that overclaims is a defect.
 - **Deterministic fixtures are checked in.** Seed data required to render the demo path lives in the
   repository, not in someone's local database.
+- **Every write path surfaces its failure in the UI.** A mutation that fails must render a visible
+  error. An `async` handler passed where a `void` return is expected, or a `try`/`finally` with no
+  `catch`, drops its rejection and fails invisibly. Reads fail loudly and get noticed; writes fail
+  silently and survive to the demo, where a judge clicks the button and nothing happens.
 
 ## Development Workflow
 
@@ -156,4 +174,4 @@ This constitution supersedes convention, preference, and prior habit for the dur
 - **Expiry:** this constitution governs the August 2026 hackathon build and is not intended to
   outlive it.
 
-**Version**: 1.1.0 | **Ratified**: 2026-08-26 | **Last Amended**: 2026-08-26
+**Version**: 1.1.1 | **Ratified**: 2026-08-26 | **Last Amended**: 2026-08-26
