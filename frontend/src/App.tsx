@@ -45,7 +45,7 @@ export default function App() {
       <header>
         <h1 className="text-2xl font-semibold text-slate-900">cursor-squad-august</h1>
         <p className="mt-1 text-sm text-slate-500">
-          React + TypeScript + FastAPI. Example CRUD — copy it as a template.
+          Cursor Squad Hackathon Workspace
         </p>
       </header>
 
