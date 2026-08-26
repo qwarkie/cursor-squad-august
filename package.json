@@ -8,6 +8,8 @@
     "dev:api": "cd backend && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload",
     "dev:web": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend run build",
+    "test": "npm --prefix frontend run test",
+    "typecheck": "cd frontend && npx tsc -b",
     "lint": "npm --prefix frontend run lint && cd backend && uv run ruff check .",
     "migrate": "cd backend && uv run alembic upgrade head",
     "makemigration": "cd backend && uv run alembic revision --autogenerate -m"

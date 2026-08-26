@@ -16,3 +16,7 @@ dist/
 .DS_Store
 .idea/
 .vscode/
+# Build caches
+.vite/
+.cache/
+coverage/
