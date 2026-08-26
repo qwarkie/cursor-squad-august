@@ -1,5 +1,21 @@
 <!--
-SYNC IMPACT REPORT
+SYNC IMPACT REPORT (v1.1.0)
+Version change: 1.0.0 → 1.1.0
+Rationale: MINOR. Two internal contradictions in v1.0.0, both found by adversarial review before
+the clock started, resolved by materially expanded guidance. No principle removed or redefined.
+
+  1. Additional Constraints fixed the stack as including FastAPI while Principle II plus the
+     static Vercel deploy meant the backend could not be reached in production. Resolved by
+     stating that the backend is repo furniture for local dev and is off the production demo path.
+  2. Development Workflow required every change to land through a pull request while the three
+     commits that built the baseline (7956a66, 8badfc8, 668aa07) all went straight to main and
+     were each independently verified green. Resolved by permitting direct push for verified
+     single-surface changes and reserving pull requests for multi-surface changes, demo-path
+     contract changes, and amendments to this file. Added the name-the-commit rule.
+
+Principles: unchanged, all six.
+
+--- superseded v1.0.0 report follows ---
 Version change: (template, unversioned) → 1.0.0
 Rationale: MAJOR-equivalent initial ratification. Every placeholder principle replaced with
 concrete, enforceable governance for a two-hour hackathon build.
@@ -91,9 +107,16 @@ tasks must never block each other, and each must be independently mergeable into
 
 ## Additional Constraints
 
-- **Stack is fixed:** React + TypeScript + Vite + Tailwind on the front end, FastAPI + SQLAlchemy +
-  Alembic on the back end, SQLite. No framework migrations, no Next.js, no new runtime dependency
-  that the demo path does not require.
+- **Stack is fixed:** React + TypeScript + Vite + Tailwind on the front end. No framework
+  migrations, no Next.js, no new runtime dependency that the demo path does not require.
+- **The backend is not on the production demo path.** FastAPI + SQLAlchemy + Alembic + SQLite
+  remain in the repository and remain available for local development and for `optional` work, but
+  the deployed application makes no `/api` call on the demo path. The demo path renders from
+  deterministic fixtures checked into the front end. Anything that requires the live API is
+  `optional`, never `spine`. This follows from Principle II: a demo path that needs a server it
+  cannot reach in production has no deterministic fallback. Revisit only if the event theme
+  requires persistence across sessions or devices, and revisit in the spec, not in a debugging
+  session.
 - **The live deployment is part of the demo path.** A deploy that 404s fails Principle I exactly as
   a broken build does. The live URL is opened and walked, not assumed.
 - **The README quickstart is a claim under test.** A fresh clone following it literally must reach a
@@ -103,7 +126,12 @@ tasks must never block each other, and each must be independently mergeable into
 
 ## Development Workflow
 
-- Work lands on `main` through small, independently mergeable pull requests.
+- Work lands on `main` in small, independently mergeable, single-surface changes. A change may be
+  pushed directly to `main` when it touches one surface and its acceptance check has been run and
+  passed on the pushed commit. A pull request is required for anything that touches more than one
+  surface, changes the demo path contract, or amends this constitution.
+- **Name the commit.** A change is reported by its SHA, not by "done" or "merged". A reviewer who
+  is handed a SHA confirms in thirty seconds; a reviewer who is not spends ten minutes disproving.
 - Every task carries exactly one of `spine` (the demo path depends on it) or `optional`.
 - `spine` tasks may never depend on work owned outside this team. Cross-team dependencies are
   permitted only on `optional` tasks.
@@ -128,4 +156,4 @@ This constitution supersedes convention, preference, and prior habit for the dur
 - **Expiry:** this constitution governs the August 2026 hackathon build and is not intended to
   outlive it.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-26 | **Last Amended**: 2026-08-26
+**Version**: 1.1.0 | **Ratified**: 2026-08-26 | **Last Amended**: 2026-08-26
