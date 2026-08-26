@@ -12,8 +12,9 @@ Ships with one working CRUD example (`items`) to copy as a template for your own
 ## Getting started
 
 ```bash
-npm run setup   # installs frontend and backend deps, applies migrations
-npm run dev     # starts the API and the front end together
+npm install    # installs the root concurrently runner
+npm run setup  # installs frontend/backend deps and applies migrations
+npm run dev    # starts the API and front end together
 ```
 
 - Front end: http://localhost:5173
