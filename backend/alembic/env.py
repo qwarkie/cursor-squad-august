@@ -7,7 +7,7 @@ from app.config import settings
 from app.db import Base
 
 # Importing the models registers them on Base.metadata so autogenerate sees them.
-from app.models import item  # noqa: F401
+from app.models import budget, item  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

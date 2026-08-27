@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import items
+from app.routers import budget, items
 
 app = FastAPI(title="cursor-squad-august API", version="0.1.0")
 
@@ -15,6 +15,7 @@ app.add_middleware(
 )
 
 app.include_router(items.router, prefix="/api")
+app.include_router(budget.router, prefix="/api")
 
 
 @app.get("/api/health", tags=["meta"])
