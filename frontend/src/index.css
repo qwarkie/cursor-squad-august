@@ -10,6 +10,30 @@ body {
 
 @theme {
   --font-pixel: 'Press Start 2P', ui-monospace, monospace;
+
+  /* Money River palette (art-bible.md §2). Mirrors frontend/src/world/palette.ts
+     literally — the two must never drift, since sprites and chrome share these
+     as the only 20 colours allowed anywhere in the world. */
+  --color-ink: #1b2a4a;
+  --color-night: #101a33;
+  --color-cream: #f4d9a0;
+  --color-paper: #f4efe4;
+  --color-water: #2b7fd4;
+  --color-water-lit: #5cb3ff;
+  --color-water-deep: #17538f;
+  --color-grass: #4caf50;
+  --color-grass-dark: #2f6b30;
+  --color-grass-lit: #7ac36f;
+  --color-sand: #c8a26a;
+  --color-gold: #ffd94a;
+  --color-gold-lit: #fff0b0;
+  --color-wood: #7b4a2d;
+  --color-brick: #c0392b;
+  --color-wheat: #e08c3a;
+  --color-slate: #6b7a99;
+  --color-plum: #8a4fa8;
+  --color-teal: #2fa88a;
+  --color-alert: #e0453f;
 }
 
 /* Frame cycling for multi-frame PixelSprite. The strip is one wide image and
