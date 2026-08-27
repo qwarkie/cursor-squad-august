@@ -537,7 +537,28 @@ is the baseline pinned BEFORE the     "X must be unchanged" is unenforceable oth
   work that must not change it?
 did every check you wrote actually    a ratio hides a missing verdict: the denominator
   RUN?                                  shrinks with the numerator
+can the quantity you measure even    a container set to CLIP answers "do you scroll?"
+  EXPRESS the failure?                 truthfully, and never says "no"
 ```
+
+**A layout shipped with the right third of the rail off screen and 39 checks green.**
+`scrollWidth > clientWidth` was the guard; `App`'s root carries `overflow-x-hidden`, so content
+past the right edge is *clipped, not scrolled*, and `scrollWidth` reads back the viewport width
+however far out the content went. **The check was not weak — it was measuring a quantity that
+cannot represent the defect.** The fix asks each element where its own right edge is. Whenever a
+container is configured to hide a failure mode, a check that queries the container is blind to
+it by construction: query the elements.
+
+**And prove a red by reverting in SOURCE and rebuilding, never by patching the built output.**
+Patching the CSS bundle produced two false greens in one verification — "disabled 0
+declarations" because Tailwind emits `min-width:0` not `0px`, and then a green because
+`overflow:hidden` already resolved `min-width:auto` to zero, so the patched rule was never the
+load-bearing half. Third instance tonight of a verdict taken against the wrong artifact.
+
+**Composition:** the desktop layout and the pannable world were each correct alone. The world
+column is a flex item, and `min-width:auto` will not shrink below its content — so the moment
+the world grew larger than its frame (the point of pan) the column pushed the rail off screen.
+**Two green features can compose into a broken screen, and no single-surface gate sees it.**
 
 **A check that never ran and a check that passed print exactly the same thing: nothing.** `check()`
 returned `None`, so `if check(...)` was always falsy and every assertion after it silently never
