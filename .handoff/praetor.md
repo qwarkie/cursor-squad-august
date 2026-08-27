@@ -487,7 +487,8 @@ on a build nobody had touched since — 10,240 changed pixels of 102,144, then t
 
 Stated as a dependency rather than a path list, because path lists expire — this file expired three
 times tonight for exactly that reason. Today the dependencies are the code under test (`frontend/`),
-the scripts that test it (`scripts/`), and **their invocation (root `package.json`)** — the last of
+the scripts that test it (`scripts/*.py` — not `scripts/README.md`, which nothing executes), and
+**their invocation (root `package.json`)** — the last of
 which a harness structurally cannot observe, for the same reason it cannot see this file. A one-word
 edit to a `test` or `walk` script changes what every green run asserted while `frontend/` and
 `scripts/` sit untouched.
