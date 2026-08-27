@@ -14,7 +14,7 @@ Three sections of the procedural-world brief were each scoped, measured, and fou
 |---|---|---|
 | §3 distribution | expenses spread along the river, the lake pushed down | five categories need **112 art-px of village against an 88 art-px river**. **Six** is the last size that lays out; seven is the first that does not, and six has only five pixels of headroom |
 | §4 river-to-city | visible water between the river and the town | the largest village's outer edge is at **95.5 of 96**. There is no room to stand it further out, so the **water** gave way and now stops at the village's near edge |
-| §5 branch length | length varying with spending | about **five art-px of range**, and a positional penalty of up to four inside it |
+| §5 branch length | length varying with spending | room to the world's edge is **not uniform — 0.5 to 14.5 art-px** — and is worst exactly where the rule would want it most: the largest expense has **0.5**. A positional penalty of up to four art-px sits inside that |
 
 Two instruments sharing no code found the §3 boundary in both budget shapes: sizes one to six lay out, seven is the first that does not. §4's constraint was found by building the obvious fix and measuring it doing half a job. §5's was found by expecting to add variation and discovering it already existed for the wrong reason.
 
@@ -32,7 +32,19 @@ The alternative — growing the world with the viewport — was proposed and rej
 
 **§3 escapes downward.** The river can get longer and the lower lake can move with it, because the camera follows. That work is specified and unbuilt at the time of writing.
 
-**§4 and §5 have nowhere to escape to.** Neither can be solved by giving the village more room, because the room does not exist and cannot be created without breaking the decision above. §4 was therefore solved by moving the *water* rather than the town, which is why `tributaryWaterEnd()` exists alongside `tributaryEnd()`. §5 remains open and any implementation of it has to work inside five pixels.
+**§4 and §5 have nowhere to escape to.** Neither can be solved by giving the village more room, because the room does not exist where it is needed and cannot be created without breaking the decision above. §4 was therefore solved by moving the *water* rather than the town, which is why `tributaryWaterEnd()` exists alongside `tributaryEnd()`.
+
+§5 remains open, and the shape of what it is up against is more particular than "there is no room". Measured on the seeded month, room from a village's outer edge to the world's:
+
+| | room to the edge |
+|---|---|
+| housing $1,500 | **0.5** |
+| entertainment $300 | 4.5 |
+| transport $350 | 5.5 |
+| food $650 | 10.5 |
+| savings $1,400 | 14.5 |
+
+There is room — just not on the branch that would need it. **The rule §5 asks for wants to lengthen the largest expense, and the largest expense is the one with half a pixel.** An implementation has to decide what it does when the category it most wants to reward has nowhere to put the reward.
 
 **A branch's reach is not what the constant says.** `STREAM_REACH` is 10 for every branch; branches clamped against the world edge get less. The reduction depends on the meander phase at that `atY` and on the trunk width there — which is set by the amounts listed *above* the branch. **It never depends on the branch's own amount.** In the seeded month the first category is also the largest, which makes this read as an inverted signal; it is not inverted, it is unrelated, and the correlation is an accident of the demo budget.
 
