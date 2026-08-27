@@ -271,6 +271,33 @@ and my "all-blue tributaries" which was true of strokes and misleading about the
 was caught by its own author or the next reader.** Verify a report against the source before ordering
 work from it - including your own.
 
+
+## CERTIFIED — live `78a230a`: **39/41**. `main`: **41/41**.
+
+SHA proven from two directions, not inferred: a clean build of `78a230a` produces
+`index-Vuol0JCn.js`, and that is byte-identical to what the live URL serves. Verified
+independently by Praetor and by the T029 harness.
+
+**The two live failures are the two stranded fixes, and nothing else:**
+
+```
+FAIL  each tributary strokes in its own category colour   -> fixed 6478e08, undeployable
+FAIL  the income control is at least 44px tall  (36 px)   -> fixed 22e7a99, undeployable
+```
+
+Everything else green on the shipped build: income edit widens the trunk with no reload,
+`Food -$100 -> Remaining +$100` to the character, overspend with dry bed and exact negative figure,
+recovery, reset, **SC-007 identical geometry across two loads**, no horizontal scroll at 390 or 320,
+zero console and zero page errors, and `/api` appears **0 times in the shipped bundle** — Principle
+II proven by absence on the submitted artifact.
+
+**Write it as "fails on the shipped build, fixed on `main` @ <sha>, undeployable" — never a bare
+FAIL.** The gap between the two numbers is the finding; a bare FAIL reads as a defect nobody fixed.
+
+Repo confirmed **public to an anonymous request** — the highest-consequence check of the night and
+the last one anyone thought to run. A private repo behind a submitted link fails exactly like the
+dead host did: invisible to everyone who is signed in.
+
 ## Decision log
 
 | Gate | Call | Cut | Remains SPINE | Would cut next |
