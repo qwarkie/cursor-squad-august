@@ -205,3 +205,66 @@ export const WARNING: readonly Art[] = [
     'kkkkkkkkk',
   ],
 ]
+
+/**
+ * 8 x 5, 2 frames. Rides the bank of the transport tributary (T028).
+ * `optional` — bank decoration is fourth in the cut order.
+ */
+export const CAR: readonly Art[] = [
+  ['..kkkk..', '.kwwwtk.', 'kttttttk', 'kkttttkk', '.k....k.'],
+  ['..kkkk..', '.kwwwtk.', 'kttttttk', 'kkttttkk', '..k..k..'],
+]
+
+/** 10 x 10, 2 frames. The entertainment tributary; the screen blinks (T028). */
+export const ARCADE: readonly Art[] = [
+  [
+    '..kkkkkk..',
+    '.kmmmmmmk.',
+    'kmmmmmmmmk',
+    'kmkppppkmk',
+    'kmkpyypkmk',
+    'kmkppppkmk',
+    'kmmmmmmmmk',
+    'kmyymmyymk',
+    'kmmmmmmmmk',
+    'kkkkkkkkkk',
+  ],
+  [
+    '..kkkkkk..',
+    '.kmmmmmmk.',
+    'kmmmmmmmmk',
+    'kmkpyypkmk',
+    'kmkppppkmk',
+    'kmkppppkmk',
+    'kmmmmmmmmk',
+    'kmyymmyymk',
+    'kmmmmmmmmk',
+    'kkkkkkkkkk',
+  ],
+]
+
+/** 7 x 9, 2 frames. Bank decoration; the canopy rustles (T028). */
+export const TREE: readonly Art[] = [
+  [
+    '..kkk..',
+    '.kgggk.',
+    'kggeggk',
+    'kgggggk',
+    'kggeggk',
+    '.kgggk.',
+    '..kdk..',
+    '..kdk..',
+    '..kkk..',
+  ],
+  [
+    '..kkk..',
+    '.kgggk.',
+    'kgeggek',
+    'kgggggk',
+    'kgggggk',
+    '.kgggk.',
+    '..kdk..',
+    '..kdk..',
+    '..kkk..',
+  ],
+]
