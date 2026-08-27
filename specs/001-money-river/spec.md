@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "Финансовый трекер с мультяшной 8-битной анимацией, mobile first. В начале — просто зелёное поле и кнопка Add Income. После добавления дохода появляется анимированная река, символизирующая поток денег. Река уменьшается за счёт ответвлений-притоков. По берегам — домики и жители." Plus the Money World hackathon brief (mobile-first pixel budget sandbox, 390×844, seeded budget, tap-to-adjust, deployed URL).
+**Input**: User description: "A finance tracker with cartoon 8-bit animation, mobile first. It starts as just a green field and an Add Income button. Once income is added, an animated river appears, representing the flow of money. The river shrinks through branching tributaries. Along its banks stand little houses and villagers." Plus the Money World hackathon brief (mobile-first pixel budget sandbox, 390×844, seeded budget, tap-to-adjust, deployed URL).
 
 ## The Metaphor (canonical)
 
