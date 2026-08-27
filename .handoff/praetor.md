@@ -451,10 +451,15 @@ when the cap resets deploys unattended.** So Principle I binds harder now, not l
 ## Board outcome
 
 ```
-closed  #26 #34 #40 #42 #43 #48 #49 #50 #51 #52 #53 #54 #55 #56
-open    #57  code verified at cb53351, acceptance unmet — awaiting an independent
-             diff-then-verdict on the Savings band
+BOARD AT ZERO — every issue opened in this sprint is closed on evidence.
+closed  #26 #34 #40 #42 #43 #48 #49 #50 #51 #52 #53 #54 #55 #56 #57 #58
 ```
+
+`#57` took three verdicts to close, and that is the record worth keeping. The author's, withdrawn
+by the author. A second look from someone who had already judged, given on a branch that was
+byte-identical between the two builds. Then a fresh diff from the person holding the negative,
+on a build nobody had touched since — 10,240 changed pixels of 102,144, then the eye.
+**An author does not judge their own fix, and nobody judges twice without a diff first.**
 
 ## Decisions in force
 
@@ -541,7 +546,7 @@ output, is how they drift — and that parse had already been wrong once in the 
 
 ## Next
 
-1. `#57` — independent diff-then-verdict on the Savings band, x 140-216, `99dca7a` → `cb53351`.
+1. Nothing is outstanding. The next action is a deploy decision, not a task.
 2. When the deploy cap resets, score a build of `main` with `walk_demo.py` **before** deploying.
    The deploy decision is Praetor's and happens after that score, not before.
 3. Configure per-agent git identities before the next event. Every commit here is
