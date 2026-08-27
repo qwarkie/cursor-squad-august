@@ -5,6 +5,10 @@ import { tributaryEnd } from './geometry'
 import { PAL } from './palette'
 import { CRACK, HOUSE, RESERVOIR, RESIDENT, SPRING, WARNING } from './objects'
 
+/** HOUSE is 9 x 9 art-pixels (art-bible.md §4); three to a rank keeps the village clear of the trunk. */
+const HOUSE_ART_W = 9
+const HOUSE_GAP = 2
+
 type Props = {
   model: RiverModel
   scale: number
@@ -48,20 +52,51 @@ export function Settlements({ model, scale }: Props) {
           )
         }
 
-        const houses = Math.min(trib.settlements, 3)
-        const spacing = 9 * scale
+        /**
+         * Every settlement the engine counted, not a sample of them. FR-007 ties
+         * the count to the amount, so capping it made $1,500 of Housing render
+         * exactly like $650 of Food — the largest expense stopped looking
+         * largest and the metaphor flattened.
+         *
+         * Six houses in one row would be 54 art-px wide and run into the trunk,
+         * so they wrap into ranks of three. HOUSE is 9 art-px (art-bible.md §4).
+         */
+        const houses = Math.max(0, Math.floor(trib.settlements) || 0)
+        const residents = Math.max(0, Math.floor(trib.residents) || 0)
+        const rankWidth = 3 * HOUSE_ART_W * scale + 2 * HOUSE_GAP
         return (
           <div key={trib.categoryId} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left, top }}>
-            <div className="relative flex items-end" style={{ gap: 2 }}>
+            <div
+              className="flex flex-wrap items-end justify-center"
+              style={{ gap: HOUSE_GAP, width: rankWidth }}
+            >
               {Array.from({ length: houses }, (_, i) => (
-                <PixelSprite key={i} art={HOUSE} palette={PAL} scale={scale} alt={i === 0 ? 'Houses' : ''} />
+                <PixelSprite
+                  key={i}
+                  art={HOUSE}
+                  palette={PAL}
+                  scale={scale}
+                  alt={i === 0 ? `Houses, ${houses}` : ''}
+                />
               ))}
-              {trib.residents > 0 && (
-                <div className="absolute" style={{ left: -spacing * 0.4, bottom: -scale * 2 }}>
-                  <PixelSprite art={RESIDENT} palette={PAL} scale={scale} fps={4} alt="Residents" />
-                </div>
-              )}
             </div>
+            {residents > 0 && (
+              <div
+                className="flex justify-center"
+                style={{ gap: HOUSE_GAP, marginTop: scale }}
+              >
+                {Array.from({ length: residents }, (_, i) => (
+                  <PixelSprite
+                    key={i}
+                    art={RESIDENT}
+                    palette={PAL}
+                    scale={scale}
+                    fps={4}
+                    alt={i === 0 ? `Residents, ${residents}` : ''}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )
       })}
