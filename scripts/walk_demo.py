@@ -62,9 +62,14 @@ def tappable_height(pg, selector):
         const r = el.getBoundingClientRect()
         const cx = Math.round(r.left + r.width / 2)
         const cy = Math.round(r.top + r.height / 2)
+        // `t.contains(el)` would be true for every *ancestor*, so a point over the
+        // header but not over the control would score as a hit and the scan would
+        // walk the whole header — reporting its height, and `clipped` for any
+        // top-anchored header regardless of what the control does. Descendants
+        // only: that is what a tap on this control actually resolves to.
         const hits = (y) => {
           const t = document.elementFromPoint(cx, y)
-          return !!t && (t === el || el.contains(t) || t.contains(el))
+          return !!t && (t === el || el.contains(t))
         }
         if (!hits(cy)) return { box: r.height, tappable: 0, clipped: false }
         let top = cy, bottom = cy
