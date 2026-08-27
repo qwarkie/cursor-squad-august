@@ -2,7 +2,7 @@ import { PixelSprite } from '../pixel'
 import { SPRING_Y, type RiverModel } from '../engine'
 import { trunkX } from './path'
 import { WORLD_H } from './World'
-import { tributaryEnd } from './geometry'
+import { RANK_ART_W, tributaryEnd, trunkWidthAt } from './geometry'
 import { PAL } from './palette'
 import { CRACK, RESERVOIR, RESIDENT, SPRING, WARNING, WORLD_FPS } from './objects'
 import { iconArt, iconPlural } from './icons'
@@ -13,9 +13,9 @@ import type { Budget, PaletteKey } from '../types'
  * and that width is fixed regardless of which icon a category picked. The
  * rank wraps, so a wider icon simply fits fewer to a row (MARKET at 12 fits
  * two) and the village still stays clear of the trunk. `icons.test.ts` holds
- * every icon to this width.
+ * every icon to this width; geometry.ts owns the number, because it also
+ * decides how far out a village of that width has to stand.
  */
-const RANK_ART_W = 27
 const HOUSE_GAP = 2
 
 type Props = {
@@ -47,7 +47,7 @@ export function Settlements({ model, budget, scale }: Props) {
 
       {model.tributaries.map((trib) => {
         if (trib.width <= 0) return null
-        const { x, y } = tributaryEnd(trib.atY, trib.side)
+        const { x, y } = tributaryEnd(trib.atY, trib.side, trunkWidthAt(model, trib.atY))
         const left = x * scale
         const top = y * scale
 

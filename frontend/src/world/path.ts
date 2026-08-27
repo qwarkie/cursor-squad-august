@@ -26,7 +26,8 @@ export interface RiverGeometry {
   segments: readonly { fromY: number; toY: number }[]
 }
 
-export const WORLD_W = 96 // art-px, the world grid from art-bible.md §1
+/** art-px, the world grid from art-bible.md §1. World.tsx re-exports it — one number, three consumers. */
+export const WORLD_W = 96
 const CENTRE_X = WORLD_W / 2
 
 /**

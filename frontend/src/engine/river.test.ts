@@ -130,12 +130,12 @@ describe('budgetToRiver: worked example (contracts/engine.md)', () => {
       categories: [cat('h', 1500), cat('f', 650)],
       updatedAt: 'x',
     })
-    expect(model.segments.map((s) => s.width)).toEqual([24, 15, 12])
+    expect(model.segments.map((s) => s.width)).toEqual([16, 10, 8])
     expect(model.segments[0].carried).toBe(4200)
     expect(model.segments[1].carried).toBe(2700)
     expect(model.segments[2].carried).toBe(2050)
-    expect(model.tributaries[0]).toMatchObject({ categoryId: 'h', amount: 1500, width: 9, side: 'right' })
-    expect(model.tributaries[1]).toMatchObject({ categoryId: 'f', amount: 650, width: 4, side: 'left' })
+    expect(model.tributaries[0]).toMatchObject({ categoryId: 'h', amount: 1500, width: 6, side: 'right' })
+    expect(model.tributaries[1]).toMatchObject({ categoryId: 'f', amount: 650, width: 2, side: 'left' })
     expect(model.remaining).toBe(2050)
     expect(model.state).toBe('surplus')
     expect(model.segments[0].width).toBe(TRUNK_MAX)

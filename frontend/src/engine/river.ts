@@ -1,7 +1,17 @@
 import type { Budget, Category } from '../types'
 
-/** Art-pixel constants for the 96 × 128 world grid (art-bible.md §1). */
-export const TRUNK_MAX = 24
+/**
+ * Art-pixel constants for the 96 × 128 world grid (art-bible.md §1).
+ *
+ * `TRUNK_MAX` is a width the shore has to pay for. At 24 the trunk was a
+ * quarter of the world, and once the meander swung it 6 further off centre
+ * there was no room left between the bank and the world's edge for a village
+ * *and* the stream feeding it — the branch came out as a two-pixel stub and
+ * the one thing the world exists to show, money leaving the river, stopped
+ * being visible (world/geometry.ts). 16 is still by far the widest object in
+ * the world; the house it dwarfs is 9.
+ */
+export const TRUNK_MAX = 16
 export const MIN_WIDTH = 2
 export const SPRING_Y = 16
 export const MOUTH_Y = 104

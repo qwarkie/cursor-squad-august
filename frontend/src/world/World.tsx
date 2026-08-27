@@ -3,12 +3,16 @@ import type { ReactNode } from 'react'
 
 import type { RiverModel } from '../engine'
 import { GrassField } from './GrassField'
+import { WORLD_W } from './path'
 
 /**
  * The world grid, per art-bible.md §1. Everything in the SVG draws in this
  * coordinate space; the DOM overlay for sprites scales it to CSS pixels.
+ *
+ * The width lives in path.ts — the trunk's centre line is derived from it, so
+ * a second copy here could drift and put the river off its own field.
  */
-export const WORLD_W = 96
+export { WORLD_W }
 export const WORLD_H = 128
 
 /**

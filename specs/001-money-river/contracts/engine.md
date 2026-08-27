@@ -49,19 +49,19 @@ budgetToRiver({
 })
 ```
 
-yields, with `TRUNK_MAX = 24`, `SPRING_Y = 16`, `MOUTH_Y = 104`:
+yields, with `TRUNK_MAX = 16`, `SPRING_Y = 16`, `MOUTH_Y = 104`:
 
 ```ts
 {
   segments: [
-    { fromY:  16, toY:  45, carried: 4200, width: 24 },  // full income
-    { fromY:  45, toY:  75, carried: 2700, width: 15 },  // after Housing
-    { fromY:  75, toY: 104, carried: 2050, width: 12 },  // after Food
+    { fromY:  16, toY:  45, carried: 4200, width: 16 },  // full income
+    { fromY:  45, toY:  75, carried: 2700, width: 10 },  // after Housing
+    { fromY:  75, toY: 104, carried: 2050, width:  8 },  // after Food
   ],
   tributaries: [
-    { categoryId: 'h', atY: 45, amount: 1500, width: 9, side: 'right',
+    { categoryId: 'h', atY: 45, amount: 1500, width: 6, side: 'right',
       settlements: 6, residents: 3, reservoir: false },
-    { categoryId: 'f', atY: 75, amount:  650, width: 4, side: 'left',
+    { categoryId: 'f', atY: 75, amount:  650, width: 2, side: 'left',
       settlements: 3, residents: 1, reservoir: false },
   ],
   remaining: 2050,
@@ -69,7 +69,7 @@ yields, with `TRUNK_MAX = 24`, `SPRING_Y = 16`, `MOUTH_Y = 104`:
 }
 ```
 
-Read the widths: `24 → 15 → 12`, and the tributaries that took the difference are `9` and `4`. Rounding means those do not sum exactly — **that is expected and accepted.** Widths are integers for crispness; the dollar figures alongside them are exact, and the dollars are what the user is promised.
+Read the widths: `16 → 10 → 8`, and the tributaries that took the difference are `6` and `2`. Rounding means those do not sum exactly — **that is expected and accepted.** Widths are integers for crispness; the dollar figures alongside them are exact, and the dollars are what the user is promised.
 
 ## Tests that must exist
 

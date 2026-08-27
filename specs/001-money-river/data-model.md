@@ -65,7 +65,7 @@ Derived. Coordinates are **art-pixels** on the 96 × 128 world grid defined in t
 All constants live in one place, `frontend/src/engine/river.ts`. Every result is **rounded to a whole art-pixel** — a fractional coordinate blurs pixel art and the aesthetic dies with it.
 
 ```text
-TRUNK_MAX   = 24    art-px  — trunk width when it carries the full income
+TRUNK_MAX   = 16    art-px  — trunk width when it carries the full income
 MIN_WIDTH   =  2    art-px  — floor, so a tiny category is still visible
 SPRING_Y    = 16    art-px  — where the river starts
 MOUTH_Y     = 104   art-px  — where the pool begins
@@ -73,6 +73,15 @@ MIN_GAP     = 14    art-px  — floor on the spacing between branch points
 MEANDER_A   =  6    art-px  — how far the trunk wanders off centre
 MEANDER_W   = 20    art-px  — wavelength of that wander
 ```
+
+**The shore has a budget, and `TRUNK_MAX` spends it.** A village is 27 art-px
+wide (three icons, art-bible.md §4) and it has to stand on the far side of a
+visible stream. From the world's edge back to the trunk's centre at the worst
+of the meander there are `96/2 − MEANDER_A = 42` art-px, and the trunk takes
+`TRUNK_MAX/2` of them off the top. At `TRUNK_MAX = 24` that left `42 − 12 − 27
+= 3` art-px for the stream, so the branch rendered as a stub and the outgoing
+flow — the one thing this world exists to show — was invisible. At 16 the
+shore keeps 7. Raising `TRUNK_MAX` again spends that back.
 
 **Width of any flow.** The same function for the trunk and for every tributary, so a tributary of $X is exactly as wide as the trunk narrows:
 
