@@ -533,7 +533,21 @@ can the observer distinguish the states? the instrument — human or code — ha
 does it catch EVERY case it was       the four above ask whether an instrument can speak;
   written for?                          this asks whether it did, on the cases that motivated it
 which case can you NOT produce?       name it as unproven; someone else can build it for you
+is the baseline pinned BEFORE the     "X must be unchanged" is unenforceable otherwise
+  work that must not change it?
 ```
+
+**An unchanged-from-baseline requirement is not a check until someone records the baseline first.**
+Captured afterwards, the reference records whatever the change did — and the requirement quietly
+stops being enforceable without anyone deciding to drop it. `scripts/baseline_390.py` pins the
+certified viewport (shapes in art units, sprite positions **relative to the world box**, the box
+itself, trunk widths) and was taken *before* the responsive work, not after. **Sprite positions are
+world-relative on purpose: a world that legitimately recentres moves every sprite, and a check that
+cries wolf on the first honest commit is ignored by the third.**
+
+The same ordering applies to instruments generally: **the gate exists before the work it guards, or
+it is written afterwards by whoever needs a green.** That is the structural half of *nobody grades
+their own homework* — the other half is who gives the verdict.
 
 **The fifth question turned outward is the one worth keeping.** A foliage check had three branches and
 its author could only reach two — the third needed a build where the marker is compiled in but no
