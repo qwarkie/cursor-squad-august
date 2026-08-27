@@ -308,6 +308,57 @@ def trunk_widths(pg):
     return [widest[k] for k in order]
 
 
+def settle(pg, timeout_ms=3000, quiet_ms=100):
+    """Wait until the world stops moving, rather than for a number of ms.
+
+    @Pollen found §8 blocked on this and it was a fair block: every gate here
+    fingerprints sprite rectangles across two loads, so an arrival animation
+    still running when the snapshot is taken makes two identical budgets
+    measure differently — FR-015 failing for a reason that is not a defect.
+
+    The old guarantee was `wait_for_timeout(400)` against a settle that happens
+    to finish at 330ms. Seventy milliseconds of margin is a coincidence, not a
+    design, and it would have broken the moment anyone lengthened a transition.
+
+    This samples the geometry until two consecutive reads agree. Elements riding
+    `offset-path` are excluded for the same reason `geometry_fingerprint`
+    excludes them: the coins are driven by the clock and never settle.
+    """
+    sample = """() => {
+        const world = document.querySelector('[data-scale]')
+        if (!world) return 'none'
+        const riding = (e) => {
+          for (let n = e; n && n !== document.body; n = n.parentElement) {
+            const op = getComputedStyle(n).offsetPath
+            if (op && op !== 'none') return true
+          }
+          return false
+        }
+        const box = world.getBoundingClientRect()
+        const at = (r) => `${Math.round(r.left - box.left)},${Math.round(r.top - box.top)},`
+                        + `${Math.round(r.width)},${Math.round(r.height)}`
+        const sprites = [...world.querySelectorAll('span, div')]
+          .filter((e) => getComputedStyle(e).backgroundImage.startsWith('url('))
+          .filter((e) => !riding(e))
+          .map((e) => at(e.getBoundingClientRect()))
+        const shapes = [...world.querySelectorAll('svg rect, svg path')]
+          .map((e) => at(e.getBoundingClientRect()))
+        return sprites.join('|') + '#' + shapes.join('|')
+    }"""
+    previous = None
+    waited = 0
+    while waited < timeout_ms:
+        current = pg.evaluate(sample)
+        if current == previous:
+            return waited
+        previous = current
+        pg.wait_for_timeout(quiet_ms)
+        waited += quiet_ms
+    print(f"  ....  the world was still moving after {timeout_ms}ms — measuring anyway,")
+    print("  ....  and any two-load comparison below should be read with that in mind.")
+    return waited
+
+
 def geometry_fingerprint(pg):
     """Everything that must be identical across two loads of one budget (SC-007)."""
     return pg.evaluate("""() => {
@@ -369,7 +420,12 @@ def body(pg):
 def walk(url):
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        pg = browser.new_page(viewport=VIEWPORT, device_scale_factor=2, has_touch=True)
+        # `reduced_motion` was never set here, while every other script in this
+        # directory sets it. Spec §8 requires the app to respect the preference,
+        # so the harness measures the state where arrival animations do not run
+        # at all — deterministic by definition rather than by out-waiting them.
+        pg = browser.new_page(viewport=VIEWPORT, device_scale_factor=2, has_touch=True,
+                              reduced_motion="reduce")
         console_errors, page_errors = [], []
         pg.on("console", lambda m: console_errors.append(m.text) if m.type == "error" else None)
         pg.on("pageerror", lambda e: page_errors.append(str(e)))
@@ -776,7 +832,7 @@ def walk(url):
             check("the income control is at least 44px tall (FR-018)",
                   hit and hit["tappable"] >= 44 and not hit["clipped"], detail)
             income_button.first.click()
-            pg.wait_for_timeout(400)
+            settle(pg)
             sheet_paint = paint_audit(pg)
             check("the income sheet declares no alpha-composited paint (art-bible §7)",
                   sheet_paint["scanned"] > 0 and not sheet_paint["alpha"],
@@ -796,7 +852,7 @@ def walk(url):
 
             # put it back, so what follows starts from the seeded month again
             income_button.first.click()
-            pg.wait_for_timeout(400)
+            settle(pg)
             pg.fill("#income", "4200")
             pg.get_by_role("button", name=re.compile("Start the river|Save|Update")).first.click()
             pg.wait_for_timeout(700)
@@ -829,7 +885,7 @@ def walk(url):
                       "expected 'Food \u2212$100 \u2192 Remaining +$100'")
             close = pg.get_by_role("button", name="Close")
             if close.count():
-                close.first.click(); pg.wait_for_timeout(400)
+                close.first.click(); settle(pg)
 
         # ---- 9. overspend and recover (US4 scenarios 1 and 2) --------------------
         print("\n9. the river runs dry (US4 scenarios 1 and 2 / FR-012)")
@@ -873,13 +929,13 @@ def walk(url):
                   "" if "$4,200" in recovered else "the budget vanished — absence of the warning proves nothing")
             close = pg.get_by_role("button", name="Close")
             if close.count():
-                close.first.click(); pg.wait_for_timeout(400)
+                close.first.click(); settle(pg)
 
         # ---- 10. no horizontal scroll --------------------------------------------
         print("\n10. layout (SC-008)")
         for w in (390, 320):
             pg.set_viewport_size({"width": w, "height": 844})
-            pg.wait_for_timeout(400)
+            settle(pg)
             sw = pg.evaluate("document.documentElement.scrollWidth")
             cw = pg.evaluate("document.documentElement.clientWidth")
             check(f"no horizontal scroll at {w}px", sw <= cw, f"scrollWidth {sw} vs client {cw}")
