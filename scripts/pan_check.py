@@ -76,14 +76,36 @@ def world_box(pg):
 
 
 def drag(pg, box, dx, dy):
-    """A pointer gesture from the middle of the world, in steps, like a hand."""
-    cx, cy = box["x"] + box["w"] // 2, box["y"] + box["h"] // 2
+    """A pointer gesture from a point that is on the world AND on the screen.
+
+    Starting from the centre of the *world* is wrong the moment the world is
+    bigger than its frame — which is the entire feature. At 1440x900 the world
+    centre sits at y=1070, past the bottom of the window, so the gesture landed
+    on the page and this script reported `PASS the world pans` on a page scroll
+    (scrollY 0 -> 192). @Pollen caught it. The centre of world-intersect-frame
+    is on the world by construction and on screen by construction.
+    """
+    ix0, iy0 = max(box["x"], box["fx"]), max(box["y"], box["fy"])
+    ix1 = min(box["x"] + box["w"], box["fx"] + box["fw"])
+    iy1 = min(box["y"] + box["h"], box["fy"] + box["fh"])
+    cx, cy = (ix0 + ix1) // 2, (iy0 + iy1) // 2
     pg.mouse.move(cx, cy)
     pg.mouse.down()
     for i in range(1, 11):
         pg.mouse.move(cx + dx * i / 10, cy + dy * i / 10)
     pg.mouse.up()
     pg.wait_for_timeout(220)
+
+
+def world_offset(pg):
+    """The world's position *relative to its frame*, plus the page scroll.
+
+    Viewport coordinates cannot tell a pan from a scroll — both move the rect.
+    Relative to the frame, only a pan does, and scrollY is carried alongside so
+    a scroll can be named rather than counted as one.
+    """
+    b = world_box(pg)
+    return (b["x"] - b["fx"], b["y"] - b["fy"], pg.evaluate("() => Math.round(scrollY)"))
 
 
 def run(url, w, h):
@@ -105,14 +127,19 @@ def run(url, w, h):
              f"frame {box['fw']}x{box['fh']} at {box['fx']},{box['fy']}")
 
         print("\n1. does the world move at all?")
+        base = world_offset(pg)
         drag(pg, box, -DRAG, 0)
-        left = world_box(pg)
+        left = world_offset(pg)
         drag(pg, box, DRAG, 0)
-        right = world_box(pg)
+        right = world_offset(pg)
         drag(pg, box, 0, -DRAG)
-        up = world_box(pg)
-        moved_x = left["x"] != box["x"] or right["x"] != box["x"]
-        moved_y = up["y"] != box["y"]
+        up = world_offset(pg)
+        moved_x = left[0] != base[0] or right[0] != base[0]
+        moved_y = up[1] != base[1]
+        scrolled = any(v[2] != base[2] for v in (left, right, up))
+        note(f"offset within frame {base[:2]} -> {left[:2]} / {right[:2]} / {up[:2]}")
+        check("the gesture panned the world, it did not scroll the page",
+              not scrolled, f"scrollY {base[2]} -> {[v[2] for v in (left, right, up)]}")
 
         if not (moved_x or moved_y):
             note("dragging moves nothing in either axis.")
@@ -159,26 +186,59 @@ def run(url, w, h):
             pg.wait_for_timeout(350)
 
         print("\n3. a drag is not a tap, and a tap is still a tap")
-        target = pg.locator("[data-scale] [data-village], [data-scale] [data-settlement]")
+        # `data-world-touch`, which is what Settlements.tsx actually writes. This
+        # asked for `[data-village]` and `[data-settlement]` — neither exists,
+        # so it reported "no targets, #66 is not live" at every viewport. That
+        # read as blocked-on-someone-else when it was a wrong selector, and a
+        # wrong selector that names another team's issue as the cause is worse
+        # than a plain failure.
+        target = pg.locator("[data-scale] [data-world-touch]")
         if target.count() == 0:
-            note("no village hit targets in the world — #66 is not live here, so")
-            note("arbitration has nothing to arbitrate. Untestable, not passing.")
-            unreachable.append("arbitration — tap under the threshold, pan over it")
-            check("there are in-world targets to arbitrate over", False,
-                  "add #66's props line and re-run")
+            note("no [data-world-touch] targets in the world.")
+            note("Settlements.tsx's Touchable is `if (!onPress) return children`,")
+            note("so the marker cannot exist until App.tsx passes onSelect — and")
+            note("at App.tsx:177 it still renders <Settlements model budget scale />.")
+            note("Reported UNPROVEN rather than FAILED: the pan is not broken, the")
+            note("arbitration simply has nothing to arbitrate over yet.")
+            unreachable.append("arbitration — tap under the threshold, pan over it "
+                               "(needs #66's onSelect in App.tsx)")
             return
+        note(f"{target.count()} in-world targets")
+
+        # Targets render whether or not App.tsx passes the handlers, so their
+        # presence does not mean they do anything. A plain click settles it, and
+        # separates "not wired yet" from "arbitration is broken" — those are
+        # different people's bugs.
+        def selected():
+            return pg.locator("main ul li button[aria-pressed=true]").count()
+
+        t = target.first.bounding_box()
+        pg.mouse.click(t["x"] + t["width"] / 2, t["y"] + t["height"] / 2)
+        pg.wait_for_timeout(300)
+        if selected() == 0:
+            note("targets render but a plain click selects nothing — the handlers")
+            note("are not passed in App.tsx (#66). Arbitration cannot be judged")
+            note("over inert targets: a drag that 'does not select' would pass")
+            note("for the wrong reason. Untestable, not failing, not passing.")
+            unreachable.append("arbitration — tap under the threshold, pan over it")
+            return
+        pg.reload(wait_until="networkidle")
+        demo = pg.get_by_role("button", name="Load demo budget")
+        if demo.count():
+            demo.first.click()
+        pg.wait_for_timeout(350)
 
         t = target.first.bounding_box()
         cx, cy = t["x"] + t["width"] / 2, t["y"] + t["height"] / 2
-        before = pg.locator("main ul li button[aria-pressed=true]").count()
+        before = selected()
 
         pg.mouse.move(cx, cy)
         pg.mouse.down()
         pg.mouse.move(cx + TAP_JITTER, cy + TAP_JITTER)
         pg.mouse.up()
         pg.wait_for_timeout(250)
-        check("a still-handed tap still selects", 
-              pg.locator("main ul li button[aria-pressed=true]").count() > before,
+        check("a still-handed tap still selects",
+              selected() > before,
               f"{TAP_JITTER}px of jitter")
 
         pg.reload(wait_until="networkidle")
@@ -196,7 +256,7 @@ def run(url, w, h):
         pg.mouse.up()
         pg.wait_for_timeout(250)
         check("a drag that ends on the target does NOT select it",
-              pg.locator("main ul li button[aria-pressed=true]").count() == 0,
+              selected() == 0,
               "released over the village after panning")
 
         br.close()
@@ -224,7 +284,7 @@ def main():
               f"but the {len(unreachable)} checks that judge #68 never ran:")
         for u in unreachable:
             print(f"  ? {u}")
-        print("\nThis is not a pass. Re-run once #68 is live.")
+        print("\nThis is not a pass. Re-run when the named checks can execute.")
         sys.exit(3)
     print(f"{len(results)}/{len(results)} pan checks passed")
     sys.exit(0)
