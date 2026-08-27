@@ -19,7 +19,7 @@ from playwright.sync_api import sync_playwright
 
 VIEWPORT = {"width": 390, "height": 844}
 # Floor, not a target: see the note in main(). Raise it when you add checks.
-EXPECTED_CHECKS = 49
+EXPECTED_CHECKS = 51
 SEED = {"income": 4200, "housing": 1500, "food": 650, "remaining_after_housing": 2700}
 
 results = []
@@ -463,6 +463,68 @@ def walk(url):
         # Kinds are counted separately on Praetor's point: a total would stay green
         # if every tree vanished and only bushes remained — the shape of the guard
         # that went red on one of the two sprites it was written for.
+        # ---- 4a2. nothing stands on the water -------------------------------
+        print("\n4a2. no tree stands on the water (spec §3)")
+        # Measured against the DRAWN river, not against a constant. `grove.ts`
+        # keeps foliage out of the lower lake using `MOUTH_Y` imported from the
+        # engine as a fixed 104 — and #72 makes the mouth a computed value that
+        # moves with the budget. The moment those disagree, trees are planted in
+        # open water and every unit test still passes, because the tests read the
+        # same constant the code does. This asks the pixels instead, so it cannot
+        # go stale the same way.
+        wet = pg.evaluate("""() => {
+            const world = document.querySelector('[data-scale]')
+            if (!world) return null
+            const svg = world.querySelector('svg')
+            if (!svg) return null
+            const water = [...svg.querySelectorAll('rect')].map((r) => r.getBoundingClientRect())
+              .filter((b) => b.width > 0 && b.height > 0)
+            const trees = [...world.querySelectorAll('[data-foliage]')]
+            const hits = []
+            for (const t of trees) {
+              const b = t.getBoundingClientRect()
+              // A 1px kiss at the bank is the sprite touching the shoreline,
+              // which is what a tree beside a river does. Two or more art-pixels
+              // of overlap at this scale is standing IN it.
+              const bleed = 2 * (+world.dataset.scale || 1)
+              for (const w of water) {
+                const dx = Math.min(b.right, w.right) - Math.max(b.left, w.left)
+                const dy = Math.min(b.bottom, w.bottom) - Math.max(b.top, w.top)
+                if (dx > bleed && dy > bleed) {
+                  hits.push(`${t.getAttribute('data-foliage')} at ` +
+                            `${Math.round(b.left)},${Math.round(b.top)} over water ` +
+                            `${Math.round(dx)}x${Math.round(dy)}`)
+                  break
+                }
+              }
+            }
+            // The river drawn outside the world it belongs to. Found by sweeping
+            // the lake downward and watching this check go PASS at +20, FAIL at
+            // +30 and PASS AGAIN at +46 — non-monotonic, because past the
+            // canvas the pool is clipped out of the box and there is nothing
+            // left to overlap. The largest drift was the one that slipped
+            // through, and it is exactly @Anvil's eight-category case: mouthY
+            // 150 against a 128 canvas.
+            const box = world.getBoundingClientRect()
+            const spill = water
+              .filter((w) => w.bottom > box.bottom + 1 || w.top < box.top - 1)
+              .map((w) => `${Math.round(w.top)}..${Math.round(w.bottom)}`)
+            return { trees: trees.length, water: water.length, hits,
+                     spill: spill.slice(0, 4), spilled: spill.length,
+                     box: [Math.round(box.top), Math.round(box.bottom)] }
+        }""")
+        if wet is None or wet["trees"] == 0 or wet["water"] == 0:
+            check("there is a river and a grove to compare", False,
+                  "nothing to measure — this check would be vacuous")
+        else:
+            check("no foliage overlaps the drawn river", not wet["hits"],
+                  wet["hits"][:4] if wet["hits"]
+                  else f"{wet['trees']} sprites clear of {wet['water']} water rects")
+            check("the whole river is inside the world it is drawn on",
+                  wet["spilled"] == 0,
+                  f"{wet['spilled']} water rects outside {wet['box']}: {wet['spill']}"
+                  if wet["spilled"] else f"all {wet['water']} within {wet['box']}")
+
         print("\n4b. the open field is planted (#59)")
         flora = pg.evaluate("""() => {
             const world = document.querySelector('[data-scale]')
