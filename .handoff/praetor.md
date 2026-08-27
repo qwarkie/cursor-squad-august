@@ -348,6 +348,31 @@ answering 200, `getAttribute` on an inherited attribute, and the dev server on t
 The capture script now asserts the bundle hash before taking a frame and aborts otherwise, so a
 screenshot can no longer drift from its build silently. That is the fix worth keeping.
 
+
+## FREEZE was declared and then ignored three times — and it cost something concrete
+
+`cdf97ac` spend icons, `c5d4090` generated field art, plus `6ac05fd`'s SC-002 regression. None could
+reach the submitted URL, so none changed what a judge sees. **But `cdf97ac` committed a symlink into
+the repository:**
+
+```
+git ls-tree -r cdf97ac | grep node_modules
+120000 blob e7da4e17…   frontend/node_modules     <- mode 120000 = symlink
+```
+
+Untracked again by `3c9121b`. The submitted build `78a230a` was never affected (0 tracked
+`node_modules`). But for ~40 minutes `main` carried a symlink to a path that exists on one machine,
+and **a judge cloning in that window could have hit it.** Invisible to 127 passing tests, a green
+build, and the walk — because none of them clone.
+
+**That is the honest cost of a freeze that was announced and not enforced.** Not bad code:
+unreviewed change to a shared artifact while attention was elsewhere. The record should say so.
+
+Also inverted under us: the `README.md:99` stale-host warning became false in all three of its
+claims, including a promise that **the submitted URL auto-redeploys** — the one thing it could not do.
+Corrected doc-only at zero quota. **Documentation describing the world is a thing that rots when the
+world moves; re-read your own warnings before you sign off.**
+
 ## Decision log
 
 | Gate | Call | Cut | Remains SPINE | Would cut next |
