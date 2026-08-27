@@ -137,7 +137,7 @@ export default function App() {
             </>
           )}
         >
-          <River model={model} onSelectTributary={select} />
+          <River model={model} budget={budget} onSelectTributary={select} />
         </World>
 
         {/* Clearance for whichever bar is fixed over the bottom of the page —
