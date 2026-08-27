@@ -4,26 +4,45 @@ Spec authority. Owns scope and the interface with other teams. Writes no applica
 
 ## Current
 
-- **Issue:** none claimed. Spec Kit is **1 of 7**: constitution v1.1.1 ratified on `main`.
-- **Branch:** `main`. Nothing of mine is unpushed.
-- **Half-done:** steps 2–7 of the Spec Kit sequence (`specify`, `clarify`, `plan`, `tasks`,
-  `taskstoissues`, hand to Tower). All six are blocked on exactly one input: **the organizers'
-  theme, pasted verbatim.** They run as a single pass once it lands. Do not start them from a
-  paraphrase of the theme; step 3 (`clarify`) exists precisely to kill paraphrase.
-- Repo Spec Kit skills are at `.claude/skills/speckit-*/SKILL.md`. They are **not** registered as
-  slash commands in this session — follow them manually.
+- **Role now: gates only.** Spec Kit is **7 of 7**. I do not write application code.
+- **The clock is real.** T+0 = `01:14 UTC` 2026-08-27, deadline approx **`02:44 UTC`**. The brief says
+  **90 minutes**, not 120 — the configured gates (T+90/T-150/T-90/T-40) were calibrated for a longer
+  event and are nonsense here. Rescaled to wall clock: gate 1 `01:39`, gate 2 `01:59`,
+  gate 3 `02:19`, **FREEZE `02:32`**.
+- **Board:** 34 issues, `#13`-`#47`, against `specs/001-money-river`. 25 spine / 7 optional,
+  16 `open-to-anyone`. Full index and per-task ownership are in the comment on **#8**.
+- **Process changed by the owner:** direct push to `main`, no branches, no PRs (Dmytro, `01:22 UTC`).
+  Two controls published in place of review: each agent works in its **own git worktree** — six were
+  sharing one checkout and staging over each other — and `typecheck && test && build`
+  **before every push**. Without PRs that local gate is the only thing enforcing Principle I.
 
-## State of `main` @ `4a0d6bd`, verified in this checkout
+## THE DEMO URL — get this wrong and the submission is yesterday's build
+
+**Submit `https://cursor-squad-august-live.vercel.app`.** Git-linked, auto-deploys on push to `main`,
+verified serving the exact bundle `main` builds — asset hash match, not merely HTTP 200.
+
+Two decoys, both returning **200**:
+
+- `cursor-squad-august-app.vercel.app` — the URL in the README for most of the event. Hand-deployed
+  on an account no agent can administer; served the **pre-#11 bundle for 24 hours**. #43 fixes it.
+- `money-river.vercel.app` — created during the failed option-B attempt. Returns 200, serves no
+  bundle.
+
+**Never accept HTTP 200 as proof of a deploy.** Compare the live asset hash against a local
+`npm run build` of `HEAD`. That check caught a full day of stale deploy that every casual check had
+passed, and #5's acceptance was rewritten around it.
+
+## State of `main` @ `900b915`, verified in a clean worktree
 
 ```
-git rev-parse --short HEAD  -> 4a0d6bd
-npx vitest run              -> 2 files, 13 tests, all pass
-npx tsc -b                  -> exit 0
-npm run build               -> exit 0, dist/assets/index-BddyzR6M.js  198.54 kB / 62.63 kB gzip
+npx vitest run  -> 7 files, 82 tests, all pass
+npx tsc -b      -> exit 0
+npm run build   -> exit 0, dist/assets/index-B5piu6LG.js  327.71 kB / 105.39 kB gzip
 ```
 
-`origin` has two branches: `main` and `feat/deterministic-fallback-and-write-errors`
-(merged as PR #11, `git log origin/main..<branch>` is empty, safe to delete).
+Landed fast under direct-push: `639d985` types + seed (T003/T025), `30f7539` engine (T004/T005),
+`ec611f9` path builders + entry point (T006/T032), `900b915` sprite inventory
+(T012/T017/T018/T024).
 
 ## Decisions
 
@@ -45,25 +64,10 @@ npm run build               -> exit 0, dist/assets/index-BddyzR6M.js  198.54 kB 
 
 ## Traps
 
-1. **The live deploy is stale and looks fine.** `https://cursor-squad-august-app.vercel.app`
-   returns HTTP 200, so every casual check passes. It is serving the **pre-#11** build:
-
-   ```
-   live  /assets/index-qtxljjNW.js   196780 B   == the 7aab0de baseline, byte for byte
-   main  /assets/index-BddyzR6M.js   198540 B   == 4a0d6bd
-   grep -ic 'deterministic|Walk the live URL|390px'  live bundle -> 0 0 0
-   ```
-
-   The fixture strings from `frontend/src/fixtures/items.ts` are absent from the live bundle.
-   **The SR-1/SR-2 fix is not on the live site.** Never read "the URL loads" as "the demo path
-   works" — check the asset hash against a local build of `HEAD`.
-
-   Root cause, found independently by Pollen and consistent with the above: the Vercel account any
-   agent can reach lists **zero projects** (`vercel list_projects -> []`). The app serving 200s was
-   deployed by hand from an account nobody here controls, so there is no project to attach a Git
-   hook to. Tracked in **#5**. Pollen also confirmed the backend is genuinely live and backed by
-   real Postgres — a row created `2026-08-26T04:52:13` is still served — which does not change the
-   fixture doctrine: the demo path must not depend on it.
+1. **The stale-deploy trap is RESOLVED, but the decoy URLs remain — see "THE DEMO URL" above.**
+   It was live for 24 hours and invisible because the URL returned 200 and the page rendered.
+   Auto-deploy now works on `cursor-squad-august-live`. Keep the habit even though this instance is
+   closed: asset hash against a local build, never HTTP status.
 
 2. **Stale branches here have been armed reverts, twice.** `origin/speckit/constitution` @
    `e4011ae` was unmerged, 1 ahead, and a PR from it would have deleted 556 lines across 11 files
@@ -141,6 +145,7 @@ npm run build               -> exit 0, dist/assets/index-BddyzR6M.js  198.54 kB 
 | pre-clock (2026-08-26 01:22 UTC, stopped by owner) | `HOLD` | stale branches `e4011ae`, `ac5795c`; starter-repair task set | #5 deploy pipeline | the backend from the deployed surface entirely — serve fixtures only and delete `/api` from `vercel.json` |
 | pre-clock (2026-08-27 00:15 UTC, second standby) | `HOLD` | nothing new | #5 — now demonstrably load-bearing: the live URL serves a build that predates the SR-1 fix | same as above; if #5's auto-deploy link has not landed when the clock starts, cut the live-URL demo and demo from a local `npm run build && npm run preview` |
 | pre-clock (2026-08-27 00:20 UTC) | `HOLD` | the dependency on the owner for #5 — authorized option B, a fresh agent-owned deploy, rather than waiting on the hand-deployed project being linked | #5, now with an agent-side path | CI. The workflow-scope wall is real and re-verified; if anyone proposes GitHub Actions as spine, cut it on sight |
+| **gate 1 — 01:39 UTC** | `HOLD` | nothing new at this gate; standing cuts T013 coins and T021 width transitions to `optional` | engine done, path builders done, entry point done, sprites done; world shell, chrome, #47 integration, deploy-walk all open | the T020 slider — keep `-`/`+`, the $50 steps carry the interaction — then T022 trade-off sentence |
 
 ## Grounding
 
