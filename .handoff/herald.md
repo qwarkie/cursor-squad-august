@@ -5,8 +5,8 @@ Documentation owner. Owns README.md, the demo script, and submission narrative; 
 ## Current
 
 - **Issue:** T030 (README) is not started because the product flow is not mounted yet.
-- **Branch:** `docs/herald-money-river`, rebased on `origin/main` @ `639d985`.
-- **State:** Money River specs are present under `specs/001-money-river/`; the pixel subsystem and budget types/seed are landed. `frontend/src/main.tsx` still mounts `StackCheck`, so the README must not claim the Money River experience yet.
+- **Branch:** `docs/herald-money-river`, rebased on `origin/main` @ `d3ce336`.
+- **State:** Money River specs and the organizers' Money World brief are present; the pixel subsystem and budget types/seed are landed. `frontend/src/main.tsx` still mounts `StackCheck`, so the README must not claim the Money River experience yet.
 - **Baseline README:** starter-template documentation with the live URL, Vercel two-service split, SQLite caveat, and manual-deploy warning.
 
 ## Decisions
