@@ -120,7 +120,18 @@ export default function App() {
           <River model={model} budget={budget} onSelectTributary={select} />
         </World>
 
-        <ul className="w-full max-w-md px-4" style={{ paddingBottom: selected ? 260 : 96 }}>
+        {/* Clearance for whichever bar is fixed over the bottom of the page —
+            the action bar (87px) or the open bottom sheet — plus the notch
+            inset. Without it the last category is sliced by the bar on a
+            phone, which reads as a broken list rather than a scrollable one. */}
+        <ul
+          className="w-full max-w-md px-4"
+          style={{
+            paddingBottom: selected
+              ? 'calc(280px + env(safe-area-inset-bottom))'
+              : 'calc(120px + env(safe-area-inset-bottom))',
+          }}
+        >
           {budget.categories.map((category) => (
             <li key={category.id}>
               <button
@@ -155,8 +166,12 @@ export default function App() {
 
       {!selected && (
         <div
-          className="fixed inset-x-0 bottom-0 z-10 flex gap-3 px-4 pb-5 pt-3"
-          style={{ background: HEX.night, borderTop: `3px solid ${HEX.ink}` }}
+          className="fixed inset-x-0 bottom-0 z-10 flex gap-3 px-4 pt-3"
+          style={{
+            background: HEX.night,
+            borderTop: `3px solid ${HEX.ink}`,
+            paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
+          }}
         >
           <button
             type="button"
@@ -171,7 +186,7 @@ export default function App() {
             onClick={() => {
               // Confirmed, because reset throws the whole month away and the
               // button sits next to one a judge will be tapping repeatedly.
-              if (window.confirm('Clear this budget and return to the empty field?')) {
+              if (window.confirm('Clear this month and go back to the empty field?')) {
                 reset()
                 setLastChange(null)
                 setSheet('none')

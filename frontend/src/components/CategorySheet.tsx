@@ -89,7 +89,7 @@ export function CategorySheet({ onSubmit, onCancel }: CategorySheetProps) {
         />
 
         <fieldset className="mt-4">
-          <legend className="font-pixel text-[10px]">Kind</legend>
+          <legend className="font-pixel text-[10px]">Spent or saved?</legend>
           <div className="mt-2 flex gap-3">
             {(['expense', 'savings'] as CategoryKind[]).map((k) => (
               <button
@@ -155,7 +155,7 @@ export function CategorySheet({ onSubmit, onCancel }: CategorySheetProps) {
             className="min-h-[48px] flex-[2] cursor-pointer font-pixel text-[10px] leading-none"
             style={{ background: HEX.gold, color: HEX.ink, border: `3px solid ${HEX.ink}` }}
           >
-            Add tributary
+            Add to the river
           </button>
         </div>
       </form>

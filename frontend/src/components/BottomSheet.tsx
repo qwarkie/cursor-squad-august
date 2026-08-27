@@ -32,8 +32,13 @@ export function BottomSheet({
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-20 w-full px-4 pb-5 pt-4"
-      style={{ background: HEX.night, borderTop: `3px solid ${HEX.ink}`, color: HEX.paper }}
+      className="fixed inset-x-0 bottom-0 z-20 w-full px-4 pt-4"
+      style={{
+        background: HEX.night,
+        borderTop: `3px solid ${HEX.ink}`,
+        color: HEX.paper,
+        paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
+      }}
     >
       <div className="mx-auto w-full max-w-md">
         <div className="flex items-center justify-between gap-3">
