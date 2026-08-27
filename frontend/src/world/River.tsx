@@ -199,17 +199,23 @@ export function River({ model, budget, onSelectTributary }: Props) {
         // Hue alone doesn't carry every colour equally: slate and teal sit
         // close to the water's own blue in RGB space (~85-87 apart) while
         // the rest clear it by 115+ (WEAK_RIM_DISTANCE splits the two
-        // groups). Those two get a thinner water body so more of the branch
-        // shows the colour a person is meant to read, rather than trying to
-        // fix it by shifting a mandated hue.
+        // groups). Those two get a wider inset requested here — but what
+        // that inset does at narrow widths is a separate story, below.
         //
-        // #54 — `branchSpans` floors thickness at 1, so a fixed pixel inset
-        // saturates on any branch at or below its own width: at width 2,
-        // `max(1, 2-4)` and `max(1, 2-2)` are both 1, and Transport (the
-        // branch this exists for) is width 2. Below `bodyWidth`, there is no
-        // room left for a water pixel to mean anything, so the body layer is
-        // skipped rather than forced — the full rim shows instead of a
-        // forced blue pixel diluting it.
+        // #54 — below its own width, the body layer is skipped rather than
+        // floored (see `bodyWidth`), and *that* is what removes the
+        // diluting water pixel — for any branch narrow enough to hit it,
+        // near-water or not. In the seeded demo, Transport (slate) and
+        // Entertainment (plum) are both width 2; Entertainment is on the
+        // *far* side of WEAK_RIM_DISTANCE (115.2) and changed exactly as
+        // much as Transport did (measured: 238 vs. 208 pixels changed in
+        // each branch's own bounding box, `1b4fe34`→`7491cd3`). The
+        // weak/strong split still picks a wider inset for slate/teal, but
+        // at width 2 neither inset (4 nor 2) leaves any room — `bodyWidth`
+        // is negative or zero either way, so it's the *skip*, not the
+        // *inset size*, doing the work here. The split still matters at
+        // widths where the inset has room (Savings, width 8, kept its body
+        // and gained rim area from it — see 5e93f75's measurement).
         const weakRim = rimColor !== null && colorDistance(rimColor, PAL.b!) < WEAK_RIM_DISTANCE
         const bodyInset = rimColor ? (weakRim ? 4 : 2) : 0
         const bodyWidth = trib.width - bodyInset
