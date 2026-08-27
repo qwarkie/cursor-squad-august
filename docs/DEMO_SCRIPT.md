@@ -114,8 +114,26 @@ Enter `6000` → **`Income $6,000`**, `$1,800 left`, **the whole trunk widens**.
 
 ## Contingency — if the network dies at the podium
 
-**Do not debug it in front of a judge.** Switch to the captures and narrate the same script over
-them; the beats are identical.
+**Do not debug it in front of a judge.** Three layers, best first.
+
+**1. Load the page before you present, and it survives the network dying.** Measured on the live
+build: the app makes **no API request at all**, and with the network switched off after load the
+whole path still runs — seed, adjust, overspend, recover, reset. So the real contingency is a
+habit, not an asset: open the URL during the previous team's demo and leave the tab alone.
+
+```
+API requests during load          none
+— network disabled —
+Load demo budget                  $4,200 · balanced — all allocated · $0
+Food, − ×2                        $100 left · "Food −$100 → Remaining +$100"
+Food, + ×4                        −$100 · over budget
+page errors                       none
+```
+
+**2. Run it locally.** `npm --prefix frontend install && npm --prefix frontend run dev` gives the
+entire demo path with no network and no backend. The app never calls out.
+
+**3. The committed captures, with one honest caveat.**
 
 | Beat | Capture |
 |---|---|
@@ -124,8 +142,13 @@ them; the beats are identical.
 | 0:32 adjusting a category | [`docs/screenshots/03-category-sheet.png`](screenshots/03-category-sheet.png) |
 | 0:44 over budget | [`docs/screenshots/04-overspent.png`](screenshots/04-overspent.png) |
 
-Second fallback: `npm --prefix frontend install && npm --prefix frontend run dev` runs the whole
-demo path locally with no network. The app never calls out.
+> **These stills predate the signboards.** They show no signs at the tributary ends; every deployed
+> build does — a named, colour-keyed signboard on each branch. **Every figure and every beat in
+> them is correct; the world art is one revision behind.**
+>
+> Consequence for the narration: over these stills, say *"each branch is colour-coded"* and point at
+> the strokes. Do **not** say *"the signs name each branch"*, because there are no signs in the
+> capture. On the live URL, say it — they are there.
 
 ## The two sentences to land if you only get two
 
