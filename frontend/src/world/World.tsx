@@ -59,9 +59,11 @@ export function World({ model, children, overlay }: Props) {
     pannable,
     canZoomIn,
     canZoomOut,
+    canFit,
+    fitLabel,
     zoomIn,
     zoomOut,
-    fitAll,
+    toggleFit,
     handlers,
   } = useWorldView(WORLD_W, WORLD_H)
 
@@ -157,7 +159,7 @@ export function World({ model, children, overlay }: Props) {
             <ZoomButton label="Zoom out" onClick={zoomOut} disabled={!canZoomOut}>
               −
             </ZoomButton>
-            <ZoomButton label="Fit the whole month on screen" onClick={fitAll}>
+            <ZoomButton label={fitLabel} onClick={toggleFit} disabled={!canFit}>
               ⤢
             </ZoomButton>
             <ZoomButton label="Zoom in" onClick={zoomIn} disabled={!canZoomIn}>

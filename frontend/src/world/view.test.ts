@@ -4,6 +4,7 @@ import {
   clampPan,
   containScale,
   fitScale,
+  fitToggleTarget,
   frameOf,
   panAfterZoom,
   resolveView,
@@ -163,5 +164,42 @@ describe('panAfterZoom', () => {
   it('is a no-op when the scale does not change', () => {
     const frame = { w: 384, h: 512 }
     expect(panAfterZoom({ x: -10, y: -20 }, frame, 4, 4)).toEqual({ x: -10, y: -20 })
+  })
+})
+
+describe('fitToggleTarget', () => {
+  const stage = { w: 1440, h: 774 }
+
+  /**
+   * The regression this exists to prevent: Fit lands on x5 at 1440 and x6 at
+   * 1920 — 576x768, byte for byte the static frame the feature was built to
+   * remove. At +1 a step, getting back was ten presses of a button labelled
+   * something else.
+   */
+  it('goes back to the opening view from the fitted one, in one press', () => {
+    const opened = resolveView(stage, WORLD, null)
+    const fitted = resolveView(stage, WORLD, fitToggleTarget(opened, stage, WORLD))
+    expect(fitted.scale).toBeLessThan(opened.scale)
+    expect(fitToggleTarget(fitted, stage, WORLD)).toBe(opened.scale)
+  })
+
+  it('shows the whole month from a zoomed-in view, not just from the opening one', () => {
+    const zoomed = resolveView(stage, WORLD, 20)
+    const target = fitToggleTarget(zoomed, stage, WORLD)
+    const after = resolveView(stage, WORLD, target)
+    expect(after.pannable).toEqual({ x: false, y: false })
+  })
+
+  it('round-trips: fitted -> opened -> fitted', () => {
+    const a = resolveView(stage, WORLD, null)
+    const b = resolveView(stage, WORLD, fitToggleTarget(a, stage, WORLD))
+    const c = resolveView(stage, WORLD, fitToggleTarget(b, stage, WORLD))
+    expect(c.scale).toBe(a.scale)
+  })
+
+  it('has nothing to offer on a phone, where fit and fill are the same view', () => {
+    const phone = { w: 390, h: 718 }
+    const view = resolveView(phone, WORLD, null)
+    expect(fitToggleTarget(view, phone, WORLD)).toBe(view.scale)
   })
 })

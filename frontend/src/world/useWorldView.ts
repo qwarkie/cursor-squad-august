@@ -3,7 +3,7 @@ import type { PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent }
 
 import {
   clampPan,
-  containScale,
+  fitToggleTarget,
   panAfterZoom,
   resolveView,
   DRAG_SLOP,
@@ -12,14 +12,24 @@ import {
   type View,
 } from './view'
 
-/**
- * Share of the viewport height the world's window may take. Below 1 on
- * purpose: the world is a window onto a place, and a window you can see the
- * edges of reads as a window. Filling the screen would read as a page.
- */
-const FRAME_VH = 0.72
+/** Breathing room under the world, so the frame does not butt the window edge. */
+const BOTTOM_GAP = 16
 /** Under this the world stops being navigable and becomes a letterbox. */
 const MIN_FRAME_H = 280
+
+/**
+ * The height available to the world, measured rather than guessed.
+ *
+ * This was a fraction of the viewport, which left ~140px of empty night below
+ * the frame once the desktop layout moved the action bar into a side rail:
+ * a constant fraction cannot know what else is on the page. `top` is taken at
+ * rest (rect + scrollY) so scrolling cannot feed back into the frame's size —
+ * only the chrome *above* the world decides it, and that does not move.
+ */
+function availableHeight(el: HTMLElement): number {
+  const topAtRest = el.getBoundingClientRect().top + window.scrollY
+  return Math.max(MIN_FRAME_H, Math.round(window.innerHeight - topAtRest - BOTTOM_GAP))
+}
 
 const distance = (a: Pan, b: Pan) => Math.hypot(a.x - b.x, a.y - b.y)
 
@@ -29,10 +39,9 @@ export type WorldView = {
   dragging: boolean
   /** True when the world overflows its window on either axis. */
   pannable: boolean
-  atFit: boolean
   zoomIn: () => void
   zoomOut: () => void
-  fitAll: () => void
+  toggleFit: () => void
   canZoomIn: boolean
   canZoomOut: boolean
 }
@@ -51,10 +60,7 @@ export function useWorldView(worldW: number, worldH: number) {
 
   const [stage, setStage] = useState<Box>(() => ({
     w: typeof window === 'undefined' ? 390 : window.innerWidth,
-    h:
-      typeof window === 'undefined'
-        ? 512
-        : Math.max(MIN_FRAME_H, Math.round(window.innerHeight * FRAME_VH)),
+    h: typeof window === 'undefined' ? 512 : Math.max(MIN_FRAME_H, window.innerHeight),
   }))
   const [request, setRequest] = useState<number | null>(null)
   const [pan, setPan] = useState<Pan>({ x: 0, y: 0 })
@@ -72,7 +78,7 @@ export function useWorldView(worldW: number, worldH: number) {
     if (!el) return
     const measure = () => {
       const w = el.clientWidth || window.innerWidth
-      const h = Math.max(MIN_FRAME_H, Math.round(window.innerHeight * FRAME_VH))
+      const h = availableHeight(el)
       setStage((prev) => (prev.w === w && prev.h === h ? prev : { w, h }))
     }
     measure()
@@ -116,10 +122,8 @@ export function useWorldView(worldW: number, worldH: number) {
 
   const zoomIn = useCallback(() => zoomTo(view.scale + 1), [zoomTo, view.scale])
   const zoomOut = useCallback(() => zoomTo(view.scale - 1), [zoomTo, view.scale])
-  const fitAll = useCallback(
-    () => zoomTo(containScale(stage, world)),
-    [zoomTo, stage, world],
-  )
+  const fitTarget = fitToggleTarget(view, stage, world)
+  const toggleFit = useCallback(() => zoomTo(fitTarget), [zoomTo, fitTarget])
 
   // ---- gestures ------------------------------------------------------------
   // One pointer drags, two pinch. Pointer events rather than touch events so a
@@ -223,7 +227,7 @@ export function useWorldView(worldW: number, worldH: number) {
   }
 
   const onDoubleClick = () => {
-    if (view.scale >= view.maxScale) fitAll()
+    if (view.scale >= view.maxScale) zoomTo(fitTarget)
     else zoomTo(view.scale + 2)
   }
 
@@ -255,7 +259,13 @@ export function useWorldView(worldW: number, worldH: number) {
     canZoomOut: view.scale > view.minScale,
     zoomIn,
     zoomOut,
-    fitAll,
+    toggleFit,
+    /** Same button both ways, so the label has to say which way it is pointing. */
+    fitLabel:
+      fitTarget > view.scale
+        ? 'Fill the screen with the world'
+        : 'Fit the whole month on screen',
+    canFit: fitTarget !== view.scale,
     handlers: {
       onPointerDown,
       onPointerMove,

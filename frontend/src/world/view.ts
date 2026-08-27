@@ -121,3 +121,18 @@ export function panAfterZoom(pan: Pan, frame: Box, from: number, to: number): Pa
     y: (pan.y - frame.h / 2) * k + frame.h / 2,
   }
 }
+
+/**
+ * Fit is a toggle, not a one-way door.
+ *
+ * A 96x128 portrait world genuinely cannot fill a landscape frame while
+ * staying fully visible, so "show me the whole month" always lands well below
+ * the opening scale — at 1920 it lands on 576x768, which is byte for byte the
+ * static frame this whole feature exists to remove. Stepping back by +1 makes
+ * that a ten-press journey with nothing labelled "back". So the same button
+ * returns you to the view you opened on.
+ */
+export function fitToggleTarget(view: View, stage: Box, world: Box): number {
+  const contain = containScale(stage, world)
+  return view.scale <= contain ? view.fit : contain
+}

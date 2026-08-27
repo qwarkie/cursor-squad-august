@@ -247,7 +247,13 @@ export default function App() {
               {/* Coins first, so settlements paint over them — money flows behind
                   the things it built, not in front of them. */}
               <CoinFlow model={model} scale={scale} />
-              <Settlements model={model} budget={budget} scale={scale} />
+              <Settlements
+                model={model}
+                budget={budget}
+                scale={scale}
+                onSelect={select}
+                onEditIncome={() => setSheet('income')}
+              />
             </>
           )}
         >
