@@ -4,7 +4,7 @@ Captured from the **submitted build**, on the live URL, not from a dev server
 and not from `main`:
 
     https://cursor-squad-august-live.vercel.app
-    bundle index-Vuol0JCn.js  ==  78a230a, the certified submission
+    bundle index-BO7g_gsl.js  ==  863822d, what the submitted URL serves now
     headless Chromium, 390 × 844, deviceScaleFactor 2, touch enabled
 
 The bundle hash was asserted at capture time and the run aborts if the live URL
@@ -43,3 +43,18 @@ $ curl -o /dev/null -w '%{http_code}' https://gartersnake.communities.buzz.xyz/m
 
 Re-capture against the live URL after a deploy, at the same viewport, and say
 which commit was live when you did.
+
+## These expire when the host moves, not when the images change
+
+The first set was captured from `78a230a` and stayed byte-correct while the
+submitted URL quietly advanced to `863822d`. Nothing about the files went
+wrong — **the host moved underneath them**, and a still is only true of a
+build.
+
+The `78a230a` set showed a **gradient** empty field: the smooth green ramp
+that `768ac6b` removed for emitting 58 colours, 57 of them outside the twenty.
+Narrating over it would have shown a judge a build carrying a known
+art-bible violation.
+
+So the check is not *are the files intact* but **does a fresh capture of the
+submitted URL match what is committed** — compare hashes, not timestamps.
