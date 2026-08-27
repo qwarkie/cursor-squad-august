@@ -1,0 +1,280 @@
+openapi: 3.1.0
+info:
+  title: Money World API
+  version: 1.0.0
+  description: |
+    HTTP contract for the Money World monthly budget.
+    Existing `/api/items` and `/api/health` remain. Only budget routes are specified here.
+    `POST /api/scenario` is stretch and MUST NOT be required for MVP.
+servers:
+  - url: http://127.0.0.1:8000
+    description: Local uvicorn (`npm run dev:api`)
+  - url: /
+    description: Same-origin via Vite proxy or Vercel `/api` rewrite
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      tags: [meta]
+      summary: Liveness
+      responses:
+        "200":
+          description: API process is up
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+              example:
+                status: ok
+
+  /api/budget:
+    get:
+      operationId: getBudget
+      tags: [budget]
+      summary: Read the singleton May 2026 budget, seeding if missing
+      responses:
+        "200":
+          description: Current budget with server-derived totals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetResponse"
+              examples:
+                seed:
+                  value:
+                    id: 1
+                    month: "2026-05"
+                    income: 4200
+                    categories:
+                      housing: 1500
+                      food: 650
+                      transport: 350
+                      entertainment: 300
+                      savings: 1400
+                    total_allocated: 4200
+                    remaining: 0
+                    savings_rate: 0.3333
+                    overspent: false
+                    updated_at: "2026-08-26T18:00:00"
+        "500":
+          description: Database unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+
+  /api/budget/categories/{category_key}:
+    patch:
+      operationId: updateCategory
+      tags: [budget]
+      summary: Set one category to an absolute non-negative integer amount
+      parameters:
+        - $ref: "#/components/parameters/CategoryKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryUpdate"
+            example:
+              amount: 550
+      responses:
+        "200":
+          description: Full budget after the isolated update
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetResponse"
+              examples:
+                food_minus_100:
+                  value:
+                    id: 1
+                    month: "2026-05"
+                    income: 4200
+                    categories:
+                      housing: 1500
+                      food: 550
+                      transport: 350
+                      entertainment: 300
+                      savings: 1400
+                    total_allocated: 4100
+                    remaining: 100
+                    savings_rate: 0.3333
+                    overspent: false
+                    updated_at: "2026-08-26T18:01:00"
+        "404":
+          description: Unknown category key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+              example:
+                detail: Unknown category
+        "422":
+          description: Missing, non-integer, or negative amount
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+
+  /api/budget/reset:
+    post:
+      operationId: resetBudget
+      tags: [budget]
+      summary: Restore seed income and all five seed category amounts
+      responses:
+        "200":
+          description: Seeded budget
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetResponse"
+        "500":
+          description: Database unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+
+  /api/scenario:
+    post:
+      operationId: applyScenario
+      tags: [stretch]
+      summary: Natural-language scenario (stretch, not MVP)
+      x-optional: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prompt]
+              properties:
+                prompt:
+                  type: string
+                  example: What if I spend $900 on a trip?
+      responses:
+        "200":
+          description: Structured preview only; does not mutate until a future Apply flow
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [category, delta, summary]
+                properties:
+                  category:
+                    $ref: "#/components/schemas/CategoryKey"
+                  delta:
+                    type: integer
+                  summary:
+                    type: string
+        "501":
+          description: Acceptable MVP response if the route is stubbed or absent
+
+components:
+  parameters:
+    CategoryKey:
+      name: category_key
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/CategoryKey"
+
+  schemas:
+    CategoryKey:
+      type: string
+      enum: [housing, food, transport, entertainment, savings]
+
+    CategoryMap:
+      type: object
+      additionalProperties: false
+      required: [housing, food, transport, entertainment, savings]
+      properties:
+        housing:
+          type: integer
+          minimum: 0
+        food:
+          type: integer
+          minimum: 0
+        transport:
+          type: integer
+          minimum: 0
+        entertainment:
+          type: integer
+          minimum: 0
+        savings:
+          type: integer
+          minimum: 0
+
+    CategoryUpdate:
+      type: object
+      additionalProperties: false
+      required: [amount]
+      properties:
+        amount:
+          type: integer
+          minimum: 0
+          description: Absolute monthly amount in integer USD. UI sends multiples of 50; other integers ≥ 0 are valid.
+
+    BudgetResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - month
+        - income
+        - categories
+        - total_allocated
+        - remaining
+        - savings_rate
+        - overspent
+        - updated_at
+      properties:
+        id:
+          type: integer
+        month:
+          type: string
+          enum: ["2026-05"]
+        income:
+          type: integer
+          minimum: 0
+        categories:
+          $ref: "#/components/schemas/CategoryMap"
+        total_allocated:
+          type: integer
+          description: Server-computed sum of category amounts
+        remaining:
+          type: integer
+          description: income - total_allocated (may be negative)
+        savings_rate:
+          type: number
+          description: savings / income; seed serializes as 0.3333
+        overspent:
+          type: boolean
+          description: true iff remaining < 0
+        updated_at:
+          type: string
+          format: date-time
+
+    ErrorMessage:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string
+
+    ValidationError:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: object
