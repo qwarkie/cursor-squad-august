@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type { RiverModel } from '../engine'
+import { GrassField } from './GrassField'
 
 /**
  * The world grid, per art-bible.md §1. Everything in the SVG draws in this
@@ -70,6 +71,14 @@ export function World({ children, overlay }: Props) {
       }}
       data-scale={scale}
     >
+      {/* Generated field, not a fill: grass.ts scatters blades, shadow specks
+          and lit patches from a hash of the cell coordinates, so it is
+          identical on every load (FR-015) and costs one data URL rather than
+          several hundred rects. backgroundColor above stays as the fallback. */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <GrassField width={WORLD_W} height={WORLD_H} scale={scale} />
+      </div>
+
       <svg
         viewBox={`0 0 ${WORLD_W} ${WORLD_H}`}
         width={width}
