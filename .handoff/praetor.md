@@ -165,31 +165,55 @@ which makes a board useless to anyone hunting for remaining work. Open spine at 
    revert, ranked by points-per-minute.
 
 
-## FREEZE QUEUE — pre-vetted, publish at 02:32
+## FREEZE QUEUE — published at 01:57, FREEZE called 35 min early
 
-Eight changes cut for time, each individually safe: under 15 minutes, single file, obvious revert.
-Ranked by points-per-minute against Technical Execution and Functional Completeness. **Deadlines get
-extended when organizers hit technical problems; this queue converts that window into rank while
-other teams improvise risky edits into a working build. Costs four minutes if no window opens.**
+Spine was complete and verified, so the risk from here is unmanaged edits to a working build, not
+missing features. **The queue is the only permitted change set.** Each item under 15 minutes, single
+file, obvious revert, ranked by points-per-minute against Technical Execution and Functional
+Completeness. Execute in order, one commit each, verify `typecheck && test && build` **and the live
+asset hash** after every one.
 
-Nothing here is required for the demo to pass. Execute strictly in order, one commit each, verify
-`typecheck && test && build` and the live asset hash after every one.
-
-| # | Change | File | Why it ranks here |
+| # | Change | File | Note |
 |---|---|---|---|
-| 1 | Shorten `balanced: 'balanced — all allocated'` to `'balanced'` | `components/Header.tsx:22` | The header wraps to six lines at 390px and this one string is the cause. First thing a judge reads. One word, one file. |
-| 2 | Add bottom padding so the category list clears the button bar | `App.tsx` | `Transport $350` is sliced mid-row by the fixed bar. Reads as a broken layout; one utility class. |
-| 3 | Reference the committed screenshots by relative path | `README.md` | `docs/screenshots/*.png` are on `main` (`82855fb`). Relay media URLs 401 for anonymous readers, so a judge sees broken images. Only needed if Herald's rewrite lands without them. |
-| 4 | `transition: stroke-width 300ms ease-out` on the trunk and tributary paths | `world/River.tsx` | T021, cut at gate 1. Satisfies SC-003 and makes the reshape read as water moving rather than numbers jumping. One CSS property. |
-| 5 | Re-enable width and number transitions at 150ms under `prefers-reduced-motion` | `index.css` | T027. `index.css` collapses every animation to `0.01ms`, which satisfies FR-016 but also kills transitions that carry meaning rather than decoration. |
-| 6 | Unify the minus glyph | `components/Header.tsx` or the overspend string | Header uses `−` U+2212, overspend text uses ASCII `-`. Same number, two shapes, one screen. |
-| 7 | Place `MARKET` on the food tributary | `world/Settlements.tsx` | Sprite is built, tested, and imported nowhere. Brief lists market in its finance-to-world mapping. Drop without discussion if it fights the layout. |
-| 8 | Swap tributaries from straight lines to the meander curve | `world/geometry.ts` | T015 shipped provisional straight lines with the swap point marked. **Last on purpose** — highest visual payoff, highest chance of breaking a working river. Do not attempt under 15 minutes remaining. |
+| 1 | `transition: stroke-width 300ms ease-out` on trunk + tributary paths | `world/River.tsx` | T021, cut at gate 1. SC-003. One property. |
+| 2 | Re-enable width/number transitions at 150ms under `prefers-reduced-motion` | `index.css` | T027. **Does nothing without #1** — pair or neither. |
+| 3 | Place `MARKET` on the food tributary | `world/Settlements.tsx` | Built, tested, imported nowhere. In the brief's mapping. Drop if it fights the layout. |
+| 4 | Coins riding the river | new `world/Coins.tsx` | T013, cut at gate 1. Brief lists flowing coins. New file = clean revert. |
+| 5 | Tributaries: straight lines -> meander curve | `world/geometry.ts` | **Last on purpose.** Highest payoff, highest chance of breaking a working river. **Not under 15 minutes remaining.** |
 
-**Explicitly not in the queue and not to be built under any extension: the natural-language AI
-scenario field.** The brief calls it optional and says it must not block the core demo; our spec put
-it out of scope; the July retro found zero repos ran agent loops and deterministic calculators won.
-An extension is exactly enough time to half-wire it and break a working demo.
+Taken before publication: `b0d1f99` header wrap + list clipping + minus glyph; `ebc8c26` README URL
++ stale warning + relative screenshot paths.
+
+**Not in the queue, forbidden under any extension: the natural-language AI scenario field.** Brief
+calls it optional and says it must not block the core demo. July retro: zero repos ran agent loops,
+deterministic calculators won, technical scores saturated at 8.45/10 with near-zero rank
+correlation. An extension is exactly enough time to half-wire it and break a working demo.
+
+**Brief deliverable nobody owned:** §90-Minute Execution Plan, 80-90 min — *"Rehearse demo. Seed
+data reset, 60-second script, contingency screenshot/video."* Assigned to Herald at freeze. The four
+captures in `docs/screenshots/` are the fallback material.
+
+## THE LESSON THAT COST THE MOST — my task rule manufactured an orphaned requirement
+
+`setSheet('income')` had exactly one caller, on the empty field. **FR-002's "enter *and later edit*"
+was unreachable from the running app and US1 scenario 3 could not be performed at all** — until
+`31f5367`, found at T-50 by Honey.
+
+T010 built the income sheet. T026 wired the composition. **Neither owned the trigger for the
+already-has-a-budget case, so the requirement was nobody's and both tasks closed green.**
+
+That hole is cut by my own rule: *"every task touches exactly one owned surface."* It prevented
+merge fights all night **and** it manufactured this. Both are true. The fix is not to drop the rule
+— it is to add a step:
+
+> **After generating tasks, walk every FR and every user-story scenario and name the task that makes
+> it reachable.** A requirement that spans two surfaces needs a task that owns the seam, or it
+> belongs to nobody. Task coverage is not requirement coverage.
+
+**And the pass that finds these: read the spec against the shipped app, never against the task
+list.** A walk written from the task list asks the questions the task list already asked. Four
+defects tonight — ghost river, round caps, capped settlements, unreachable income edit — every one
+invisible to 127 passing tests, every one found by a person looking at the running product.
 
 ## Decision log
 
@@ -201,6 +225,7 @@ An extension is exactly enough time to half-wire it and break a working demo.
 | **gate 1 — 01:39 UTC** | `HOLD` | nothing new at this gate; standing cuts T013 coins and T021 width transitions to `optional` | engine done, path builders done, entry point done, sprites done; world shell, chrome, #47 integration, deploy-walk all open | the T020 slider — keep `-`/`+`, the $50 steps carry the interaction — then T022 trade-off sentence |
 | **gate 2 — 01:36 UTC** (called early) | `CUT T019` | T019 tap-to-select to `optional` (the category list already satisfies the brief's tappable-district line); T023 scoped to the balanced-vs-dry distinction, sprite tail declared droppable | T011 + T015 — `River.tsx` did not exist on **any** remote ref with ~65 min left, all remaining risk in one file with one owner | T023's whole visual treatment; the header text already signals overspend |
 | **gate 3 — 01:43 UTC** | `HOLD` | nothing — spine landed instead | #42 the walk, #43 the README | the meander curve. Tributaries ship as provisional straight lines and nobody is to spend clock on the curve before FREEZE |
+| **FREEZE — 01:57 UTC** (35 min early) | `FREEZE` | nothing further; queue published as the only permitted change set | none — all spine landed and verified, 11/11 brief acceptance criteria pass | queue item 5, the meander curve. It is last for a reason and must not be attempted under 15 minutes remaining |
 
 ## Grounding
 
