@@ -117,6 +117,19 @@ body {
   animation: sheet-in 250ms ease-out both;
 }
 
+/* The trade-off sentence holds its row whether or not it has anything to say,
+   and fades rather than appearing. Mounting it on the first adjustment shifted
+   the world down 35px and unmounting it shifted the world back — the river
+   moving for a reason that has nothing to do with the budget. */
+.trade-off {
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+
+.trade-off[data-showing='true'] {
+  opacity: 1;
+}
+
 @keyframes backdrop-in {
   from {
     opacity: 0;
