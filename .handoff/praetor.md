@@ -534,7 +534,9 @@ does it catch EVERY case it was       the four above ask whether an instrument c
   written for?                          this asks whether it did, on the cases that motivated it
 which case can you NOT produce?       name it as unproven; someone else can build it for you
 is the baseline pinned BEFORE the     "X must be unchanged" is unenforceable otherwise
-  work that must not change it?
+  work that must not change it?         — and NEVER re-capture to clear a red: ask the old
+                                        reference which entries moved, because re-capturing
+                                        destroys the evidence that the rest did not
 did every check you wrote actually    a ratio hides a missing verdict: the denominator
   RUN?                                  shrinks with the numerator
 can the quantity you measure even    a container set to CLIP answers "do you scroll?"
