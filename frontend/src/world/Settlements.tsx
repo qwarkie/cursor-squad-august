@@ -109,16 +109,21 @@ export function Settlements({ model, scale }: Props) {
 function OverspendMark({ model, scale }: { model: RiverModel; scale: number }) {
   const last = model.segments[model.segments.length - 1]
   if (!last) return null
-  // Just below the last branch, not at the mouth — the reservoir/settlements
-  // of the last tributary sit near `toY`, and the two collided there.
-  const left = trunkX(last.fromY) * scale
+
+  // The dry bed starts exactly where the last tributary branches, so its
+  // settlements/reservoir sit at almost this same height. Nudging the
+  // (still centred) anchor to the side *opposite* that tributary is what
+  // clears it — centred-on-trunk only worked when there was no last
+  // tributary nearby to collide with. Nudge, not edge-anchor: this stays
+  // inside the 96 art-px canvas at every meander phase and scale.
+  const lastTrib = model.tributaries[model.tributaries.length - 1]
+  const clearSide = lastTrib?.side === 'right' ? 'left' : 'right'
+  const nudge = 8 // art-px, away from the trunk centreline
+  const left = (trunkX(last.fromY) + (clearSide === 'left' ? -nudge : nudge)) * scale
   const top = (last.fromY + 4) * scale
 
   return (
-    <div
-      className="absolute -translate-x-1/2 -translate-y-1/2 text-center"
-      style={{ left, top }}
-    >
+    <div className="absolute -translate-x-1/2 -translate-y-1/2 text-center" style={{ left, top }}>
       <div className="flex items-center justify-center gap-1">
         <PixelSprite art={CRACK} palette={PAL} scale={scale} alt="" />
         <PixelSprite art={WARNING} palette={PAL} scale={scale} fps={2} alt="Overspent" />
