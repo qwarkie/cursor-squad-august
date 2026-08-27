@@ -33,6 +33,16 @@ export interface BudgetState {
   setCategoryAmount: (id: string, amount: number) => void
   setCategoryIcon: (id: string, icon: CategoryIcon) => void
   removeCategory: (id: string) => void
+  /**
+   * Move a category one place up or down the list.
+   *
+   * Order is not cosmetic here: the engine derives `carried(i)` from the sum of
+   * every amount above `i`, so the position of a category decides where its
+   * tributary leaves the trunk and how wide the river still is below it. Moving
+   * savings to the top draws "pay yourself first" — the same remaining figure,
+   * a different river.
+   */
+  moveCategory: (id: string, direction: 'up' | 'down') => void
   select: (id: string | null) => void
   loadDemo: () => void
   reset: () => void
@@ -127,6 +137,21 @@ export function createBudgetStore(storage: BudgetStorage | null) {
         }),
         selectedId: s.selectedId === id ? null : s.selectedId,
       })),
+
+    moveCategory: (id, direction) =>
+      set((s) => {
+        const categories = s.budget.categories
+        const from = categories.findIndex((c) => c.id === id)
+        const to = from + (direction === 'up' ? -1 : 1)
+        // Out of range, or the id is not in this budget: nothing moves, and no
+        // write happens — a no-op must not touch storage or the updatedAt stamp.
+        if (from === -1 || to < 0 || to >= categories.length) return s
+
+        const next = categories.slice()
+        next[from] = categories[to]
+        next[to] = categories[from]
+        return commit(s, { ...s.budget, categories: next })
+      }),
 
     select: (id) => set({ selectedId: id }),
 

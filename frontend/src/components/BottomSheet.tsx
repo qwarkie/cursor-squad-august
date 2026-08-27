@@ -12,12 +12,35 @@ import { HEX, hexForCategory } from './palette'
  */
 const STEP = 50
 
+/**
+ * Spelled out to about the number of categories a month has room for; past
+ * that the numeral is fine, and nobody is ordering a fourteenth tributary.
+ */
+const ORDINAL: Record<number, string> = {
+  1: 'first',
+  2: 'second',
+  3: 'third',
+  4: 'fourth',
+  5: 'fifth',
+  6: 'sixth',
+  7: 'seventh',
+  8: 'eighth',
+}
+
 export interface BottomSheetProps {
   category: Category
   /** Ceiling for the slider: this category's amount plus whatever is unspent. */
   sliderMax: number
   onChange: (amount: number) => void
   onIcon: (icon: CategoryIcon) => void
+  /**
+   * Where this category sits in the order the river is taken in, 1-based, and
+   * how many there are. Both are needed to disable the ends: at the top there
+   * is nothing to move above, at the bottom nothing to move below.
+   */
+  position: number
+  total: number
+  onMove: (direction: 'up' | 'down') => void
   onRemove: () => void
   onClose: () => void
 }
@@ -27,6 +50,9 @@ export function BottomSheet({
   sliderMax,
   onChange,
   onIcon,
+  position,
+  total,
+  onMove,
   onRemove,
   onClose,
 }: BottomSheetProps) {
@@ -109,6 +135,37 @@ export function BottomSheet({
             <IconPicker value={category.icon} onChange={onIcon} />
           </div>
         )}
+
+        {/* Order is not cosmetic: the trunk narrows in the order these are
+            taken, so the same six numbers draw a different river depending on
+            what comes first. The label says which position you are in rather
+            than just offering arrows, because the arrows alone do not tell you
+            that position is a thing that matters. */}
+        <div className="mt-3 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => onMove('up')}
+            disabled={position <= 1}
+            aria-label={`Take ${category.label} earlier`}
+            className="size-[48px] shrink-0 cursor-pointer font-pixel text-[12px] leading-none disabled:cursor-default disabled:opacity-30"
+            style={{ background: 'transparent', color: HEX.paper, border: `2px solid ${HEX.paper}` }}
+          >
+            ▲
+          </button>
+          <p className="min-w-0 flex-1 text-center text-xs leading-snug opacity-70">
+            Taken {ORDINAL[position] ?? `${position}th`} of {total}
+          </p>
+          <button
+            type="button"
+            onClick={() => onMove('down')}
+            disabled={position >= total}
+            aria-label={`Take ${category.label} later`}
+            className="size-[48px] shrink-0 cursor-pointer font-pixel text-[12px] leading-none disabled:cursor-default disabled:opacity-30"
+            style={{ background: 'transparent', color: HEX.paper, border: `2px solid ${HEX.paper}` }}
+          >
+            ▼
+          </button>
+        </div>
 
         <button
           type="button"

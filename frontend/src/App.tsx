@@ -50,6 +50,7 @@ export default function App() {
   const setCategoryAmount = useBudget((s) => s.setCategoryAmount)
   const setCategoryIcon = useBudget((s) => s.setCategoryIcon)
   const removeCategory = useBudget((s) => s.removeCategory)
+  const moveCategory = useBudget((s) => s.moveCategory)
   const select = useBudget((s) => s.select)
   const loadDemo = useBudget((s) => s.loadDemo)
   const reset = useBudget((s) => s.reset)
@@ -239,6 +240,9 @@ export default function App() {
           sliderMax={selected.amount + Math.max(model.remaining, 0)}
           onChange={(amount) => changeAmount(selected.id, selected.label, amount, selected.amount)}
           onIcon={(icon) => setCategoryIcon(selected.id, icon)}
+          position={budget.categories.findIndex((c) => c.id === selected.id) + 1}
+          total={budget.categories.length}
+          onMove={(direction) => moveCategory(selected.id, direction)}
           onRemove={() => {
             removeCategory(selected.id)
             setLastChange({ id: selected.id, label: selected.label, delta: -selected.amount })

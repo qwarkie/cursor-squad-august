@@ -237,3 +237,99 @@ describe('remainingOf', () => {
     expect(remainingOf(EMPTY_BUDGET)).toBe(0)
   })
 })
+
+describe('moveCategory — order is what the river draws', () => {
+  const ids = (store: ReturnType<typeof createBudgetStore>) =>
+    store.getState().budget.categories.map((c) => c.id)
+
+  const seeded = () => {
+    const store = createBudgetStore(fakeStorage())
+    store.getState().loadDemo()
+    return store
+  }
+
+  it('swaps a category with the one above it', () => {
+    const store = seeded()
+    const before = ids(store)
+    store.getState().moveCategory(before[2], 'up')
+    const after = ids(store)
+    expect(after[1]).toBe(before[2])
+    expect(after[2]).toBe(before[1])
+  })
+
+  it('swaps a category with the one below it', () => {
+    const store = seeded()
+    const before = ids(store)
+    store.getState().moveCategory(before[0], 'down')
+    const after = ids(store)
+    expect(after[0]).toBe(before[1])
+    expect(after[1]).toBe(before[0])
+  })
+
+  it('keeps every category — a move is not a delete', () => {
+    const store = seeded()
+    const before = ids(store)
+    store.getState().moveCategory(before[3], 'up')
+    expect([...ids(store)].sort()).toEqual([...before].sort())
+  })
+
+  /**
+   * The whole point of the feature: order changes what the trunk carries below
+   * each branch, while the arithmetic outcome is untouched. Savings first is
+   * "pay yourself first" — the same money left, taken in a different order.
+   */
+  it('changes what the trunk carries without changing what is left', () => {
+    const store = seeded()
+    const before = remainingOf(store.getState().budget)
+    const savings = store.getState().budget.categories.find((c) => c.kind === 'savings')!
+    const wasAt = ids(store).indexOf(savings.id)
+
+    for (let i = wasAt; i > 0; i -= 1) store.getState().moveCategory(savings.id, 'up')
+
+    expect(ids(store)[0]).toBe(savings.id)
+    expect(remainingOf(store.getState().budget)).toBe(before)
+  })
+
+  it('does nothing at the ends, and does not touch storage doing it', () => {
+    const storage = fakeStorage()
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    const written = storage.data[STORAGE_KEY]
+    const list = ids(store)
+
+    store.getState().moveCategory(list[0], 'up')
+    store.getState().moveCategory(list[list.length - 1], 'down')
+
+    expect(ids(store)).toEqual(list)
+    expect(storage.data[STORAGE_KEY]).toBe(written)
+  })
+
+  it('ignores an id that is not in the budget', () => {
+    const store = seeded()
+    const before = ids(store)
+    store.getState().moveCategory('not-a-real-id', 'up')
+    expect(ids(store)).toEqual(before)
+  })
+
+  it('persists the new order, so a reload draws the same river', () => {
+    const storage = fakeStorage()
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    const target = ids(store)[4]
+    store.getState().moveCategory(target, 'up')
+
+    const reloaded = createBudgetStore(storage)
+    expect(reloaded.getState().budget.categories.map((c) => c.id)).toEqual(ids(store))
+  })
+
+  it('surfaces a failed write rather than swallowing it', () => {
+    const store = createBudgetStore(fakeStorage())
+    store.getState().loadDemo()
+    const target = ids(store)[1]
+
+    const failing = createBudgetStore(fakeStorage({}, true))
+    failing.getState().loadDemo()
+    failing.getState().moveCategory(target, 'up')
+    expect(failing.getState().storageError).toBeTruthy()
+  })
+})
