@@ -49,8 +49,11 @@ export default function App() {
   const addCategory = useBudget((s) => s.addCategory)
   const setCategoryAmount = useBudget((s) => s.setCategoryAmount)
   const setCategoryIcon = useBudget((s) => s.setCategoryIcon)
+  const setCategoryLabel = useBudget((s) => s.setCategoryLabel)
   const removeCategory = useBudget((s) => s.removeCategory)
   const moveCategory = useBudget((s) => s.moveCategory)
+  const undoLabel = useBudget((s) => s.undoLabel)
+  const undo = useBudget((s) => s.undo)
   const select = useBudget((s) => s.select)
   const loadDemo = useBudget((s) => s.loadDemo)
   const reset = useBudget((s) => s.reset)
@@ -69,6 +72,11 @@ export default function App() {
           onAddIncome={() => setSheet('income')}
           onLoadDemo={() => {
             loadDemo()
+            setLastChange(null)
+          }}
+          undoLabel={undoLabel}
+          onUndo={() => {
+            undo()
             setLastChange(null)
           }}
         />
@@ -124,7 +132,19 @@ export default function App() {
         </p>
       )}
 
-      <TradeOff change={lastChange} />
+      {/* The sentence and the way back from it, in one row.
+          Undoing clears the sentence rather than negating it: `Food −$100`
+          describes a change that no longer happened, and printing
+          `Food +$100` next would claim the person moved money back when what
+          they did was take the move away. */}
+      <TradeOff
+        change={lastChange}
+        undoLabel={undoLabel}
+        onUndo={() => {
+          undo()
+          setLastChange(null)
+        }}
+      />
 
       <main className="flex flex-1 flex-col items-center gap-4 py-4">
         <World
@@ -243,6 +263,7 @@ export default function App() {
           position={budget.categories.findIndex((c) => c.id === selected.id) + 1}
           total={budget.categories.length}
           onMove={(direction) => moveCategory(selected.id, direction)}
+          onRename={(label) => setCategoryLabel(selected.id, label)}
           onRemove={() => {
             removeCategory(selected.id)
             setLastChange({ id: selected.id, label: selected.label, delta: -selected.amount })

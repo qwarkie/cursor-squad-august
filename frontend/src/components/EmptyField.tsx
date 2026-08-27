@@ -34,9 +34,25 @@ const FIELD_SCALE = 4
 export interface EmptyFieldProps {
   onAddIncome: () => void
   onLoadDemo: () => void
+  /**
+   * What undo would take back, or `null` on a genuine first load.
+   *
+   * The empty field is reachable two ways that feel nothing alike: arriving
+   * here for the first time, and having just cleared a month. The opening
+   * frame must stay bare — it is the one moment that teaches the metaphor
+   * without a word — so the control is absent entirely rather than present
+   * and disabled. On a first load there is no history and nothing renders.
+   */
+  undoLabel: string | null
+  onUndo: () => void
 }
 
-export function EmptyField({ onAddIncome, onLoadDemo }: EmptyFieldProps) {
+export function EmptyField({
+  onAddIncome,
+  onLoadDemo,
+  undoLabel,
+  onUndo,
+}: EmptyFieldProps) {
   return (
     <div
       className="relative flex min-h-dvh w-full flex-col items-center justify-between overflow-hidden px-4 pb-8 pt-16"
@@ -119,6 +135,25 @@ export function EmptyField({ onAddIncome, onLoadDemo }: EmptyFieldProps) {
         >
           Load demo budget
         </button>
+
+        {/* Only after a reset, never on a first load. This is the one undo
+            the app most needs and the one it could not reach: the empty
+            field returns early, so the trade-off row that carries Undo
+            everywhere else is never mounted here. A confirm asks before;
+            this answers after, which is the half that helps the person who
+            already tapped Reset. */}
+        {undoLabel !== null && (
+          <button
+            type="button"
+            onClick={onUndo}
+            aria-label={`Undo ${undoLabel}`}
+            data-undo="true"
+            className="min-h-[44px] w-full cursor-pointer px-6 font-pixel text-[10px] leading-none underline decoration-dotted underline-offset-4 transition-transform active:translate-y-[2px]"
+            style={{ background: 'transparent', color: HEX.cream, textShadow: `2px 2px 0 ${HEX.ink}` }}
+          >
+            Undo {undoLabel}
+          </button>
+        )}
       </div>
     </div>
   )

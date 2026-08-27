@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { EMPTY_BUDGET, SEEDED_BUDGET } from '../fixtures/budget'
-import { createBudgetStore, remainingOf } from './budget'
+import { createBudgetStore, MAX_HISTORY, remainingOf } from './budget'
 import { parseBudget, readBudget, writeBudget, STORAGE_KEY, type BudgetStorage } from './storage'
 
 /** A `localStorage` stand-in. `fail` makes writes throw, like a full quota. */
@@ -227,6 +227,261 @@ describe('the store', () => {
     store.getState().removeCategory('food')
     expect(store.getState().selectedId).toBeNull()
     expect(store.getState().budget.categories.map((c) => c.id)).not.toContain('food')
+  })
+})
+
+describe('rename', () => {
+  let storage: ReturnType<typeof fakeStorage>
+  beforeEach(() => {
+    storage = fakeStorage()
+  })
+
+  it('renames in place and does not move the category', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    store.getState().setCategoryLabel('entertainment', 'Fun')
+    const after = store.getState().budget.categories
+    expect(after.map((c) => c.label)).toEqual(['Housing', 'Food', 'Transport', 'Fun', 'Savings'])
+    // The position is the point: index fixes where the tributary meets the
+    // trunk, so a rename that reordered would reshape the river.
+    expect(after.findIndex((c) => c.id === 'entertainment')).toBe(3)
+  })
+
+  it('keeps the id, so the selection and the geometry survive the rename', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    store.getState().select('food')
+    store.getState().setCategoryLabel('food', 'Groceries')
+    expect(store.getState().selectedId).toBe('food')
+    expect(store.getState().budget.categories.find((c) => c.id === 'food')?.label).toBe('Groceries')
+  })
+
+  it('leaves amount, kind, colour and icon untouched', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    const before = store.getState().budget.categories.find((c) => c.id === 'transport')!
+    store.getState().setCategoryLabel('transport', 'Commute')
+    const after = store.getState().budget.categories.find((c) => c.id === 'transport')!
+    expect(after).toEqual({ ...before, label: 'Commute' })
+  })
+
+  it('ignores a blank or whitespace-only label rather than storing one', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    const before = store.getState().undoLabel
+    store.getState().setCategoryLabel('food', '   ')
+    expect(store.getState().budget.categories.find((c) => c.id === 'food')?.label).toBe('Food')
+    // And it is not a step back either — nothing happened, so undo must not
+    // offer to take back a rename that never landed.
+    expect(store.getState().undoLabel).toBe(before)
+  })
+
+  it('trims and caps at 20 characters, exactly as addCategory does', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    store.getState().setCategoryLabel('food', '  Extremely Long Category Name  ')
+    expect(store.getState().budget.categories.find((c) => c.id === 'food')?.label).toBe(
+      'Extremely Long Categ',
+    )
+  })
+
+  it('ignores an unknown id and a no-op rename', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    const before = store.getState().budget
+    store.getState().setCategoryLabel('nope', 'Anything')
+    store.getState().setCategoryLabel('food', 'Food')
+    expect(store.getState().budget).toBe(before)
+    expect(store.getState().undoLabel).toBe('loading the demo budget')
+  })
+
+  it('persists the new label', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    store.getState().setCategoryLabel('housing', 'Rent')
+    expect(parseBudget(storage.data[STORAGE_KEY]).categories[0].label).toBe('Rent')
+  })
+})
+
+describe('undo', () => {
+  let storage: ReturnType<typeof fakeStorage>
+  beforeEach(() => {
+    storage = fakeStorage()
+  })
+
+  it('has nothing to undo on a fresh store', () => {
+    const store = createBudgetStore(storage)
+    expect(store.getState().undoLabel).toBeNull()
+    store.getState().undo()
+    expect(store.getState().budget).toEqual(EMPTY_BUDGET)
+  })
+
+  it('brings back a removed category with its amount, colour, icon and position', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    const before = store.getState().budget.categories
+    store.getState().removeCategory('transport')
+    expect(store.getState().budget.categories).toHaveLength(4)
+    store.getState().undo()
+    // Not "a category called Transport is back" — the same one, in the same
+    // place. Removing and re-adding by hand cannot produce this.
+    expect(store.getState().budget.categories).toEqual(before)
+  })
+
+  it('names what it would take back', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    store.getState().removeCategory('food')
+    expect(store.getState().undoLabel).toBe('removing Food')
+    store.getState().undo()
+    expect(store.getState().undoLabel).toBe('loading the demo budget')
+    store.getState().undo()
+    expect(store.getState().undoLabel).toBeNull()
+  })
+
+  it('collapses one slider drag into a single step back', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    for (let amount = 600; amount >= 200; amount -= 50) {
+      store.getState().setCategoryAmount('food', amount)
+    }
+    expect(store.getState().budget.categories[1].amount).toBe(200)
+    store.getState().undo()
+    // One undo, back to before the whole gesture — not nine undos through
+    // every $50 the finger passed over.
+    expect(store.getState().budget.categories[1].amount).toBe(650)
+  })
+
+  it('starts a new step when the drag moves to a different category', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    store.getState().setCategoryAmount('food', 600)
+    store.getState().setCategoryAmount('housing', 1400)
+    store.getState().undo()
+    expect(store.getState().budget.categories[0].amount).toBe(1500)
+    expect(store.getState().budget.categories[1].amount).toBe(600)
+    store.getState().undo()
+    expect(store.getState().budget.categories[1].amount).toBe(650)
+  })
+
+  it('coalesces a rename the same way, so typing a name is one step', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    for (const label of ['G', 'Gr', 'Gro', 'Groceries']) {
+      store.getState().setCategoryLabel('food', label)
+    }
+    expect(store.getState().budget.categories[1].label).toBe('Groceries')
+    store.getState().undo()
+    expect(store.getState().budget.categories[1].label).toBe('Food')
+  })
+
+  it('takes back a reset, which a confirm can only ask about beforehand', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    const seeded = store.getState().budget
+    store.getState().reset()
+    expect(store.getState().budget.categories).toEqual([])
+    store.getState().undo()
+    expect(store.getState().budget).toEqual(seeded)
+  })
+
+  it('takes back an income change and an added category', () => {
+    const store = createBudgetStore(storage)
+    store.getState().setIncome(4200)
+    store.getState().addCategory({ label: 'Food', amount: 650, kind: 'expense', color: 'f' })
+    store.getState().undo()
+    expect(store.getState().budget.categories).toEqual([])
+    expect(store.getState().budget.income).toBe(4200)
+    store.getState().undo()
+    expect(store.getState().budget.income).toBe(0)
+  })
+
+  it('closes the sheet when undo removes the category it was pointing at', () => {
+    const store = createBudgetStore(storage)
+    store.getState().setIncome(4200)
+    store.getState().addCategory({ label: 'Food', amount: 650, kind: 'expense', color: 'f' })
+    store.getState().select('food')
+    store.getState().undo()
+    // Undoing the add deletes the very thing the bottom sheet is open on.
+    expect(store.getState().selectedId).toBeNull()
+  })
+
+  it('keeps a selection that still exists after the step back', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    store.getState().select('food')
+    store.getState().setCategoryAmount('food', 500)
+    store.getState().undo()
+    expect(store.getState().selectedId).toBe('food')
+  })
+
+  it('persists the step back, so a reload does not resurrect the undone change', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    const seeded = storage.data[STORAGE_KEY]
+    store.getState().removeCategory('savings')
+    store.getState().undo()
+    expect(storage.data[STORAGE_KEY]).toBe(seeded)
+  })
+
+  /**
+   * Pinned deliberately rather than incidentally: the snapshot is restored
+   * whole, `updatedAt` included, so N actions followed by N undos leave the
+   * budget byte-identical to where it started. Re-stamping the clock on the
+   * way back would make undo a change of its own, and the one property worth
+   * having here is that it is not.
+   */
+  it('restores the snapshot whole, so N actions and N undos are a round trip', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    const start = store.getState().budget
+    store.getState().setCategoryAmount('food', 100)
+    store.getState().removeCategory('transport')
+    store.getState().setCategoryLabel('housing', 'Rent')
+    store.getState().undo()
+    store.getState().undo()
+    store.getState().undo()
+    expect(store.getState().budget).toEqual(start)
+  })
+
+  it('surfaces a failed write on the way back, rather than undoing silently', () => {
+    const failing = fakeStorage({}, true)
+    const store = createBudgetStore(failing)
+    store.getState().loadDemo()
+    store.getState().undo()
+    expect(store.getState().storageError).toBeTruthy()
+  })
+
+  it('is bounded, and drops the oldest step rather than growing without end', () => {
+    const store = createBudgetStore(storage)
+    store.getState().setIncome(1000)
+    // Distinct categories, so nothing coalesces and every one is its own step.
+    for (let i = 0; i < MAX_HISTORY + 10; i++) {
+      store.getState().addCategory({ label: `C${i}`, amount: 1, kind: 'expense', color: 'f' })
+    }
+    expect(store.getState().past).toHaveLength(MAX_HISTORY)
+    for (let i = 0; i < MAX_HISTORY; i++) store.getState().undo()
+    expect(store.getState().undoLabel).toBeNull()
+    // The oldest steps are gone, so undo cannot reach the empty field — it
+    // stops at the oldest step it still holds rather than misreporting.
+    expect(store.getState().budget.categories.length).toBeGreaterThan(0)
+  })
+
+  it('does not redo — a second undo goes further back, never forward', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    store.getState().setCategoryAmount('food', 100)
+    store.getState().undo()
+    store.getState().undo()
+    expect(store.getState().budget).toEqual(EMPTY_BUDGET)
+  })
+
+  it('is never itself a step back, so undo cannot be undone into a loop', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    const depth = store.getState().past.length
+    store.getState().undo()
+    expect(store.getState().past.length).toBe(depth - 1)
   })
 })
 

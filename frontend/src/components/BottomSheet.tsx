@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 import type { Category, CategoryIcon } from '../types'
 import { IconPicker } from './IconPicker'
 import { formatMoney } from './money'
@@ -41,6 +43,7 @@ export interface BottomSheetProps {
   position: number
   total: number
   onMove: (direction: 'up' | 'down') => void
+  onRename: (label: string) => void
   onRemove: () => void
   onClose: () => void
 }
@@ -53,11 +56,38 @@ export function BottomSheet({
   position,
   total,
   onMove,
+  onRename,
   onRemove,
   onClose,
 }: BottomSheetProps) {
   const swatch = hexForCategory(category.color)
   const step = (delta: number) => onChange(Math.max(0, category.amount + delta))
+
+  /**
+   * The title is the rename control, so renaming costs the sheet no height.
+   *
+   * A separate row would have been the obvious build and the wrong one: the
+   * sheet's clearance is a hardcoded number in `App.tsx`, and a taller sheet
+   * silently slices the last category off the list behind it. The name was
+   * already sitting in a 44px row next to the close button.
+   *
+   * `draft` is local because the store refuses a blank label — without it,
+   * clearing the field to retype would be rejected keystroke by keystroke and
+   * the input would fight the finger.
+   */
+  const [draft, setDraft] = useState(category.label)
+  /**
+   * Re-sync on any change that did not come from this input — switching to
+   * another category, or an undo landing while the sheet is open. Comparing
+   * against the *committed* form of the draft is what tells the two apart:
+   * while typing, the store's label is what this input just sent it.
+   */
+  const external = `${category.id}\u0000${category.label}`
+  const [seen, setSeen] = useState(external)
+  if (seen !== external) {
+    setSeen(external)
+    if (category.label !== draft.trim().slice(0, 20)) setDraft(category.label)
+  }
 
   return (
     <div
@@ -77,7 +107,30 @@ export function BottomSheet({
               className="size-4 shrink-0"
               style={{ background: swatch, border: `2px solid ${HEX.ink}` }}
             />
-            <span className="truncate font-pixel text-[12px]">{category.label}</span>
+            {/* Editable in place. `id` does not follow the label, so the
+                category keeps its position in the list — and position decides
+                where this tributary meets the trunk. Fixing a typo by deleting
+                and re-adding sends it to the end and reshapes the river. */}
+            <input
+              type="text"
+              value={draft}
+              maxLength={20}
+              onChange={(e) => {
+                setDraft(e.target.value)
+                onRename(e.target.value)
+              }}
+              // Whatever the store settled on wins once the finger leaves —
+              // trailing spaces trimmed, and a field left blank snaps back to
+              // the name it still has rather than showing an empty title.
+              onBlur={() => setDraft(category.label)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur()
+              }}
+              aria-label="Category name"
+              data-rename
+              className="min-h-[44px] w-full min-w-0 cursor-text bg-transparent font-pixel text-[12px] underline decoration-dotted underline-offset-4 outline-none"
+              style={{ color: HEX.paper }}
+            />
           </div>
           <button
             type="button"

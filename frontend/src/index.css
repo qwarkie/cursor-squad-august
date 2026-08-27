@@ -120,13 +120,18 @@ body {
 /* The trade-off sentence holds its row whether or not it has anything to say,
    and fades rather than appearing. Mounting it on the first adjustment shifted
    the world down 35px and unmounting it shifted the world back — the river
-   moving for a reason that has nothing to do with the budget. */
+   moving for a reason that has nothing to do with the budget.
+
+   The Undo control in the same row is held by the identical rule and the same
+   class: always mounted, opacity only. A button that appeared on the first
+   change would move the world exactly the way the sentence used to. */
 .trade-off {
   opacity: 0;
   transition: opacity 200ms ease-out;
 }
 
-.trade-off[data-showing='true'] {
+.trade-off[data-showing='true'],
+.trade-off[data-undo='true'] {
   opacity: 1;
 }
 

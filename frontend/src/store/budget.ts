@@ -18,6 +18,28 @@ export interface NewCategory {
   icon?: CategoryIcon
 }
 
+/**
+ * One step back. `budget` is the state *before* the action that pushed it.
+ *
+ * `coalesceKey` is what makes a slider drag one step rather than forty:
+ * consecutive entries sharing a key collapse into the oldest snapshot, so undo
+ * returns to before the whole gesture. It mirrors the rule the trade-off
+ * sentence already uses in `App.tsx` — consecutive changes to the same
+ * category accumulate, a change to a different one starts over.
+ */
+export interface HistoryEntry {
+  budget: Budget
+  /** Names the action, for `Undo ${label}`. Not shown alone. */
+  label: string
+  coalesceKey: string | null
+}
+
+/**
+ * Deep enough to cover a demo, short enough that it cannot grow without bound
+ * while someone leans on the slider.
+ */
+export const MAX_HISTORY = 25
+
 export interface BudgetState {
   budget: Budget
   /** The category whose bottom sheet is open, if any. */
@@ -27,11 +49,20 @@ export interface BudgetState {
    * never logged and swallowed.
    */
   storageError: string | null
+  /**
+   * Oldest first. In memory only, never persisted: the stack is larger than
+   * the budget it describes, and restoring it across a reload would offer to
+   * undo something the person did yesterday and has no memory of.
+   */
+  past: HistoryEntry[]
+  /** What `undo()` would take back, in words. `null` means nothing to undo. */
+  undoLabel: string | null
 
   setIncome: (income: number) => void
   addCategory: (input: NewCategory) => void
   setCategoryAmount: (id: string, amount: number) => void
   setCategoryIcon: (id: string, icon: CategoryIcon) => void
+  setCategoryLabel: (id: string, label: string) => void
   removeCategory: (id: string) => void
   /**
    * Move a category one place up or down the list.
@@ -46,6 +77,7 @@ export interface BudgetState {
   select: (id: string | null) => void
   loadDemo: () => void
   reset: () => void
+  undo: () => void
   dismissStorageError: () => void
 }
 
@@ -53,6 +85,11 @@ export interface BudgetState {
 function dollars(value: number): number {
   if (!Number.isFinite(value) || value < 0) return 0
   return Math.round(value)
+}
+
+/** The label to name in an undo affordance, or a neutral word if it is gone. */
+function labelOf(budget: Budget, id: string): string {
+  return budget.categories.find((c) => c.id === id)?.label ?? 'that category'
 }
 
 /**
@@ -69,25 +106,58 @@ function categoryId(label: string, existing: Category[]): string {
   return `${base}-${n}`
 }
 
+/**
+ * Push the pre-change budget onto the stack, coalescing a run of the same
+ * gesture into one step.
+ *
+ * Coalescing keeps the *older* snapshot deliberately: dragging the Food slider
+ * from $650 to $200 should be one undo back to $650, not nine undos back
+ * through every $50 the finger passed over. The newer label is adopted so the
+ * affordance names the whole gesture rather than its first step.
+ */
+function pushHistory(state: BudgetState, label: string, coalesceKey: string | null) {
+  const top = state.past.at(-1)
+  if (coalesceKey !== null && top?.coalesceKey === coalesceKey) {
+    return {
+      past: [...state.past.slice(0, -1), { ...top, label }],
+      undoLabel: label,
+    }
+  }
+  const entry: HistoryEntry = { budget: state.budget, label, coalesceKey }
+  return { past: [...state.past, entry].slice(-MAX_HISTORY), undoLabel: label }
+}
+
 export function createBudgetStore(storage: BudgetStorage | null) {
   /**
-   * Every mutation goes through here: apply, persist, surface any write
-   * failure. Keeping it in one place is what makes "no silent write" a
-   * property of the store rather than a habit each action has to remember.
+   * Every mutation goes through here: record the step back, apply, persist,
+   * surface any write failure. Keeping it in one place is what makes "no
+   * silent write" a property of the store rather than a habit each action has
+   * to remember — and it is why undo covers every action there is rather than
+   * the ones somebody remembered to wire it into.
    */
-  const commit = (state: BudgetState, next: Budget): Partial<BudgetState> => {
-    void state
+  const commit = (
+    state: BudgetState,
+    next: Budget,
+    label: string,
+    coalesceKey: string | null = null,
+  ): Partial<BudgetState> => {
     const stamped: Budget = { ...next, updatedAt: new Date().toISOString() }
-    return { budget: stamped, storageError: writeBudget(storage, stamped) }
+    return {
+      budget: stamped,
+      storageError: writeBudget(storage, stamped),
+      ...pushHistory(state, label, coalesceKey),
+    }
   }
 
   return create<BudgetState>()((set, get) => ({
     budget: readBudget(storage),
     selectedId: null,
     storageError: null,
+    past: [],
+    undoLabel: null,
 
     setIncome: (income) =>
-      set((s) => commit(s, { ...s.budget, income: dollars(income) })),
+      set((s) => commit(s, { ...s.budget, income: dollars(income) }, 'the income change')),
 
     addCategory: (input) =>
       set((s) => {
@@ -99,20 +169,29 @@ export function createBudgetStore(storage: BudgetStorage | null) {
           color: input.color,
           ...(input.icon ? { icon: input.icon } : null),
         }
-        return commit(s, {
-          ...s.budget,
-          categories: [...s.budget.categories, category],
-        })
+        return commit(
+          s,
+          { ...s.budget, categories: [...s.budget.categories, category] },
+          `adding ${category.label}`,
+        )
       }),
 
+    /**
+     * Coalesced per category, so one drag of the slider is one step back.
+     */
     setCategoryAmount: (id, amount) =>
       set((s) =>
-        commit(s, {
-          ...s.budget,
-          categories: s.budget.categories.map((c) =>
-            c.id === id ? { ...c, amount: dollars(amount) } : c,
-          ),
-        }),
+        commit(
+          s,
+          {
+            ...s.budget,
+            categories: s.budget.categories.map((c) =>
+              c.id === id ? { ...c, amount: dollars(amount) } : c,
+            ),
+          },
+          `the change to ${labelOf(s.budget, id)}`,
+          `amount:${id}`,
+        ),
       ),
 
     /**
@@ -123,18 +202,55 @@ export function createBudgetStore(storage: BudgetStorage | null) {
      */
     setCategoryIcon: (id, icon) =>
       set((s) =>
-        commit(s, {
-          ...s.budget,
-          categories: s.budget.categories.map((c) => (c.id === id ? { ...c, icon } : c)),
-        }),
+        commit(
+          s,
+          {
+            ...s.budget,
+            categories: s.budget.categories.map((c) => (c.id === id ? { ...c, icon } : c)),
+          },
+          `the ${labelOf(s.budget, id)} icon`,
+        ),
       ),
+
+    /**
+     * Renames in place — the `id` does not move with the label.
+     *
+     * That is the entire value of the action. `id` is derived from the label
+     * once, at creation, and is stable across edits (see `types.ts`), so a
+     * rename keeps the category's position in the list. Position is not
+     * cosmetic here: index fixes where the tributary meets the trunk, so
+     * fixing a typo by deleting and re-adding sends the category to the end
+     * and reshapes the river. Renaming does not touch the geometry at all.
+     *
+     * An all-whitespace label is ignored rather than stored: the label names
+     * the tributary in the world and in the list, and a blank one leaves both
+     * unreadable. Trimmed and capped at 20 to match `addCategory`.
+     */
+    setCategoryLabel: (id, label) =>
+      set((s) => {
+        const next = label.trim().slice(0, 20)
+        const current = s.budget.categories.find((c) => c.id === id)
+        if (!current || next === '' || next === current.label) return {}
+        return commit(
+          s,
+          {
+            ...s.budget,
+            categories: s.budget.categories.map((c) =>
+              c.id === id ? { ...c, label: next } : c,
+            ),
+          },
+          `renaming ${current.label}`,
+          `label:${id}`,
+        )
+      }),
 
     removeCategory: (id) =>
       set((s) => ({
-        ...commit(s, {
-          ...s.budget,
-          categories: s.budget.categories.filter((c) => c.id !== id),
-        }),
+        ...commit(
+          s,
+          { ...s.budget, categories: s.budget.categories.filter((c) => c.id !== id) },
+          `removing ${labelOf(s.budget, id)}`,
+        ),
         selectedId: s.selectedId === id ? null : s.selectedId,
       })),
 
@@ -150,14 +266,48 @@ export function createBudgetStore(storage: BudgetStorage | null) {
         const next = categories.slice()
         next[from] = categories[to]
         next[to] = categories[from]
-        return commit(s, { ...s.budget, categories: next })
+        return commit(
+          s,
+          { ...s.budget, categories: next },
+          `moving ${categories[from].label}`,
+        )
       }),
 
     select: (id) => set({ selectedId: id }),
 
-    loadDemo: () => set((s) => commit(s, SEEDED_BUDGET)),
+    loadDemo: () => set((s) => commit(s, SEEDED_BUDGET, 'loading the demo budget')),
 
-    reset: () => set((s) => ({ ...commit(s, EMPTY_BUDGET), selectedId: null })),
+    /**
+     * Undoable, and that is not redundant with the confirm in `App.tsx`.
+     * A confirm asks before; undo answers after, which is the one that helps
+     * the person who already tapped it.
+     */
+    reset: () => set((s) => ({ ...commit(s, EMPTY_BUDGET, 'the reset'), selectedId: null })),
+
+    /**
+     * One step back, and never a step that leaves a sheet open on a category
+     * that no longer exists — undoing `addCategory` removes the very thing the
+     * bottom sheet may be pointing at.
+     *
+     * Undo does not push history of its own: there is no redo, deliberately.
+     * Redo needs a second stack and an invalidation rule, and everything it
+     * would buy on a one-screen sandbox is already one tap away by hand.
+     */
+    undo: () =>
+      set((s) => {
+        const entry = s.past.at(-1)
+        if (!entry) return {}
+        const past = s.past.slice(0, -1)
+        const stillThere =
+          s.selectedId !== null && entry.budget.categories.some((c) => c.id === s.selectedId)
+        return {
+          budget: entry.budget,
+          storageError: writeBudget(storage, entry.budget),
+          past,
+          undoLabel: past.at(-1)?.label ?? null,
+          selectedId: stillThere ? s.selectedId : null,
+        }
+      }),
 
     dismissStorageError: () => {
       if (get().storageError !== null) set({ storageError: null })
