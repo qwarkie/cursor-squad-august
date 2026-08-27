@@ -263,6 +263,15 @@ export const ARCADE: readonly Art[] = [
   ],
 ]
 
+/**
+ * 5 x 4, 1 frame. Low cover for the open field, beside TREE.
+ *
+ * Deliberately still. A field where every object sways at once reads as a
+ * strobe rather than as wind (the reasoning GrassField.tsx records for its own
+ * rate), so the canopies move and the undergrowth does not.
+ */
+export const BUSH: Art = ['.kkk.', 'kegek', 'khggk', '.kkk.']
+
 /** 7 x 9, 2 frames. Bank decoration; the canopy rustles (T028). */
 export const TREE: readonly Art[] = [
   [

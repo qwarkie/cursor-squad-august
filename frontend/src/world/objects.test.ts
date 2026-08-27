@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { rasterize, type Art, type Palette } from '../pixel'
 import {
   ARCADE,
+  BUSH,
   CAR,
   CLINIC,
   COIN,
@@ -70,6 +71,7 @@ const INVENTORY: ReadonlyArray<{
   { name: 'ARCADE', art: ARCADE, width: 10, height: 10, frames: 2 },
   { name: 'TREE', art: TREE, width: 7, height: 9, frames: 2 },
   { name: 'CLINIC', art: CLINIC, width: 9, height: 9, frames: 1 },
+  { name: 'BUSH', art: BUSH, width: 5, height: 4, frames: 1 },
 ]
 
 const framesOf = (art: Art | readonly Art[]): readonly Art[] =>
@@ -90,6 +92,7 @@ describe('the object inventory', () => {
       'ARCADE',
       'TREE',
       'CLINIC',
+      'BUSH',
     ])
   })
 
