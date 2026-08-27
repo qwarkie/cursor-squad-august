@@ -24,6 +24,17 @@ const HOUSE_GAP = 2
 /** FR-018 / SC-008 — no essential control below 44 x 44 CSS px. */
 const MIN_TOUCH = 44
 
+/**
+ * Spec §8 — a settlement arrives building by building rather than all at once.
+ *
+ * The stagger is per building and the animation runs once, on mount. That is
+ * only correct because `hamlet()` keys every spot on `${categoryId}-b${index}`:
+ * raise a category's amount and React mounts the seventh house alone, so the
+ * six already standing do not blink. Keys were the point of that field.
+ */
+const SETTLE_MS = 180
+const SETTLE_STAGGER_MS = 45
+
 type Props = {
   model: RiverModel
   /** Labels and colours for the signboards — the world knows amounts, only the budget knows names. */
@@ -199,12 +210,19 @@ export function Settlements({ model, budget, scale, onSelect, onEditIncome }: Pr
               className="relative"
               style={{ width: village.w * scale, height: village.h * scale }}
             >
-              {village.spots.map((spot) => (
+              {village.spots.map((spot, order) => (
                   <span
                     key={spot.key}
                     data-settlement={spot.kind}
                     className="absolute block"
-                    style={{ left: spot.x * scale, top: spot.y * scale }}
+                    style={{
+                      left: spot.x * scale,
+                      top: spot.y * scale,
+                      // One art-pixel, whatever the zoom.
+                      ['--settle-rise' as string]: `${scale}px`,
+                      animation: `pixel-settle ${SETTLE_MS}ms steps(2) both`,
+                      animationDelay: `${order * SETTLE_STAGGER_MS}ms`,
+                    }}
                   >
                     <PixelSprite
                       art={spot.kind === 'building' ? art : RESIDENT}

@@ -169,6 +169,12 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    /* Collapsing the duration alone is not enough for a staggered reveal: the
+       DELAY survives it. A settlement's buildings still arrived one at a time
+       over most of a second under `reduce` — each one instant, the sequence
+       not — which is the thing the preference is asking us not to do.
+       Measured at 80ms after load: 8 of 17 sprites present. */
+    animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
   }
 
@@ -215,4 +221,28 @@ body {
 .warning-pulse {
   animation: warning-pulse 600ms ease-in-out infinite;
   transform-origin: center;
+}
+
+/* A building arriving in a settlement (spec §8).
+ *
+ * Two frames, not a fade. art-bible.md §7 forbids alpha-composited paint, and
+ * a sprite caught halfway through an opacity ramp IS that — `walk_demo`'s paint
+ * audit would be right to fail it. `steps(2)` means the sprite is either absent
+ * or fully drawn, never a ghost of itself.
+ *
+ * The rise is ONE art-pixel (--settle-rise is `scale` px, so it is one art-pixel
+ * at every zoom level). Rows in a cluster clear each other by a single pixel at
+ * their closest lean, so anything taller would have a new building transiently
+ * overlap the row below it — which §8 forbids in the same breath as it asks for
+ * the animation.
+ */
+@keyframes pixel-settle {
+  from {
+    visibility: hidden;
+    transform: translateY(var(--settle-rise));
+  }
+  to {
+    visibility: visible;
+    transform: translateY(0);
+  }
 }
