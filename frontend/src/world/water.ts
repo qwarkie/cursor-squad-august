@@ -1,3 +1,4 @@
+import { unit } from './grass'
 import { trunkX } from './path'
 
 /**
@@ -196,11 +197,85 @@ export function poolRows(rx: number, ry: number): Span[] {
  * it along the branch (clipped to the body) without a dash ever appearing
  * out on the grass or stopping short of the bank.
  */
+/**
+ * How a tributary bends on its way to its village.
+ *
+ * Spec §1: branches "look too straight and resemble roads". They were straight
+ * by construction — `branchSpans` lerped `y` from start to end, so the only
+ * thing distinguishing two branches was their endpoints. There was no curve in
+ * the system to tune.
+ *
+ * Every term below is a pure function of the category's id. §1 requires that
+ * "a layout should only change when the underlying financial data changes", and
+ * the trunk's own meander is already a closed form of `y` alone — that is what
+ * makes SC-007 true by construction. Same discipline here: no clock, no
+ * `Math.random`, no accumulation from whatever was drawn before.
+ */
+export interface BranchCurve {
+  /** Signed peak offset in art-pixels. Bounded so a branch bends, never kinks. */
+  amp: number
+  /** Moves the peak along the run: < 1 early, > 1 late. */
+  skew: number
+  /** A second, smaller harmonic — the difference between an arc and a river. */
+  wiggle: number
+}
+
+export const STRAIGHT: BranchCurve = { amp: 0, skew: 1, wiggle: 0 }
+
+/** A string seed as the two ints `unit` wants, order-dependent so "ab" != "ba". */
+function seedOf(seed: string): [number, number] {
+  let a = 0
+  let b = 0
+  for (let i = 0; i < seed.length; i += 1) {
+    a = (Math.imul(a, 31) + seed.charCodeAt(i)) | 0
+    b = (Math.imul(b, 131) + seed.charCodeAt(i) * (i + 1)) | 0
+  }
+  return [a, b]
+}
+
+/**
+ * The curve for one branch, from its category id and its own length.
+ *
+ * Amplitude is tied to length rather than fixed: a 6px stub bent 5px is a
+ * hook, and the same 5px on a 40px run is a lazy meander. Bounded at both
+ * ends so a huge expense cannot throw its branch off the field — §5's
+ * "bounded scaling... rather than direct unlimited value-to-distance mapping",
+ * applied to curvature.
+ */
+export function branchCurve(seed: string, run: number, drop: number): BranchCurve {
+  const [a, b] = seedOf(seed)
+  const length = Math.hypot(run, drop)
+  if (length < MIN_CURVE_LENGTH) return STRAIGHT
+
+  const reach = Math.min(MAX_AMP, Math.max(MIN_AMP, length / AMP_DIVISOR))
+  const sign = unit(a, b, 11) < 0.5 ? -1 : 1
+  return {
+    amp: sign * reach * (0.6 + unit(a, b, 13) * 0.4),
+    skew: 0.8 + unit(a, b, 17) * 0.5,
+    wiggle: (unit(a, b, 19) - 0.5) * 0.5,
+  }
+}
+
+/** Below this a branch is too short to bend without reading as a kink. */
+const MIN_CURVE_LENGTH = 8
+const MIN_AMP = 1.5
+const MAX_AMP = 5
+const AMP_DIVISOR = 7
+
+/** Offset from the straight line at `t` in [0, 1]. Zero at both ends, always. */
+function curveAt(curve: BranchCurve, t: number): number {
+  if (curve.amp === 0) return 0
+  const main = Math.sin(Math.PI * Math.pow(t, curve.skew))
+  const second = Math.sin(2 * Math.PI * t)
+  return curve.amp * (main * (1 - Math.abs(curve.wiggle)) + curve.wiggle * second)
+}
+
 export function branchSpans(
   from: { x: number; y: number },
   to: { x: number; y: number },
   width: number,
   dash?: { period: number; length: number; scale: number },
+  curve: BranchCurve = STRAIGHT,
 ): Span[] {
   const w = Math.max(1, Math.round(width))
   const x1 = Math.round(from.x)
@@ -216,13 +291,40 @@ export function branchSpans(
 
   const spans: Span[] = []
   let current: Span | null = null
+  let previous: { top: number; bottom: number } | null = null
 
   for (let i = -pad; i <= columns + pad; i++) {
     if (dash && ((i % dash.period) + dash.period) % dash.period >= dash.length) continue
 
     const x = x1 + i * step
-    const y = Math.round(y1 + (drop * i) / columns) - Math.floor(thickness / 2)
-    const joins = current !== null && current.y === y && current.h === thickness
+    // Clamped so the dash padding either side of the run follows the branch's
+    // ends flat instead of continuing the curve out past them, where it has no
+    // meaning and would swing away from the water it is highlighting.
+    const t = Math.min(1, Math.max(0, i / columns))
+    const centre = y1 + drop * t + curveAt(curve, t)
+    let top = Math.round(centre) - Math.floor(thickness / 2)
+    let height = thickness
+
+    // Contiguity, guaranteed rather than hoped for (spec §7: "no disconnected
+    // pixels, holes... clipping"). One column per x means a slope steeper than
+    // the thickness would step past the previous column and leave a hole. The
+    // rect is stretched to meet its neighbour instead. Straight branches never
+    // reach this — measured 0 breaks across shallow, steep and very steep runs
+    // before the curve went in — so it costs nothing today and stops the curve
+    // from being able to introduce one.
+    if (previous !== null) {
+      const bottom = top + height
+      if (top > previous.bottom) {
+        height = bottom - previous.bottom
+        top = previous.bottom
+      } else if (bottom < previous.top) {
+        height = previous.top - top
+      }
+    }
+    previous = { top, bottom: top + height }
+
+    const y = top
+    const joins = current !== null && current.y === y && current.h === height
 
     // Walking right a run grows off its right edge; walking left, each new
     // column is one to the left of the last, so the rect's origin moves.
@@ -236,7 +338,7 @@ export function branchSpans(
       continue
     }
 
-    current = { x, y, w: 1, h: thickness }
+    current = { x, y, w: 1, h: height }
     spans.push(current)
   }
 
@@ -264,4 +366,30 @@ export function colorDistance(a: string, b: string): number {
 function rgb(hex: string): [number, number, number] {
   const n = parseInt(hex.slice(1), 16)
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+
+/**
+ * The branch's centre line as an SVG path, for the invisible tap target.
+ *
+ * A `<line>` between the endpoints was correct while branches were straight.
+ * It drifts by the full amplitude once they are not, which would leave the
+ * hit target hanging off the side of its own water — the tributary would look
+ * tappable and miss.
+ */
+export function branchPath(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  curve: BranchCurve,
+  steps = 12,
+): string {
+  const x1 = Math.round(from.x)
+  const y1 = Math.round(from.y)
+  const run = Math.round(to.x) - x1
+  const drop = Math.round(to.y) - y1
+  const points: string[] = []
+  for (let i = 0; i <= steps; i += 1) {
+    const t = i / steps
+    points.push(`${(x1 + run * t).toFixed(2)} ${(y1 + drop * t + curveAt(curve, t)).toFixed(2)}`)
+  }
+  return `M${points.join(' L')}`
 }

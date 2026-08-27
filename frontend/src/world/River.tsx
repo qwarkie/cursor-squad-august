@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from 'react'
 
 import { riverPath, trunkX, WORLD_W } from './path'
 import { tributaryEnd, trunkWidthAt } from './geometry'
-import { branchSpans, colorDistance, halfWidthAt, poolRows, type Span } from './water'
+import { branchCurve, branchPath, branchSpans, colorDistance, halfWidthAt, poolRows, type Span } from './water'
 import { PAL } from './palette'
 import type { RiverModel, Segment } from '../engine'
 import type { Budget } from '../types'
@@ -214,7 +214,12 @@ export function River({ model, budget, onSelectTributary }: Props) {
           x: trunkX(trib.atY) + dir * Math.max(0, Math.round(trunkW / 2) - 2),
           y: trib.atY,
         }
-        const body = branchSpans(start, end, trib.width)
+        // One curve per tributary, shared by every layer that draws it. The
+        // ink keyline, the colour rim, the water body, the flow highlight and
+        // the tap target are five renderings of ONE branch — give any of them
+        // its own curve and the rim slides off the water.
+        const curve = branchCurve(trib.categoryId, end.x - start.x, end.y - start.y)
+        const body = branchSpans(start, end, trib.width, undefined, curve)
         const category = budget?.categories.find((c) => c.id === trib.categoryId)
         const rimColor = category ? PAL[category.color] : null
         // Hue alone doesn't carry every colour equally: slate and teal sit
@@ -253,13 +258,13 @@ export function River({ model, budget, onSelectTributary }: Props) {
                 neighbours without reading the signboard. */}
             {rimColor && (
               <>
-                <Rects spans={branchSpans(start, end, trib.width + 2)} fill="var(--color-ink)" />
-                <Rects spans={branchSpans(start, end, trib.width)} fill={rimColor} />
+                <Rects spans={branchSpans(start, end, trib.width + 2, undefined, curve)} fill="var(--color-ink)" />
+                <Rects spans={branchSpans(start, end, trib.width, undefined, curve)} fill={rimColor} />
               </>
             )}
             {showBody && (
               <Rects
-                spans={branchSpans(start, end, rimColor ? bodyWidth : trib.width)}
+                spans={branchSpans(start, end, rimColor ? bodyWidth : trib.width, undefined, curve)}
                 fill="var(--color-water)"
                 className="river-width"
               />
@@ -270,21 +275,21 @@ export function River({ model, budget, onSelectTributary }: Props) {
                     does, so a hair-thin $50 tributary gets exactly one lit
                     pixel rather than a highlight wider than the water. */}
                 <Rects
-                  spans={branchSpans(start, end, trib.width, {
-                    period: FLOW_PERIOD,
-                    length: FLOW_DASH,
-                    scale: 0.3,
-                  })}
+                  spans={branchSpans(
+                    start,
+                    end,
+                    trib.width,
+                    { period: FLOW_PERIOD, length: FLOW_DASH, scale: 0.3 },
+                    curve,
+                  )}
                   fill="var(--color-water-lit)"
                 />
               </g>
             </g>
             {onSelectTributary && (
-              <line
-                x1={start.x}
-                y1={start.y}
-                x2={end.x}
-                y2={end.y}
+              <path
+                d={branchPath(start, end, curve)}
+                fill="none"
                 stroke="transparent"
                 strokeWidth={Math.max(trib.width, MIN_HIT_WIDTH)}
                 style={{ cursor: 'pointer' }}

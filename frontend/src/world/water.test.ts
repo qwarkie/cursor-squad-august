@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { trunkX } from './path'
-import { bandSpans, colorDistance, poolRows } from './water'
+import { STRAIGHT, bandSpans, branchCurve, branchSpans, colorDistance, poolRows } from './water'
 
 describe('bandSpans', () => {
   it('draws nothing for an absent, empty or zero-width band list', () => {
@@ -98,6 +98,111 @@ describe('colorDistance', () => {
       for (const s of strong) {
         expect(w).toBeLessThan(s)
       }
+    }
+  })
+})
+
+describe('branches curve, and do so answerably (spec §1, §7)', () => {
+  const START = { x: 48, y: 40 }
+  const ENDS = [
+    { x: 20, y: 58 },
+    { x: 76, y: 62 },
+    { x: 14, y: 76 },
+    { x: 82, y: 84 },
+  ]
+  const ids = ['housing', 'food', 'transport', 'entertainment', 'savings']
+
+  /** Every column's vertical extent, left to right. */
+  const columns = (spans: ReturnType<typeof branchSpans>) => {
+    const byX = new Map<number, { top: number; bottom: number }>()
+    for (const s of spans) {
+      for (let x = s.x; x < s.x + s.w; x += 1) {
+        const cur = byX.get(x)
+        byX.set(
+          x,
+          cur
+            ? { top: Math.min(cur.top, s.y), bottom: Math.max(cur.bottom, s.y + s.h) }
+            : { top: s.y, bottom: s.y + s.h },
+        )
+      }
+    }
+    return [...byX.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v)
+  }
+
+  it('is a pure function of the category — same id, same branch, always', () => {
+    for (const id of ids) {
+      const a = branchCurve(id, -28, 18)
+      const b = branchCurve(id, -28, 18)
+      expect(a).toEqual(b)
+    }
+  })
+
+  it('gives different categories different shapes', () => {
+    const shapes = ids.map((id) => JSON.stringify(branchCurve(id, -28, 18)))
+    expect(new Set(shapes).size).toBe(ids.length)
+  })
+
+  it('starts and ends exactly where the trunk and the village are', () => {
+    // A branch that misses its own endpoints is a branch that detaches from the
+    // trunk at one end and from its settlement at the other.
+    for (const end of ENDS) {
+      const curve = branchCurve('housing', end.x - START.x, end.y - START.y)
+      const straight = branchSpans(START, end, 3)
+      const curved = branchSpans(START, end, 3, undefined, curve)
+      const s = columns(straight)
+      const c = columns(curved)
+      expect(c[0]).toEqual(s[0])
+      expect(c[c.length - 1]).toEqual(s[s.length - 1])
+    }
+  })
+
+  it('actually bends — it is not a straight line wearing a curve', () => {
+    for (const end of ENDS) {
+      const curve = branchCurve('food', end.x - START.x, end.y - START.y)
+      const straight = columns(branchSpans(START, end, 3))
+      const curved = columns(branchSpans(START, end, 3, undefined, curve))
+      const drift = straight.map((s, i) => Math.abs(s.top - curved[i].top))
+      expect(Math.max(...drift)).toBeGreaterThanOrEqual(1)
+    }
+  })
+
+  it('never breaks into disconnected pixels', () => {
+    for (const id of ids) {
+      for (const end of ENDS) {
+        const curve = branchCurve(id, end.x - START.x, end.y - START.y)
+        const cols = columns(branchSpans(START, end, 2, undefined, curve))
+        for (let i = 1; i < cols.length; i += 1) {
+          const a = cols[i - 1]
+          const b = cols[i]
+          expect(b.top).toBeLessThanOrEqual(a.bottom)
+          expect(a.top).toBeLessThanOrEqual(b.bottom)
+        }
+      }
+    }
+  })
+
+  it('has no sharp corner — no column steps more than 2px from the last', () => {
+    for (const id of ids) {
+      for (const end of ENDS) {
+        const curve = branchCurve(id, end.x - START.x, end.y - START.y)
+        const cols = columns(branchSpans(START, end, 3, undefined, curve))
+        for (let i = 1; i < cols.length; i += 1) {
+          expect(Math.abs(cols[i].top - cols[i - 1].top)).toBeLessThanOrEqual(2)
+        }
+      }
+    }
+  })
+
+  it('bends less on a stub than on a long run, and never past the bound', () => {
+    const short = branchCurve('housing', -6, 4)
+    const long = branchCurve('housing', -60, 30)
+    expect(short.amp).toBe(0)
+    expect(Math.abs(long.amp)).toBeLessThanOrEqual(5)
+  })
+
+  it('leaves every other caller straight — the default is no curve', () => {
+    for (const end of ENDS) {
+      expect(branchSpans(START, end, 3)).toEqual(branchSpans(START, end, 3, undefined, STRAIGHT))
     }
   })
 })

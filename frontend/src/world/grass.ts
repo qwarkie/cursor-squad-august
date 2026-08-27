@@ -36,8 +36,10 @@ function hash(x: number, y: number, salt: number): number {
   return (h ^ (h >>> 16)) >>> 0
 }
 
-/** Hash as a fraction in [0, 1). */
-function unit(x: number, y: number, salt: number): number {
+/** Hash as a fraction in [0, 1). Exported so `water.ts` can shape branch
+ * curvature from the same one hash — a second copy would drift, and the two
+ * would disagree about what "deterministic" means. */
+export function unit(x: number, y: number, salt: number): number {
   return hash(x, y, salt) / 4294967296
 }
 
