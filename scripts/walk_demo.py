@@ -203,12 +203,20 @@ def walk(url):
 
         # ---- 5. pixel art is not smoothed ---------------------------------------
         print("\n5. the river must not be smooth (art-bible §1, non-negotiable #2)")
+        # Both of these are "no bad ones found" checks, so both pass on an empty
+        # set — measured on the empty field, where the river does not exist yet,
+        # they report PASS with nothing to be crisp and nothing to be capped. A
+        # world that failed to render at all would score them green. Requiring
+        # the evidence to be non-empty is what makes them checks rather than
+        # descriptions of an absence.
         smooth = [s for s in shapes if s["rendering"] not in ("crispedges", "crispEdges")]
-        check("every river shape carries shape-rendering=crispEdges", not smooth,
-              f"{len(smooth)} of {len(shapes)} shapes are anti-aliased")
+        check("every river shape carries shape-rendering=crispEdges", shapes and not smooth,
+              f"{len(smooth)} of {len(shapes)} shapes are anti-aliased"
+              if shapes else "no river shapes to check — vacuous pass prevented")
         round_caps = [s for s in shapes if s["linecap"] == "round"]
-        check("no river shape uses a round line cap", not round_caps,
-              f"{len(round_caps)} round-capped")
+        check("no river shape uses a round line cap", shapes and not round_caps,
+              f"{len(round_caps)} round-capped of {len(shapes)}"
+              if shapes else "no river shapes to check — vacuous pass prevented")
 
         # ---- 5b. the branches are distinguishable (art-bible §2) ----------------
         #
