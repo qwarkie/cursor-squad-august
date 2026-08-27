@@ -539,7 +539,22 @@ did every check you wrote actually    a ratio hides a missing verdict: the denom
   RUN?                                  shrinks with the numerator
 can the quantity you measure even    a container set to CLIP answers "do you scroll?"
   EXPRESS the failure?                 truthfully, and never says "no"
+can the STATE you measured in even   an occlusion that only exists while a sheet is
+  contain the failure?                 open is invisible to a probe that never opens one
 ```
+
+**Presence, then reachability, then occlusion** — the same question moved out one layer three
+times in one night. A rect check says a control is on screen at 44x44 and *cannot say what is
+painted on top of it*; `document.elementFromPoint(cx, cy)` can. And a hand probe run with no
+sheet open is run in the one state where the bug is invisible: **the check was not wrong, the
+state was.**
+
+**RESERVED REGIONS.** Two correct features composed into dead controls twice tonight — the world
+column pushing the rail off screen, and a full-height rail landing on top of the zoom buttons.
+My one-surface-per-task rule guarantees nobody is looking at the join. The pattern that fixes it
+without repealing the rule: **when two issues touch the same screen region, one owns it and the
+other asserts it does not cover it** — a reserved-region contract enforced by a check, so moving
+the controls turns a gate red instead of quietly covering them again.
 
 **A layout shipped with the right third of the rail off screen and 39 checks green.**
 `scrollWidth > clientWidth` was the guard; `App`'s root carries `overflow-x-hidden`, so content
