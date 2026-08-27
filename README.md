@@ -56,7 +56,12 @@ Add `psycopg[binary]` to the backend dependencies and apply the migrations.
 
 ## Deployment
 
-Live: **https://cursor-squad-august-app.vercel.app**
+Live: **https://cursor-squad-august-live.vercel.app**
+
+| | |
+|---|---|
+| ![Empty field](docs/screenshots/01-empty-field.png) | ![The seeded month, balanced](docs/screenshots/02-seeded-balanced.png) |
+| ![Adjusting a category](docs/screenshots/03-category-sheet.png) | ![Overspent](docs/screenshots/04-overspent.png) |
 
 `vercel.json` declares two services behind one domain — the Vite build at `/` and
 the FastAPI app at `/api`, so the front end keeps using relative paths in production
@@ -67,10 +72,10 @@ SQLite does not survive on Vercel: the filesystem is recreated per request. Set
 variables. A bare `postgres://` URL is rewritten to the psycopg driver in
 `app/config.py`, so the string a provider hands out works unchanged.
 
-> **Known gap.** The Vercel project is not linked to this repository, so a push to
-> `main` does **not** redeploy — deploys are manual today, and the live front end can
-> lag `main`. Tracked in [#5](https://github.com/qwarkie/cursor-squad-august/issues/5).
-> Verify the live URL before relying on it.
+> **One old host is still answering.** `cursor-squad-august-app.vercel.app` returns
+> **200** and will serve the 26 August build forever — it was hand-deployed and is not
+> wired to this repository. It is not the demo. The only URL that tracks `main` is the
+> one above, which redeploys automatically on every push.
 
 ## Adding your own entity
 
