@@ -87,6 +87,8 @@ Live: **https://cursor-squad-august-live.vercel.app**
 | ![Empty field](docs/screenshots/01-empty-field.png) | ![The seeded month, balanced](docs/screenshots/02-seeded-balanced.png) |
 | ![Adjusting a category](docs/screenshots/03-category-sheet.png) | ![Overspent](docs/screenshots/04-overspent.png) |
 
+**Demoing it?** [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) — the 60-second script with the exact taps, and what to do if the network dies.
+
 `vercel.json` declares two services behind one domain — the Vite build at `/` and
 the FastAPI app at `/api`, so the front end keeps using relative paths in production
 exactly as it does behind the dev proxy.
