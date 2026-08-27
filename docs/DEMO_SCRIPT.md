@@ -133,7 +133,7 @@ page errors                       none
 **2. Run it locally.** `npm --prefix frontend install && npm --prefix frontend run dev` gives the
 entire demo path with no network and no backend. The app never calls out.
 
-**3. The committed captures, with one honest caveat.**
+**3. The committed captures.** They match the submitted build.
 
 | Beat | Capture |
 |---|---|
@@ -142,13 +142,14 @@ entire demo path with no network and no backend. The app never calls out.
 | 0:32 adjusting a category | [`docs/screenshots/03-category-sheet.png`](screenshots/03-category-sheet.png) |
 | 0:44 over budget | [`docs/screenshots/04-overspent.png`](screenshots/04-overspent.png) |
 
-> **These stills predate the signboards.** They show no signs at the tributary ends; every deployed
-> build does — a named, colour-keyed signboard on each branch. **Every figure and every beat in
-> them is correct; the world art is one revision behind.**
+> Captured from the submitted build (`78a230a`) with the bundle hash asserted before the first
+> frame, so they cannot drift from the URL silently. Signboards, blue trunk, the dotted underline
+> under the income figure, `Houses, 6 · Residents, 3` on Housing against `Houses, 3` on Food — the
+> narration above is true of these pictures as well as of the live app.
 >
-> Consequence for the narration: over these stills, say *"each branch is colour-coded"* and point at
-> the strokes. Do **not** say *"the signs name each branch"*, because there are no signs in the
-> capture. On the live URL, say it — they are there.
+> **One figure differs on purpose.** The overspent still shows `−$400` with Food at `$1,050`,
+> a deeper overspend than the `−$100` the 0:44 beat produces live. Read the number off the picture
+> rather than from the script when you are narrating over stills.
 
 ## The two sentences to land if you only get two
 
