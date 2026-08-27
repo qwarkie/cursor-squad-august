@@ -42,8 +42,16 @@ export function Header({ budget, remaining, state, onEditIncome }: HeaderProps) 
   const rate = savingsRate(budget.income, budget.categories)
   return (
     <header
-      className="flex w-full flex-col gap-2 px-4 py-3"
-      style={{ background: HEX.night, color: HEX.paper, borderBottom: `3px solid ${HEX.ink}` }}
+      className="flex w-full flex-col gap-2 px-4 pb-3"
+      style={{
+        background: HEX.night,
+        color: HEX.paper,
+        borderBottom: `3px solid ${HEX.ink}`,
+        // The counterpart of the safe-area-inset-bottom the fixed bars carry.
+        // Without it the income figure sits under the status bar on a notched
+        // phone — ~47px on the iPhone 14 this app targets at 390x844.
+        paddingTop: 'calc(12px + env(safe-area-inset-top))',
+      }}
     >
       {/* One 8px line for the context figures, so the remaining figure below
           it never has to share a row and never wraps. */}
@@ -57,7 +65,7 @@ export function Header({ budget, remaining, state, onEditIncome }: HeaderProps) 
           type="button"
           onClick={onEditIncome}
           aria-label={`Edit income, currently ${formatMoney(budget.income)}`}
-          className="relative cursor-pointer whitespace-nowrap text-left after:absolute after:-inset-x-2 after:-inset-y-[18px] after:content-['']"
+          className="relative z-10 cursor-pointer whitespace-nowrap text-left after:absolute after:-inset-x-2 after:-top-[8px] after:-bottom-[28px] after:content-['']"
         >
           <span className="opacity-70">Income </span>
           <span
