@@ -35,6 +35,12 @@ Two other hosts answer **200** and a judge could reach either:
   `7a975a1`), not the submission. It is git-linked and it did deploy; the "hand-deployed corpse
   serving 26 August forever" description that stood for most of the event is **false**. Do not
   cite this host.
+- **`money-river` is TWO hosts and the record conflated them for four hours.** `money-river.vercel.app`
+  resolves to an unrelated stranger's app. **`money-river-dpmailspace-9489s-projects.vercel.app` is
+  ours**, git-linked, and on 27 Aug it was the *only* host serving current `main` — because Vercel's
+  deploy cap is **per project**, and it still had quota when `-live` and `-app` did not. A
+  recommendation to disconnect it (mine, from this file's own stale line) would have destroyed the
+  only working deployment. **Measure a host before citing it; a project name is not a host.**
 - `money-river.vercel.app` — resolves to an **unrelated stranger's app**, and it is the URL somebody
   guesses from the project name.
 
