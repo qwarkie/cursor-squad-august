@@ -12,6 +12,7 @@ attempted here (see the split on issue #42).
 
 Needs Playwright's Chromium: pip install playwright && playwright install chromium
 """
+import re
 import sys
 from playwright.sync_api import sync_playwright
 
@@ -42,6 +43,54 @@ def river_shapes(pg):
             opacity: cs.strokeOpacity,
           }
         })""")
+
+
+def tappable_height(pg, selector):
+    """
+    How tall a control actually is *to a thumb*, and whether the screen clipped it.
+
+    Reading `getBoundingClientRect()` is wrong for any control that expands its
+    hit area with a pseudo-element: the box reports the text, not the target. This
+    walks `elementFromPoint` outward from the centre instead, which is what a tap
+    actually resolves against — and reports when the scan stopped at the viewport
+    edge rather than at the control's own boundary, because an expanded area that
+    runs off-screen is not reachable however large it was specified.
+    """
+    return pg.evaluate("""(sel) => {
+        const el = document.querySelector(sel)
+        if (!el) return null
+        const r = el.getBoundingClientRect()
+        const cx = Math.round(r.left + r.width / 2)
+        const cy = Math.round(r.top + r.height / 2)
+        const hits = (y) => {
+          const t = document.elementFromPoint(cx, y)
+          return !!t && (t === el || el.contains(t) || t.contains(el))
+        }
+        if (!hits(cy)) return { box: r.height, tappable: 0, clipped: false }
+        let top = cy, bottom = cy
+        while (top - 1 >= 0 && hits(top - 1)) top -= 1
+        while (bottom + 1 < window.innerHeight && hits(bottom + 1)) bottom += 1
+        return { box: r.height, tappable: bottom - top + 1, clipped: top === 0 }
+    }""", selector)
+
+
+def trunk_widths(pg):
+    """
+    The trunk's stroke widths, spring to mouth.
+
+    Each segment draws twice on the same `d` — the water at the model's width and
+    a highlight at ~30% of it — so widths are grouped by path data and the widest
+    of each group is the segment. Reading every <path> instead interleaves the
+    highlights and reports a monotonic trunk as non-monotonic.
+    """
+    widest, order = {}, []
+    for shape in river_shapes(pg):
+        if shape["tag"] != "path" or shape["width"] <= 0:
+            continue
+        if shape["d"] not in widest:
+            order.append(shape["d"])
+        widest[shape["d"]] = max(widest.get(shape["d"], 0), shape["width"])
+    return [widest[k] for k in order]
 
 
 def geometry_fingerprint(pg):
@@ -114,20 +163,7 @@ def walk(url):
 
         # ---- 3. the trunk narrows ------------------------------------------------
         print("\n3. the trunk narrows (US2 / FR-006)")
-        # Each trunk segment draws twice on the same `d` — the water at the
-        # model's width and a highlight at ~30% of it — so widths are grouped by
-        # path data and the widest of each group is the segment. Reading every
-        # <path> instead interleaves the highlights and looks non-monotonic.
-        widest = {}
-        order = []
-        for shape in shapes:
-            if shape["tag"] != "path" or shape["width"] <= 0:
-                continue
-            key = shape["d"]
-            if key not in widest:
-                order.append(key)
-            widest[key] = max(widest.get(key, 0), shape["width"])
-        widths = [widest[k] for k in order]
+        widths = trunk_widths(pg)
         non_increasing = all(a >= b for a, b in zip(widths, widths[1:])) if len(widths) > 1 else False
         check("trunk segment widths are monotonically non-increasing", non_increasing, widths)
         check("the trunk starts at full width and ends narrower (FR-006)",
@@ -161,8 +197,96 @@ def walk(url):
               f"{len(first['sprites'])} vs {len(second['sprites'])} sprites")
         check("the budget survived the reload (US5 scenario 3)", "$4,200" in body(pg))
 
-        # ---- 7. no horizontal scroll --------------------------------------------
-        print("\n7. layout (SC-008)")
+        # ---- 7. editing the income (US1 scenario 3) ------------------------------
+        #
+        # The scenario a walk written from the task list never asks: T010 built the
+        # income sheet and T026 wired the page, so both closed green while the
+        # trigger for an already-existing budget belonged to neither. FR-002 says
+        # "enter *and later edit*"; this is the half that went missing.
+        print("\n7. editing the income (US1 scenario 3 / FR-002)")
+        pg.evaluate("window.__walkMarker = 'alive'")
+        before = trunk_widths(pg)
+        income_button = pg.get_by_role("button", name=re.compile("Edit income"))
+        check("the income figure is editable from the running app", income_button.count() > 0)
+        if income_button.count():
+            hit = tappable_height(pg, '[aria-label^="Edit income"]')
+            detail = (f"{hit['tappable']} px tappable (box {hit['box']:.0f} px)"
+                      + (", scan hit the top of the screen" if hit and hit["clipped"] else "")
+                      ) if hit else "not measurable"
+            check("the income control is at least 44px tall (FR-018)",
+                  hit and hit["tappable"] >= 44 and not hit["clipped"], detail)
+            income_button.first.click()
+            pg.wait_for_timeout(400)
+            pg.fill("#income", "6000")
+            pg.get_by_role("button", name=re.compile("Start the river|Save|Update")).first.click()
+            pg.wait_for_timeout(900)
+
+            after = trunk_widths(pg)
+            check("the header shows the new income", "$6,000" in body(pg))
+            check("the trunk widens below the branches",
+                  len(after) == len(before) and any(a > b for a, b in zip(after[1:], before[1:])),
+                  f"{before} -> {after}")
+            check("no page reload (FR-010)", pg.evaluate("window.__walkMarker") == "alive")
+
+            # put it back, so what follows starts from the seeded month again
+            income_button.first.click()
+            pg.wait_for_timeout(400)
+            pg.fill("#income", "4200")
+            pg.get_by_role("button", name=re.compile("Start the river|Save|Update")).first.click()
+            pg.wait_for_timeout(700)
+            check("restoring the income restores the balanced month", "balanced" in body(pg).lower())
+
+        # ---- 8. reshaping a category (US3 scenario 2) ----------------------------
+        print("\n8. reshaping a category (US3 scenario 2 / FR-011)")
+        food = pg.get_by_role("button", name=re.compile(r"^Food"))
+        if check("a tributary row is tappable", food.count() > 0):
+            food.first.click()
+            pg.wait_for_timeout(500)
+            minus = pg.get_by_role("button", name=re.compile("Reduce Food"))
+            if check("the sheet offers a $50 decrement", minus.count() > 0):
+                mbox = minus.first.bounding_box()
+                check("the decrement is at least 44x44 (FR-018)",
+                      mbox and mbox["width"] >= 44 and mbox["height"] >= 44,
+                      f"{mbox['width']:.0f}x{mbox['height']:.0f}" if mbox else "no box")
+                minus.first.click(); pg.wait_for_timeout(250)
+                minus.first.click(); pg.wait_for_timeout(700)
+                text = body(pg)
+                check("two presses move the amount by $100", "$550" in text)
+                check("the trade-off sentence names category, delta and remaining",
+                      "Food" in text and "\u2212$100" in text and "+$100" in text,
+                      "expected 'Food \u2212$100 \u2192 Remaining +$100'")
+            close = pg.get_by_role("button", name="Close")
+            if close.count():
+                close.first.click(); pg.wait_for_timeout(400)
+
+        # ---- 9. overspend and recover (US4 scenarios 1 and 2) --------------------
+        print("\n9. the river runs dry (US4 scenarios 1 and 2 / FR-012)")
+        housing = pg.get_by_role("button", name=re.compile(r"^Housing"))
+        if housing.count():
+            housing.first.click(); pg.wait_for_timeout(500)
+            plus = pg.get_by_role("button", name=re.compile("Increase Housing"))
+            presses = 0
+            while presses < 12 and "over budget" not in body(pg).lower():
+                plus.first.click(); pg.wait_for_timeout(180); presses += 1
+            text = body(pg)
+            check("overspending is signalled in words, not colour alone (FR-012)",
+                  "over budget" in text.lower(), f"after {presses} presses of +$50")
+            check("the overspent figure is negative", "\u2212$" in text or "-$" in text)
+            check("it is announced to assistive tech",
+                  pg.locator('[role="alert"]').count() > 0)
+
+            minus_h = pg.get_by_role("button", name=re.compile("Reduce Housing"))
+            for _ in range(presses):
+                minus_h.first.click(); pg.wait_for_timeout(180)
+            pg.wait_for_timeout(500)
+            check("reducing the category clears the warning (US4 scenario 2)",
+                  "over budget" not in body(pg).lower())
+            close = pg.get_by_role("button", name="Close")
+            if close.count():
+                close.first.click(); pg.wait_for_timeout(400)
+
+        # ---- 10. no horizontal scroll --------------------------------------------
+        print("\n10. layout (SC-008)")
         for w in (390, 320):
             pg.set_viewport_size({"width": w, "height": 844})
             pg.wait_for_timeout(400)
@@ -172,9 +296,21 @@ def walk(url):
         pg.set_viewport_size(VIEWPORT)
 
         # ---- 8. the console ------------------------------------------------------
-        print("\n8. console")
+        print("\n11. console")
         check("no page errors", not page_errors, page_errors[:3])
         check("no console errors", not console_errors, console_errors[:3])
+
+        # ---- 12. reset (US5 scenario 2) ------------------------------------------
+        # Last, because it destroys the state every check above reads.
+        print("\n12. reset (US5 scenario 2)")
+        reset = pg.get_by_role("button", name=re.compile(r"^Reset"))
+        if check("a reset control exists", reset.count() > 0):
+            reset.first.click()
+            pg.wait_for_timeout(900)
+            check("reset returns the empty field with no river left over",
+                  len(river_shapes(pg)) == 0, f"{len(river_shapes(pg))} shapes remain")
+            check("Add Income is offered again",
+                  pg.get_by_role("button", name="Add Income").count() > 0)
 
         browser.close()
 
