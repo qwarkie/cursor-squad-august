@@ -93,7 +93,12 @@ export default function App() {
       className="flex min-h-dvh w-full flex-col overflow-x-hidden"
       style={{ background: HEX.night, color: HEX.paper }}
     >
-      <Header budget={budget} remaining={model.remaining} state={model.state} />
+      <Header
+        budget={budget}
+        remaining={model.remaining}
+        state={model.state}
+        onEditIncome={() => setSheet('income')}
+      />
 
       {storageError && (
         <p

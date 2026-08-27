@@ -33,9 +33,11 @@ export interface HeaderProps {
   budget: Budget
   remaining: number
   state: RiverState
+  /** Opens the income sheet. FR-002's "and later edit" half lives here. */
+  onEditIncome: () => void
 }
 
-export function Header({ budget, remaining, state }: HeaderProps) {
+export function Header({ budget, remaining, state, onEditIncome }: HeaderProps) {
   const month = formatMonth(budget.updatedAt)
   const rate = savingsRate(budget.income, budget.categories)
   return (
@@ -46,10 +48,25 @@ export function Header({ budget, remaining, state }: HeaderProps) {
       {/* One 8px line for the context figures, so the remaining figure below
           it never has to share a row and never wraps. */}
       <div className="flex w-full items-baseline justify-between gap-2 font-pixel text-[8px] leading-none">
-        <span className="whitespace-nowrap">
+        {/* The only way to edit income once the river exists (FR-002, US1
+            scenario 3). The hit area is expanded to 44px with a pseudo-element
+            rather than with padding, so the touch target passes without the
+            header growing a row back. Nothing else in this row is
+            interactive, so an overhanging hit area cannot steal a tap. */}
+        <button
+          type="button"
+          onClick={onEditIncome}
+          aria-label={`Edit income, currently ${formatMoney(budget.income)}`}
+          className="relative cursor-pointer whitespace-nowrap text-left after:absolute after:-inset-x-2 after:-inset-y-[18px] after:content-['']"
+        >
           <span className="opacity-70">Income </span>
-          <span style={{ color: HEX.gold }}>{formatMoney(budget.income)}</span>
-        </span>
+          <span
+            className="underline decoration-dotted underline-offset-4"
+            style={{ color: HEX.gold }}
+          >
+            {formatMoney(budget.income)}
+          </span>
+        </button>
         {month && <span className="whitespace-nowrap opacity-70">{month}</span>}
         <span className="whitespace-nowrap opacity-70">
           {rate === null ? '—' : `${rate}% saved`}
