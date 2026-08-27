@@ -101,11 +101,11 @@ def run(url, pg, n, savings_last=True):
         // on every correct size teaches people to ignore the size that is not.
         const painted = [...world.querySelectorAll('span, div')]
           .filter((e) => getComputedStyle(e).backgroundImage.startsWith('url('))
-        const areaOf = (e) => { const r = e.getBoundingClientRect(); return r.width * r.height }
-        let field = null
-        for (const e of painted) if (!field || areaOf(e) > areaOf(field)) field = e
+        // `[data-field]`, not "the biggest sprite". The field is deliberately
+        // larger than the frame, so a probe that infers it by area is guessing
+        // at the one element whose whole job is to be off the edge.
         const sprites = painted
-          .filter((e) => e !== field && !e.closest('[data-foliage]'))
+          .filter((e) => !e.closest('[data-field]') && !e.closest('[data-foliage]'))
           .map((e) => rel(e.getBoundingClientRect()))
         const boards = [...world.querySelectorAll('[data-signboard]')].map((e) => rel(e.getBoundingClientRect()))
         const tally = [...world.querySelectorAll('*')]
@@ -142,10 +142,7 @@ def run(url, pg, n, savings_last=True):
         const w = document.querySelector('[data-scale]')
         const painted = [...w.querySelectorAll('span, div')]
           .filter((e) => getComputedStyle(e).backgroundImage.startsWith('url('))
-        const areaOf = (e) => { const r = e.getBoundingClientRect(); return r.width * r.height }
-        let field = null
-        for (const e of painted) if (!field || areaOf(e) > areaOf(field)) field = e
-        const rows = [...painted.filter((e) => e !== field && !e.closest('[data-foliage]')),
+        const rows = [...painted.filter((e) => !e.closest('[data-field]') && !e.closest('[data-foliage]')),
                       ...w.querySelectorAll('svg rect')]
         let bottom = -1e9
         for (const e of rows) { const r = e.getBoundingClientRect(); if (r.bottom > bottom) bottom = r.bottom }
@@ -163,10 +160,7 @@ def run(url, pg, n, savings_last=True):
             const w = document.querySelector('[data-scale]')
             const painted = [...w.querySelectorAll('span, div')]
               .filter((e) => getComputedStyle(e).backgroundImage.startsWith('url('))
-            const areaOf = (e) => { const r = e.getBoundingClientRect(); return r.width * r.height }
-            let field = null
-            for (const e of painted) if (!field || areaOf(e) > areaOf(field)) field = e
-            const rows = [...painted.filter((e) => e !== field && !e.closest('[data-foliage]')),
+            const rows = [...painted.filter((e) => !e.closest('[data-field]') && !e.closest('[data-foliage]')),
                           ...w.querySelectorAll('svg rect')]
             let bottom = -1e9
             for (const e of rows) { const r = e.getBoundingClientRect(); if (r.bottom > bottom) bottom = r.bottom }

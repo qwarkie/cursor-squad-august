@@ -156,6 +156,14 @@ export function World({ model, children, overlay }: Props) {
               It hangs outside the world box on every side — that is the point:
               the field has no edge, the budget does. */}
           <div
+            // Named, so a probe can say what it is excluding instead of
+            // inferring it. Two layers of this world are SUPPOSED to run off
+            // the edge of the frame — this field and the foliage — and every
+            // script that asks "what is the lowest thing drawn" has to know
+            // that. Both @Fizz and @Pollen shipped the same false positive
+            // from guessing at it: the field is not "the biggest sprite", it
+            // is this one.
+            data-field="grass"
             className="pointer-events-none absolute"
             aria-hidden="true"
             style={{

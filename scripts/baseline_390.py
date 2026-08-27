@@ -74,10 +74,9 @@ def measure(url):
               return [Math.round(r.left - box.left), Math.round(r.top - box.top),
                       Math.round(r.width), Math.round(r.height)].join(',') }
             const area = (e) => { const r = e.getBoundingClientRect(); return r.width * r.height }
-            let grass = null
-            for (const e of still) if (!grass || area(e) > area(grass)) grass = e
+            const grass = still.find((e) => e.closest('[data-field]')) || null
             const foliage = still.filter((e) => e.closest('[data-foliage]'))
-            const fixtures = still.filter((e) => e !== grass && !e.closest('[data-foliage]'))
+            const fixtures = still.filter((e) => !e.closest('[data-field]') && !e.closest('[data-foliage]'))
             return { fixtures: fixtures.map(rect).sort(),
                      foliage: foliage.length,
                      grass: grass ? rect(grass) : null }

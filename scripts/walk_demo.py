@@ -649,11 +649,8 @@ def walk(url):
             const signs = [...world.querySelectorAll('[data-signboard]')]
             const allSprites = [...world.querySelectorAll('span, div')]
               .filter((e) => getComputedStyle(e).backgroundImage.startsWith('url('))
-            const areaOf = (e) => { const r = e.getBoundingClientRect(); return r.width * r.height }
-            let field = null
-            for (const e of allSprites) if (!field || areaOf(e) > areaOf(field)) field = e
             const village = allSprites
-              .filter((e) => e !== field && !e.closest('[data-foliage]'))
+              .filter((e) => !e.closest('[data-field]') && !e.closest('[data-foliage]'))
               .map((e) => e.getBoundingClientRect())
             const water = svg ? [...svg.querySelectorAll('rect')].map((r) => r.getBoundingClientRect()) : []
             const trees = [...world.querySelectorAll('[data-foliage]')].map((e) => e.getBoundingClientRect())
