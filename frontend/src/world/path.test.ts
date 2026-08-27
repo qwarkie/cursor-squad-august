@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { budgetToRiver, MEANDER_A, MEANDER_W, MOUTH_Y, SPRING_Y } from '../engine'
+import { SEEDED_BUDGET } from '../fixtures/budget'
 import { riverPath, scalePath, trunkX, xOffset, type RiverGeometry } from './path'
 
 /** The worked example's trunk from contracts/engine.md — three segments, 16 → 104. */
@@ -22,9 +24,11 @@ describe('xOffset', () => {
     for (let y = 0; y <= 128; y += 1) expect(Math.abs(xOffset(y))).toBeLessThanOrEqual(6)
   })
 
-  it('pins the meander constants (A=6, W=20) until the engine owns them', () => {
-    // sin(y/20) peaks at y = 10*pi ~= 31.4, where the offset should reach +6.
-    expect(xOffset(31)).toBe(6)
+  it('uses the meander constants from the engine, not a local copy', () => {
+    // sin(y/20) peaks at y = 10*pi ~= 31.4, where the offset should reach +MEANDER_A.
+    expect(MEANDER_A).toBe(6)
+    expect(MEANDER_W).toBe(20)
+    expect(xOffset(31)).toBe(MEANDER_A)
     expect(xOffset(0)).toBe(0)
   })
 
@@ -100,5 +104,47 @@ describe('scalePath', () => {
     expect(scalePath('', 4)).toBe('')
     expect(scalePath('M48 16', 0)).toBe('M48 16')
     expect(scalePath('M48 16', Number.NaN)).toBe('M48 16')
+  })
+})
+
+/**
+ * The engine/world seam. `riverPath` is typed against a structural
+ * `RiverGeometry` so `world/` carries no import on `engine/`; these assert that
+ * a real `RiverModel` from `budgetToRiver` still satisfies it, and that the
+ * curve spans the trunk the engine actually produced. If this breaks, the two
+ * surfaces have drifted apart and the coins will leave the water.
+ */
+describe('engine seam', () => {
+  it('accepts a real RiverModel from budgetToRiver', () => {
+    const d = riverPath(budgetToRiver(SEEDED_BUDGET))
+    expect(d.startsWith(`M${trunkX(SPRING_Y)} ${SPRING_Y}`)).toBe(true)
+    expect(d.endsWith(`L${trunkX(MOUTH_Y)} ${MOUTH_Y}`)).toBe(true)
+  })
+
+  it('keeps the seeded month exact at every scale in the art-bible table', () => {
+    const art = numbersIn(riverPath(budgetToRiver(SEEDED_BUDGET)))
+    expect(art.length).toBeGreaterThan(0)
+    expect(art.every(Number.isInteger)).toBe(true)
+    for (const scale of [3, 4, 5, 6]) {
+      const css = numbersIn(scalePath(riverPath(budgetToRiver(SEEDED_BUDGET)), scale))
+      css.forEach((n, i) => expect(n).toBe(art[i] * scale))
+    }
+  })
+
+  /**
+   * A trap for whoever strokes this path. At `state: 'empty'` the engine still
+   * returns one full-length segment — carrying 0, at `width: 0`. `riverPath`
+   * therefore returns a complete centre line: it describes the trunk's *course*,
+   * not whether it is visible. Visibility comes from `segment.width` alone.
+   *
+   * So River.tsx must stroke with the model's own width and must never floor it
+   * to MIN_WIDTH. Floor it and a ghost river is painted across the empty green
+   * field, which is the opening frame of the demo (US1 scenario 1).
+   */
+  it('still yields a centre line when the state is empty, at zero width', () => {
+    const model = budgetToRiver({ income: 0, categories: [], updatedAt: '' })
+    expect(model.state).toBe('empty')
+    expect(model.segments.every((seg) => seg.width === 0)).toBe(true)
+    expect(riverPath(model)).not.toBe('')
   })
 })

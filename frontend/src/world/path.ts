@@ -12,6 +12,8 @@
  * Both functions are pure and DOM-free so they test in Node.
  */
 
+import { MEANDER_A, MEANDER_W } from '../engine'
+
 /**
  * The slice of `RiverModel` the path builder reads.
  *
@@ -24,16 +26,6 @@ export interface RiverGeometry {
   segments: readonly { fromY: number; toY: number }[]
 }
 
-/**
- * Meander constants, mirroring data-model.md §The maths.
- *
- * NOTE: data-model.md places every constant in `engine/river.ts`. That file is
- * the engine owner's and did not exist when this landed, so these are declared
- * here and pinned by a test. Once the engine lands, these two should be imported
- * from it and this block deleted — a one-line change, deliberately left visible.
- */
-const MEANDER_A = 6 // art-px the trunk wanders off centre
-const MEANDER_W = 20 // wavelength of that wander
 const WORLD_W = 96 // art-px, the world grid from art-bible.md §1
 const CENTRE_X = WORLD_W / 2
 
