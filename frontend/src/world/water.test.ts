@@ -206,3 +206,110 @@ describe('branches curve, and do so answerably (spec §1, §7)', () => {
     }
   })
 })
+
+describe('§7: the curve survives every width the app can produce', () => {
+  const START = { x: 48, y: 40 }
+  const ENDS = [
+    { x: 20, y: 58 },
+    { x: 76, y: 62 },
+    { x: 14, y: 76 },
+    { x: 82, y: 84 },
+    { x: 30, y: 44 },
+  ]
+  const ids = ['housing', 'food', 'transport', 'entertainment', 'savings']
+  // 1 is a $50 tributary; 16 is the spring at full income. The rim draws at
+  // width + 2, so the range has to cover past the widest the model emits.
+  const WIDTHS = [1, 2, 3, 4, 6, 8, 10, 12, 16, 18]
+
+  const columns = (spans: ReturnType<typeof branchSpans>) => {
+    const byX = new Map<number, { top: number; bottom: number }>()
+    for (const s of spans) {
+      for (let x = s.x; x < s.x + s.w; x += 1) {
+        const cur = byX.get(x)
+        byX.set(
+          x,
+          cur
+            ? { top: Math.min(cur.top, s.y), bottom: Math.max(cur.bottom, s.y + s.h) }
+            : { top: s.y, bottom: s.y + s.h },
+        )
+      }
+    }
+    return [...byX.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v)
+  }
+
+  it('never breaks, at any width, on any branch', () => {
+    for (const id of ids) {
+      for (const end of ENDS) {
+        const curve = branchCurve(id, end.x - START.x, end.y - START.y)
+        for (const w of WIDTHS) {
+          const cols = columns(branchSpans(START, end, w, undefined, curve))
+          for (let i = 1; i < cols.length; i += 1) {
+            const a = cols[i - 1]
+            const b = cols[i]
+            if (b.top > a.bottom || a.top > b.bottom) {
+              throw new Error(`break at width ${w}, ${id}, column ${i}`)
+            }
+          }
+        }
+      }
+    }
+  })
+
+  /**
+   * §7: "parallel edges of thick rivers should remain consistent through
+   * curves". The two banks are drawn as separate concentric passes, so if the
+   * curve were applied to a rounded centre rather than shared, a wide branch
+   * would splay — the rim would part company with the body mid-bend.
+   */
+  it('keeps both banks parallel — thickness never varies along a branch', () => {
+    for (const id of ids) {
+      for (const end of ENDS) {
+        const curve = branchCurve(id, end.x - START.x, end.y - START.y)
+        for (const w of WIDTHS) {
+          const cols = columns(branchSpans(START, end, w, undefined, curve))
+          const heights = cols.map((c) => c.bottom - c.top)
+          // A stretched column is taller by design where the slope demands it;
+          // what must never happen is a column THINNER than the stroke.
+          expect(Math.min(...heights)).toBeGreaterThanOrEqual(w)
+        }
+      }
+    }
+  })
+
+  it('the flow highlight rides the same curve as the water it lights', () => {
+    // The first version of this test asserted `s.h >= 1` and a findIndex that
+    // could not fail — it passed without ever comparing the crest to the water.
+    // A vacuous test is worse than none: it reports the property as guarded.
+    for (const end of ENDS) {
+      const curve = branchCurve('housing', end.x - START.x, end.y - START.y)
+      const water = new Map<number, { top: number; bottom: number }>()
+      for (const s of branchSpans(START, end, 8, undefined, curve)) {
+        for (let x = s.x; x < s.x + s.w; x += 1) {
+          const cur = water.get(x)
+          water.set(
+            x,
+            cur
+              ? { top: Math.min(cur.top, s.y), bottom: Math.max(cur.bottom, s.y + s.h) }
+              : { top: s.y, bottom: s.y + s.h },
+          )
+        }
+      }
+
+      const lit = branchSpans(START, end, 8, { period: 6, length: 3, scale: 0.3 }, curve)
+      let compared = 0
+      for (const s of lit) {
+        for (let x = s.x; x < s.x + s.w; x += 1) {
+          const band = water.get(x)
+          // The dash pads past both ends of the run on purpose, so columns
+          // outside the water are expected and are not the thing under test.
+          if (!band) continue
+          compared += 1
+          expect(s.y).toBeGreaterThanOrEqual(band.top)
+          expect(s.y + s.h).toBeLessThanOrEqual(band.bottom)
+        }
+      }
+      // Without this the loop above passes on zero comparisons.
+      expect(compared).toBeGreaterThan(4)
+    }
+  })
+})

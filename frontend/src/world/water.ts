@@ -312,7 +312,14 @@ export function branchSpans(
     // reach this — measured 0 breaks across shallow, steep and very steep runs
     // before the curve went in — so it costs nothing today and stops the curve
     // from being able to introduce one.
-    if (previous !== null) {
+    // Not for the dashed crest. A dash is discontinuous by design, so there is
+    // no hole to close — and stretching a 2px highlight to stay contiguous on a
+    // slope pushes it past the 8px water it is lighting. Measured: 0 of 48 lit
+    // columns outside the water on straight branches, 2 of 48 once they curve.
+    // River.tsx clips the crest to the body so it never showed, but a highlight
+    // that leaves its own river is wrong in the geometry whether or not a clip
+    // is standing in front of it.
+    if (previous !== null && !dash) {
       const bottom = top + height
       if (top > previous.bottom) {
         height = bottom - previous.bottom
