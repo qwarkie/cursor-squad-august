@@ -12,11 +12,11 @@ Three sections of the procedural-world brief were each scoped, measured, and fou
 
 | Section | What it asked for | What the measurement said |
 |---|---|---|
-| §3 distribution | expenses spread along the river, the lake pushed down | five categories need **112 art-px of village against an 88 art-px river**. Seven is the last size that lays out; six has five pixels of headroom |
+| §3 distribution | expenses spread along the river, the lake pushed down | five categories need **112 art-px of village against an 88 art-px river**. **Six** is the last size that lays out; seven is the first that does not, and six has only five pixels of headroom |
 | §4 river-to-city | visible water between the river and the town | the largest village's outer edge is at **95.5 of 96**. There is no room to stand it further out, so the **water** gave way and now stops at the village's near edge |
 | §5 branch length | length varying with spending | about **five art-px of range**, and a positional penalty of up to four inside it |
 
-Two instruments sharing no code found the §3 boundary at seven categories, in both budget shapes. §4's constraint was found by building the obvious fix and measuring it doing half a job. §5's was found by expecting to add variation and discovering it already existed for the wrong reason.
+Two instruments sharing no code found the §3 boundary in both budget shapes: sizes one to six lay out, seven is the first that does not. §4's constraint was found by building the obvious fix and measuring it doing half a job. §5's was found by expecting to add variation and discovering it already existed for the wrong reason.
 
 ## Decision
 
