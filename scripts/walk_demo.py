@@ -55,7 +55,7 @@ def paint_audit(pg):
     they are not failed on, because a check that is red on correct art says
     nothing about the product. The gradient class needs a stop parser I trust.
     """
-    return pg.evaluate("""() => {
+    return pg.evaluate(r"""() => {
         const root = getComputedStyle(document.documentElement)
         const palette = new Set()
         for (const name of Array.from(root).filter(n => n.startsWith('--color-'))) {
@@ -70,9 +70,9 @@ def paint_audit(pg):
         // `rgba(r, g, b, a)` reads it as opaque and reports the scrim as clean.
         const alphaOf = (paint) => {
           if (!paint) return 1
-          const slash = /\\/\\s*([0-9.]+)(%?)\\s*\\)/.exec(paint)
+          const slash = /\/\s*([0-9.]+)(%?)\s*\)/.exec(paint)
           if (slash) return parseFloat(slash[1]) / (slash[2] ? 100 : 1)
-          const legacy = /^rgba\\(([^)]+)\\)/.exec(paint)
+          const legacy = /^rgba\(([^)]+)\)/.exec(paint)
           if (legacy) {
             const parts = legacy[1].split(',').map(v => parseFloat(v))
             return parts.length > 3 ? parts[3] : 1
@@ -80,7 +80,66 @@ def paint_audit(pg):
           return 1
         }
 
-        const alpha = [], soft = []
+        // Does a gradient interpolate, or does it band?
+        //
+        // CSS clamps every colour stop to be no earlier than the one before it,
+        // which is how a hard edge is written: `night 25%, transparent 0deg`
+        // puts the transparent stop exactly on 25%, so the two colours meet with
+        // nothing between them. The gradients that ramp are the ones whose
+        // adjacent stops differ in colour AND in clamped position.
+        //
+        // The first version of this rule asserted "every stop declares two
+        // positions" and went red on the dithered scrim, which is correct art.
+        // This reads the semantics rather than a spelling.
+        const classifyGradient = (bg) => {
+          const splitTop = (str) => {
+            const out = []; let depth = 0, cur = ''
+            for (const ch of str) {
+              if (ch === '(') depth++
+              if (ch === ')') depth--
+              if (ch === ',' && depth === 0) { out.push(cur); cur = '' } else cur += ch
+            }
+            if (cur.trim()) out.push(cur)
+            return out.map(t => t.trim())
+          }
+          const toPct = (tok) => {
+            const m = /^(-?[\d.]+)(%|deg|turn|rad|px)$/.exec(tok)
+            if (!m) return null
+            const v = parseFloat(m[1])
+            if (m[2] === '%') return v
+            if (m[2] === 'deg') return v / 3.6
+            if (m[2] === 'turn') return v * 100
+            if (m[2] === 'rad') return v * 100 / (2 * Math.PI)
+            return null            // px cannot be normalised without a length
+          }
+          const inner = bg.slice(bg.indexOf('(') + 1, bg.lastIndexOf(')'))
+          const stops = []
+          let unhandled = false
+          for (const part of splitTop(inner)) {
+            const cm = /^(rgba?\([^)]*\)|#[0-9a-f]{3,8}|transparent|[a-z]+)/i.exec(part)
+            if (!cm) continue                       // "to bottom", an angle, etc.
+            const colour = cm[1] === 'transparent' ? 'rgba(0, 0, 0, 0)' : cm[1]
+            const rest = part.slice(cm[1].length).trim()
+            const toks = rest ? rest.split(/\s+/) : []
+            if (toks.length === 0) { unhandled = true; continue }
+            for (const t of toks) {
+              const pct = toPct(t)
+              if (pct === null) { unhandled = true; continue }
+              stops.push({ colour, pct })
+            }
+          }
+          if (unhandled || stops.length < 2) return 'unhandled'
+          let running = -Infinity
+          for (const st of stops) { st.pct = Math.max(st.pct, running); running = st.pct }
+          for (let i = 1; i < stops.length; i++) {
+            if (stops[i].colour !== stops[i - 1].colour && stops[i].pct !== stops[i - 1].pct) {
+              return 'interpolates'
+            }
+          }
+          return 'bands'
+        }
+
+        const alpha = [], soft = [], unknown = []
         const els = [...document.querySelectorAll('*')]
         for (const el of els) {
           const cs = getComputedStyle(el)
@@ -97,14 +156,12 @@ def paint_audit(pg):
 
           const bg = cs.backgroundImage || ''
           if (bg.includes('gradient')) {
-            // A stop declaring two positions is a hard band. A stop with one
-            // position (or none) interpolates toward its neighbour.
-            const stops = bg.slice(bg.indexOf('(') + 1).split(/,(?![^(]*\\))/)
-              .filter(t => /rgb|#|transparent/.test(t))
-            soft.push(`${label} ${bg.slice(0, 60)}`)
+            const verdict = classifyGradient(bg)
+            if (verdict === 'interpolates') soft.push(`${label} ${bg.slice(0, 60)}`)
+            else if (verdict === 'unhandled') unknown.push(`${label} ${bg.slice(0, 60)}`)
           }
         }
-        return { scanned: els.length, alpha, soft }
+        return { scanned: els.length, alpha, soft, unknown }
     }""")
 
 
@@ -262,7 +319,9 @@ def walk(url):
         check("the opening frame declares no alpha-composited paint (art-bible §7)",
               paint["scanned"] > 0 and not paint["alpha"],
               f"scanned {paint['scanned']} elements · {len(paint['alpha'])} partial-alpha "
-              f"{paint['alpha'][:2]} · {len(paint['soft'])} gradients (reported, not asserted)")
+              f"{paint['alpha'][:1]} · {len(paint['soft'])} interpolating + "
+              f"{len(paint['unknown'])} unclassifiable gradients seen "
+              f"(reported — scripts/gradient_check.py asserts that class)")
 
         # ---- 2. the seeded month ------------------------------------------------
         print("\n2. seeded month (US5 scenario 1)")
@@ -281,7 +340,9 @@ def walk(url):
         check("the world declares no alpha-composited paint (art-bible §7)",
               paint["scanned"] > 0 and not paint["alpha"],
               f"scanned {paint['scanned']} elements · {len(paint['alpha'])} partial-alpha "
-              f"{paint['alpha'][:2]} · {len(paint['soft'])} gradients (reported, not asserted)")
+              f"{paint['alpha'][:1]} · {len(paint['soft'])} interpolating + "
+              f"{len(paint['unknown'])} unclassifiable gradients seen "
+              f"(reported — scripts/gradient_check.py asserts that class)")
 
         # ---- 3. the trunk narrows ------------------------------------------------
         print("\n3. the trunk narrows (US2 / FR-006)")
@@ -411,7 +472,8 @@ def walk(url):
             check("the income sheet declares no alpha-composited paint (art-bible §7)",
                   sheet_paint["scanned"] > 0 and not sheet_paint["alpha"],
                   f"{len(sheet_paint['alpha'])} partial-alpha {sheet_paint['alpha'][:2]} · "
-                  f"{len(sheet_paint['soft'])} gradients (reported, not asserted)")
+                  f"{len(sheet_paint['soft'])} interpolating {sheet_paint['soft'][:1]} · "
+                      f"{len(sheet_paint['unknown'])} unclassifiable")
             pg.fill("#income", "6000")
             pg.get_by_role("button", name=re.compile("Start the river|Save|Update")).first.click()
             pg.wait_for_timeout(900)
@@ -450,7 +512,8 @@ def walk(url):
                 check("an open sheet declares no alpha-composited paint (art-bible §7)",
                       sheet_paint["scanned"] > 0 and not sheet_paint["alpha"],
                       f"{len(sheet_paint['alpha'])} partial-alpha {sheet_paint['alpha'][:2]} · "
-                      f"{len(sheet_paint['soft'])} gradients (reported, not asserted)")
+                      f"{len(sheet_paint['soft'])} interpolating {sheet_paint['soft'][:1]} · "
+                      f"{len(sheet_paint['unknown'])} unclassifiable")
                 check("two presses move the amount by $100", "$550" in text)
                 check("the trade-off sentence names category, delta and remaining",
                       "Food" in text and "\u2212$100" in text and "+$100" in text,
