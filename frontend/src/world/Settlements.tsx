@@ -1,8 +1,9 @@
 import { PixelSprite } from '../pixel'
-import type { RiverModel } from '../engine'
+import { SPRING_Y, type RiverModel } from '../engine'
+import { trunkX } from './path'
 import { tributaryEnd } from './geometry'
 import { PAL } from './palette'
-import { CRACK, HOUSE, RESERVOIR, RESIDENT, WARNING } from './objects'
+import { CRACK, HOUSE, RESERVOIR, RESIDENT, SPRING, WARNING } from './objects'
 
 type Props = {
   model: RiverModel
@@ -16,8 +17,19 @@ type Props = {
  * overlay World.tsx already carries for this reason (art-bible.md §1).
  */
 export function Settlements({ model, scale }: Props) {
+  const hasFlow = model.state !== 'empty'
+
   return (
     <>
+      {hasFlow && (
+        <div
+          className="absolute -translate-x-1/2 -translate-y-1/2"
+          style={{ left: trunkX(SPRING_Y) * scale, top: SPRING_Y * scale }}
+        >
+          <PixelSprite art={SPRING} palette={PAL} scale={scale} fps={3} alt="" />
+        </div>
+      )}
+
       {model.tributaries.map((trib) => {
         if (trib.width <= 0) return null
         const { x, y } = tributaryEnd(trib.atY, trib.side)
@@ -62,9 +74,10 @@ export function Settlements({ model, scale }: Props) {
 function OverspendMark({ model, scale }: { model: RiverModel; scale: number }) {
   const last = model.segments[model.segments.length - 1]
   if (!last) return null
-  const midY = (last.fromY + last.toY) / 2
-  const left = 48 * scale
-  const top = midY * scale
+  // Just below the last branch, not at the mouth — the reservoir/settlements
+  // of the last tributary sit near `toY`, and the two collided there.
+  const left = trunkX(last.fromY) * scale
+  const top = (last.fromY + 4) * scale
 
   return (
     <div
@@ -87,7 +100,8 @@ function OverspendMark({ model, scale }: { model: RiverModel; scale: number }) {
   )
 }
 
+/** Matches components/money.ts's `formatMoney` — a true minus sign (U+2212), not ASCII `-`, so the header and this mark never disagree (Pollen's finding). */
 function formatDollars(amount: number): string {
-  const sign = amount < 0 ? '-' : ''
+  const sign = amount < 0 ? '−' : ''
   return `${sign}$${Math.abs(amount).toLocaleString('en-US')}`
 }

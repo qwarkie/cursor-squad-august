@@ -20,6 +20,17 @@ type Props = {
 const MIN_HIT_WIDTH = 15
 
 /**
+ * `shape-rendering="crispEdges"` on the ancestor `<svg>` (World.tsx) is not
+ * enough — every shape needs it explicitly, and every stroke needs a `butt`
+ * cap rather than the SVG default `round`. Round caps draw a curved
+ * silhouette regardless of the rendering hint, which is exactly what makes
+ * the trunk read as a smooth vector lozenge instead of the one hard-edged
+ * object art-bible.md §1 requires: "the river is the one smooth-edged
+ * object in a hard-edged world and looks like a rendering bug."
+ */
+const CRISP = { shapeRendering: 'crispEdges' as const, strokeLinecap: 'butt' as const }
+
+/**
  * T011 — the trunk, drawn as one `<path>` per segment so each can carry its
  * own `stroke-width` (contracts/engine.md obligation 1: draw the model,
  * never recompute it). T023 — the three terminal states live here too,
@@ -52,28 +63,22 @@ export function River({ model, budget, onSelectTributary }: Props) {
               fill="none"
               stroke="var(--color-sand)"
               strokeWidth={overspent ? 4 : 2}
-              strokeLinecap="round"
               opacity={overspent ? 1 : 0.6}
+              {...CRISP}
             />
           )
         }
 
         return (
           <g key={`seg-${i}`}>
-            <path
-              d={d}
-              fill="none"
-              stroke="var(--color-water)"
-              strokeWidth={seg.width}
-              strokeLinecap="round"
-            />
+            <path d={d} fill="none" stroke="var(--color-water)" strokeWidth={seg.width} {...CRISP} />
             <path
               d={d}
               fill="none"
               stroke="var(--color-water-lit)"
               strokeWidth={Math.max(1, Math.round(seg.width * 0.3))}
-              strokeLinecap="round"
               opacity={0.55}
+              {...CRISP}
             />
           </g>
         )
@@ -87,7 +92,7 @@ export function River({ model, budget, onSelectTributary }: Props) {
         const x1 = trunkX(trib.atY)
         return (
           <g key={trib.categoryId}>
-            <line x1={x1} y1={trib.atY} x2={x2} y2={y2} stroke={color} strokeWidth={trib.width} strokeLinecap="round" />
+            <line x1={x1} y1={trib.atY} x2={x2} y2={y2} stroke={color} strokeWidth={trib.width} {...CRISP} />
             {onSelectTributary && (
               <line
                 x1={x1}
@@ -96,7 +101,6 @@ export function River({ model, budget, onSelectTributary }: Props) {
                 y2={y2}
                 stroke="transparent"
                 strokeWidth={Math.max(trib.width, MIN_HIT_WIDTH)}
-                strokeLinecap="round"
                 style={{ cursor: 'pointer' }}
                 onClick={() => onSelectTributary(trib.categoryId)}
               />
@@ -113,6 +117,7 @@ export function River({ model, budget, onSelectTributary }: Props) {
           ry={4}
           fill="var(--color-water-lit)"
           opacity={0.85}
+          shapeRendering="crispEdges"
         />
       )}
 
@@ -125,6 +130,7 @@ export function River({ model, budget, onSelectTributary }: Props) {
           fill="none"
           stroke="var(--color-sand)"
           strokeWidth={1}
+          shapeRendering="crispEdges"
         />
       )}
     </g>
