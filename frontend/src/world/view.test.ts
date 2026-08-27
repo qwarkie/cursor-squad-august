@@ -113,6 +113,24 @@ describe('restingPan', () => {
     expect(restingPan(view.worldPx, view.frame, view.scale)).toEqual({ x: 3, y: 0 })
   })
 
+  it('centres the river in what is visible, not under a panel floating over it', () => {
+    // The Housing village is top-right at every budget, which is exactly where
+    // a right-hand rail sits. Centred on the full frame it goes behind it.
+    const view = resolveView({ w: 1440, h: 790 }, WORLD, 6)
+    const RAIL = 380
+    const centred = restingPan(view.worldPx, view.frame, view.scale)
+    const inset = restingPan(view.worldPx, view.frame, view.scale, RAIL)
+    expect(inset.x).toBeLessThan(centred.x)
+    // ...and the world's right edge now clears the rail.
+    expect(inset.x + view.worldPx.w).toBeLessThanOrEqual(view.frame.w - RAIL)
+  })
+
+  it('ignores an inset it cannot honour rather than shoving the world off-frame', () => {
+    const view = resolveView({ w: 1440, h: 790 }, WORLD, 15)
+    const p = restingPan(view.worldPx, view.frame, view.scale, 380)
+    expect(p).toEqual(clampPan(p, view.worldPx, view.frame, view.scale))
+  })
+
   it('starts at the spring, not the middle, when there is room below', () => {
     const view = resolveView({ w: 960, h: 774 }, WORLD, null)
     expect(restingPan(view.worldPx, view.frame, view.scale).y).toBe(0)

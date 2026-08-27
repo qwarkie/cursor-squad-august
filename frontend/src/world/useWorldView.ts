@@ -27,6 +27,20 @@ const MIN_FRAME_H = 280
  * rest (rect + scrollY) so scrolling cannot feed back into the frame's size —
  * only the chrome *above* the world decides it, and that does not move.
  */
+/**
+ * Space the layout floats a panel over, declared by the layout itself.
+ *
+ * The world cannot see the rail — it is a sibling in another component — and
+ * guessing at its width from the viewport would be a heuristic that goes wrong
+ * the first time someone changes it. `--world-inset-right` is the marker;
+ * absent, it is zero and nothing moves.
+ */
+function insetRight(el: HTMLElement): number {
+  const raw = getComputedStyle(el).getPropertyValue('--world-inset-right').trim()
+  const px = Number.parseFloat(raw)
+  return Number.isFinite(px) && px > 0 ? px : 0
+}
+
 function availableHeight(el: HTMLElement): number {
   const topAtRest = el.getBoundingClientRect().top + window.scrollY
   return Math.max(MIN_FRAME_H, Math.round(window.innerHeight - topAtRest - BOTTOM_GAP))
@@ -59,6 +73,7 @@ export function useWorldView(worldW: number, worldH: number) {
   const stageRef = useRef<HTMLDivElement>(null)
   const frameRef = useRef<HTMLDivElement>(null)
 
+  const [inset, setInset] = useState(0)
   const [stage, setStage] = useState<Box>(() => ({
     w: typeof window === 'undefined' ? 390 : window.innerWidth,
     h: typeof window === 'undefined' ? 512 : Math.max(MIN_FRAME_H, window.innerHeight),
@@ -83,6 +98,8 @@ export function useWorldView(worldW: number, worldH: number) {
     const measure = () => {
       const w = el.clientWidth || window.innerWidth
       const h = availableHeight(el)
+      const right = insetRight(el)
+      setInset((prev) => (prev === right ? prev : right))
       setStage((prev) => (prev.w === w && prev.h === h ? prev : { w, h }))
     }
     measure()
@@ -101,13 +118,13 @@ export function useWorldView(worldW: number, worldH: number) {
   useEffect(() => {
     setPan((p) => {
       const next = touched.current
-        ? clampPan(p, view.worldPx, view.frame, view.scale)
-        : restingPan(view.worldPx, view.frame, view.scale)
+        ? clampPan(p, view.worldPx, view.frame, view.scale, inset)
+        : restingPan(view.worldPx, view.frame, view.scale, inset)
       return next.x === p.x && next.y === p.y ? p : next
     })
     // `view` is memoised, so this settles in one pass: an unchanged clamp
     // returns the same object and React stops.
-  }, [view])
+  }, [view, inset])
 
   /** Absolute, clamped, and centre-preserving — see `panAfterZoom`. */
   const zoomTo = useCallback(
@@ -122,10 +139,11 @@ export function useWorldView(worldW: number, worldH: number) {
           next.worldPx,
           next.frame,
           next.scale,
+          inset,
         ),
       )
     },
-    [stage, world, view, pan],
+    [stage, world, view, pan, inset],
   )
 
   const zoomIn = useCallback(() => zoomTo(view.scale + 1), [zoomTo, view.scale])
@@ -209,6 +227,7 @@ export function useWorldView(worldW: number, worldH: number) {
         view.worldPx,
         view.frame,
         view.scale,
+        inset,
       ),
     )
   }

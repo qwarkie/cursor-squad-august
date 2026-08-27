@@ -87,30 +87,54 @@ export function panRange(
   frame: number,
   scale: number,
   anchor: 'centre' | 'start',
+  inset = 0,
 ): { lo: number; hi: number; locked: boolean } {
   const m = PAN_MARGIN * scale
   const hi = m
   const lo = frame - m - world
   if (lo > hi) {
-    const at = anchor === 'centre' ? Math.round((frame - world) / 2) : 0
+    // Nothing to drag on this axis, so the only question is where it settles.
+    // `inset` is space the frame owns and a person cannot see into: settle in
+    // what is visible, not in the middle of what is painted.
+    const at = anchor === 'centre' ? Math.round((frame - inset - world) / 2) : 0
     return { lo: at, hi: at, locked: true }
   }
   return { lo, hi, locked: false }
 }
 
-export function clampPan(pan: Pan, worldPx: Box, frame: Box, scale: number): Pan {
-  const x = panRange(worldPx.w, frame.w, scale, 'centre')
+export function clampPan(
+  pan: Pan,
+  worldPx: Box,
+  frame: Box,
+  scale: number,
+  insetRight = 0,
+): Pan {
+  const x = panRange(worldPx.w, frame.w, scale, 'centre', insetRight)
   const y = panRange(worldPx.h, frame.h, scale, 'start')
   return { x: clamp(pan.x, x.lo, x.hi), y: clamp(pan.y, y.lo, y.hi) }
 }
 
-/** Where the world sits before anyone drags it. */
-export function restingPan(worldPx: Box, frame: Box, scale: number): Pan {
+/**
+ * Where the world sits before anyone drags it.
+ *
+ * `insetRight` is space the frame owns but a person cannot see into — a panel
+ * floating over the field. The field still fills the whole frame, because the
+ * point of full-bleed is that there is no edge; but the *river* centres in
+ * what is actually visible. Without it the world centres under the panel and
+ * the top-right village — Housing, at every budget — sits behind it.
+ */
+export function restingPan(
+  worldPx: Box,
+  frame: Box,
+  scale: number,
+  insetRight = 0,
+): Pan {
   return clampPan(
-    { x: Math.round((frame.w - worldPx.w) / 2), y: 0 },
+    { x: Math.round((frame.w - insetRight - worldPx.w) / 2), y: 0 },
     worldPx,
     frame,
     scale,
+    insetRight,
   )
 }
 
