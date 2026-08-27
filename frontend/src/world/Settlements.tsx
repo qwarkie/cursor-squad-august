@@ -1,6 +1,7 @@
 import { PixelSprite } from '../pixel'
 import { SPRING_Y, type RiverModel } from '../engine'
 import { trunkX } from './path'
+import { WORLD_H } from './World'
 import { tributaryEnd } from './geometry'
 import { PAL } from './palette'
 import { CRACK, RESERVOIR, RESIDENT, SPRING, WARNING } from './objects'
@@ -124,6 +125,8 @@ export function Settlements({ model, budget, scale }: Props) {
         )
       })}
 
+      <MouthTally model={model} scale={scale} />
+
       {model.state === 'overspent' && <OverspendMark model={model} scale={scale} />}
     </>
   )
@@ -235,4 +238,47 @@ function OverspendMark({ model, scale }: { model: RiverModel; scale: number }) {
 function formatDollars(amount: number): string {
   const sign = amount < 0 ? '−' : ''
   return `${sign}$${Math.abs(amount).toLocaleString('en-US')}`
+}
+
+/**
+ * What reaches the mouth, stated in dollars on a plate under the pool.
+ *
+ * The pool's size is capped so a full-width river's mouth stays inside the
+ * world, which means it stops growing well before the money does — $50 of
+ * surplus and $2,200 of it arrive in a pool of the same size. The figure is
+ * what separates them. It sits *below* the water rather than on it so the
+ * pool stays unobstructed, and its top is clamped inside the 128 art-px
+ * canvas, because a mouth pushed down by many categories would otherwise
+ * carry its own label off the bottom edge.
+ *
+ * Decorative for assistive tech: this overlay is `aria-hidden` in World.tsx
+ * and the header already announces the remaining amount, so it must not be
+ * read out a second time.
+ */
+function MouthTally({ model, scale }: { model: RiverModel; scale: number }) {
+  const last = model.segments[model.segments.length - 1]
+  if (!last || model.state === 'empty') return null
+
+  const border = Math.max(1, Math.round(scale / 2))
+  const top = Math.min(last.toY + 12, WORLD_H - 12) * scale
+
+  return (
+    <div
+      className="absolute -translate-x-1/2 whitespace-nowrap"
+      data-testid="mouth-tally"
+      style={{
+        left: trunkX(last.toY) * scale,
+        top,
+        background: PAL.n!,
+        color: model.remaining > 0 ? PAL.y! : PAL.p!,
+        border: `${border}px solid ${PAL.k}`,
+        padding: `${border}px ${scale}px`,
+        fontFamily: 'var(--font-pixel)',
+        fontSize: Math.max(6, scale * 2),
+        lineHeight: 1,
+      }}
+    >
+      {formatDollars(model.remaining)} left
+    </div>
+  )
 }
