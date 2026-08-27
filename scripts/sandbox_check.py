@@ -213,6 +213,20 @@ with sync_playwright() as pw:
                   doc: document.documentElement.scrollHeight,
                   btns: [...bar.querySelectorAll('button')].map(b => Math.round(b.getBoundingClientRect().width))}
         }""")
+        # `scrollWidth > clientWidth` cannot see this. App's root carries
+        # `overflow-x-hidden`, so anything pushed past the right edge is
+        # CLIPPED rather than scrolled: scrollWidth reads exactly the viewport
+        # width while the rail sits 206px off-screen. The no-horizontal-scroll
+        # check passed on a layout with the category amounts and the Reset
+        # button cut off. Ask each element where its right edge is instead.
+        for name, sel in (("category list", "main ul"), ("actions", "[data-actions]")):
+            r = page.evaluate(
+                "sel => { const b = document.querySelector(sel).getBoundingClientRect();"
+                " return {left: b.left, right: b.right} }", sel)
+            check(f"{w}: the {name} is inside the window",
+                  r["right"] <= m["vw"] + 0.5 and r["left"] >= -0.5,
+                  f"spans {r['left']:.0f}..{r['right']:.0f} in {m['vw']}px")
+
         check(f"{w}: the actions do not span the viewport",
               m["barW"] < m["vw"] * 0.5, f"bar {m['barW']:.0f} of {m['vw']} — {m['btns']}")
         check(f"{w}: the category list is above the fold",

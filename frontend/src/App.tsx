@@ -238,7 +238,7 @@ export default function App() {
           on screen with the river it describes, which is the whole point of
           the product: you change a number and watch the water move. */}
       <main className="flex flex-1 flex-col items-center gap-4 py-4 lg:flex-row lg:items-start lg:justify-center lg:gap-8 lg:px-8">
-        <div className="flex w-full flex-col items-center lg:w-auto lg:flex-1 lg:items-end">
+        <div className="flex w-full min-w-0 flex-col items-center overflow-hidden lg:w-auto lg:flex-1 lg:items-end">
         <World
           model={model}
           overlay={(scale) => (
