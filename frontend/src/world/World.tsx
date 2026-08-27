@@ -123,6 +123,16 @@ export function World({ model, children, overlay }: Props) {
       />
       <div
         ref={frameRef}
+        // The window onto the world, named rather than inferred.
+        //
+        // Every script that needs it walks up from `[data-scale]` looking for
+        // an ancestor whose `overflow` is not `visible` — and `App`'s root
+        // carries `overflow-x-hidden` while being as tall as the document, so
+        // that walk found a "frame" 1440x2038 for a 1440x900 window and had to
+        // be patched with a viewport intersection to compensate. The clipping
+        // element is mine; it can say so. Same reasoning as `data-field`,
+        // `data-foliage` and `data-scale`: ask for a marker, not a heuristic.
+        data-frame=""
         className="relative mx-auto overflow-hidden rounded"
         style={{
           width: frame.w,
