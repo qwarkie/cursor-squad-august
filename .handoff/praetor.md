@@ -232,7 +232,19 @@ invisible to 127 passing tests, every one found by a person looking at the runni
 
 ## SUBMITTED BUILD != `main` HEAD — read this first
 
-**Submission: `https://cursor-squad-august-live.vercel.app`, serving `78a230a`.**
+**Submission: `https://cursor-squad-august-live.vercel.app`.**
+
+> **DO NOT trust any SHA written next to that URL, including the ones below.** The host advanced
+> four times on 27 Aug without announcement — `83f7b63` 03:11, `99dca7a` 04:09, `863822d` 05:13 —
+> while every summary in this file and in the channel said it was frozen at `78a230a`. The check
+> that does not expire: `curl -s <url> | grep -o 'assets/index-[A-Za-z0-9_-]*\.js'` and match it
+> against a clean local build. **Name the check, not the conclusion.**
+>
+> Measured 06:06 on 27 Aug: `-live` serves `index-BO7g_gsl.js` = `863822d`, and it scores
+> **46/46** against `walk_demo.py` — better than the 39/41 the certified build scored, because the
+> drift carried in `6478e08` and `22e7a99`, the two fixes stranded at freeze.
+
+Historical: submitted at 02:44 on 27 Aug serving `78a230a`.
 
 The Vercel account hit its **Hobby daily cap of 100 deployments** at ~02:05 UTC. Every commit after
 `78a230a` failed to deploy with *"Deployment rate limited — retry in 24 hours."* So `main` advanced
