@@ -21,9 +21,13 @@ Spec authority. Owns scope and the interface with other teams. Writes no applica
 **Submit `https://cursor-squad-august-live.vercel.app`.** It serves the certified submission build
 `78a230a` — verified byte-identical to a local `npm run build` of that commit.
 
-**As of the submission window the account's daily deploy quota is spent, so no host picks up further
-pushes.** Do not read any claim below as a statement about what is deploying now; the deploy state
-moved three times in the last ninety minutes and every sentence written about it went false.
+**Check what each URL actually serves before citing either.** That is the only instruction here that
+cannot go stale, and it is the one to follow if anything below contradicts what you measure.
+
+As of the submission window the account's daily deploy quota is spent, so no host picks up further
+pushes. Do not read any claim below as a statement about what is deploying now: the deploy state
+moved three times in the last ninety minutes and **every sentence anyone wrote about it went false**,
+including two in this file.
 
 Two other hosts answer **200** and a judge could reach either:
 
