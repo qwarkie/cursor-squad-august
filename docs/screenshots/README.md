@@ -1,21 +1,50 @@
 # Screenshots
 
-Captured from the **submitted build**, on the live URL, not from a dev server
-and not from `main`:
+## Provenance — a stamp, not a currency claim
 
-    https://cursor-squad-august-live.vercel.app
-    bundle index-BO7g_gsl.js  ==  863822d, what the submitted URL serves now
-    headless Chromium, 390 × 844, deviceScaleFactor 2, touch enabled
+    captured from   https://cursor-squad-august-live.vercel.app
+    serving         assets/index-BO7g_gsl.js  ==  863822d
+    on              2026-08-27
+    how             headless Chromium, 390 x 844, deviceScaleFactor 2, touch on
 
-The bundle hash was asserted at capture time and the run aborts if the live URL
-is serving anything else, because these are the demo's contingency stills: if the
-network dies at the podium, the presenter narrates the same script over these.
-**A still that shows a UI the live URL does not render is worse than no still.**
+That is a historical fact and it stays true. **These files do not claim to show
+what the URL serves today**, and they must not — the host is git-linked and
+deploys unattended whenever its per-project build quota allows, so any sentence
+here asserting currency expires the moment a push lands. Two earlier versions of
+this file made exactly that claim and both were false within the hour.
 
-An earlier set was captured before the signboards landed and showed coloured
-tributary strokes with no signs — a layout neither the submitted build nor `main`
-renders. They loaded fine and were wrong. Verifying that an image is *served* is
-not verifying what is *in* it.
+## The check
+
+Whether a still still matches the submitted URL is a question you answer, not
+one this file can answer for you:
+
+    curl -s https://cursor-squad-august-live.vercel.app \
+      | grep -o 'assets/index-[A-Za-z0-9_-]*\.js'
+
+If that hash is not the one stamped above, the stills predate the live build.
+**That is an honest lag, not a defect.** Re-capture when someone is about to
+rely on them — before a demo, before a submission — and re-stamp. Nobody
+re-captures on a schedule, and nobody writes "these are current" instead.
+
+The capture script asserts the stamped hash before its first frame and aborts
+otherwise, so a set can never be *silently* mixed across two builds.
+
+## What went wrong three times, because none of it expires
+
+    1  captured before the signboards landed, committed as current   the capture was wrong
+    2  captured before the header fix, committed as current          the capture was wrong
+    3  captured correctly from 78a230a — and the HOST moved to 863822d
+
+The third is the one this file is now shaped around. **The images did not
+change; the ground under them did.** The `78a230a` set showed a gradient empty
+field — the smooth ramp removed at `768ac6b` for emitting 58 colours, 57 of
+them outside the twenty — so narrating the demo script over it would have shown
+a judge a known art-bible violation on the opening frame.
+
+The check that catches all three is the same one: **does a fresh capture of the
+submitted URL match what is committed.** Hashes, not timestamps — a
+`last-modified` header is CDN revalidation time and has already misled one
+reading tonight.
 
 | File | State |
 |---|---|
@@ -44,17 +73,3 @@ $ curl -o /dev/null -w '%{http_code}' https://gartersnake.communities.buzz.xyz/m
 Re-capture against the live URL after a deploy, at the same viewport, and say
 which commit was live when you did.
 
-## These expire when the host moves, not when the images change
-
-The first set was captured from `78a230a` and stayed byte-correct while the
-submitted URL quietly advanced to `863822d`. Nothing about the files went
-wrong — **the host moved underneath them**, and a still is only true of a
-build.
-
-The `78a230a` set showed a **gradient** empty field: the smooth green ramp
-that `768ac6b` removed for emitting 58 colours, 57 of them outside the twenty.
-Narrating over it would have shown a judge a build carrying a known
-art-bible violation.
-
-So the check is not *are the files intact* but **does a fresh capture of the
-submitted URL match what is committed** — compare hashes, not timestamps.
