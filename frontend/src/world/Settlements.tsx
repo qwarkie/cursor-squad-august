@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 import { PixelSprite } from '../pixel'
 import { SPRING_Y, type RiverModel } from '../engine'
 import { trunkX } from './path'
@@ -18,11 +20,69 @@ import type { Budget, PaletteKey } from '../types'
  */
 const HOUSE_GAP = 2
 
+/** FR-018 / SC-008 — no essential control below 44 x 44 CSS px. */
+const MIN_TOUCH = 44
+
 type Props = {
   model: RiverModel
   /** Labels and colours for the signboards — the world knows amounts, only the budget knows names. */
   budget: Budget
   scale: number
+  /**
+   * Selects the category a village or reservoir belongs to.
+   *
+   * Optional so this file lands green and inert: the prop is threaded from
+   * App.tsx, which is a gated surface, and #52 established that the way across
+   * one is to ship the consumer first and ask for the activating line.
+   */
+  onSelect?: (categoryId: string) => void
+  /** Opens the income sheet from the spring. The spring *is* the income. */
+  onEditIncome?: () => void
+}
+
+/**
+ * A pointer shortcut on a world object.
+ *
+ * Deliberately `aria-hidden` with `tabIndex={-1}`, which is the opposite of
+ * what an interactive element usually wants. The reason: every action these
+ * shortcuts perform is already reachable as a real, named button in the
+ * category list below the world — `Housing $1,500`, `Income $4,200`. Exposing
+ * a second control for the same action would put two entries in the
+ * accessibility tree for one thing and make the list ambiguous.
+ *
+ * That is only legitimate because the equivalent exists. It is the chart-and-
+ * data-table pattern, not the trap of burying the sole carrier of an action
+ * inside `aria-hidden` — which is exactly what happened to the overspend
+ * `role="alert"` in this same overlay.
+ *
+ * `pointer-events-auto` because World.tsx's sprite overlay is
+ * `pointer-events-none`; without it the sprites stay decorative and nothing
+ * below them is reachable either.
+ */
+function Touchable({
+  onPress,
+  label,
+  children,
+}: {
+  onPress?: () => void
+  label: string
+  children: ReactNode
+}) {
+  if (!onPress) return <>{children}</>
+  return (
+    <button
+      type="button"
+      aria-hidden="true"
+      tabIndex={-1}
+      title={label}
+      onClick={onPress}
+      className="pointer-events-auto block cursor-pointer bg-transparent p-0"
+      style={{ minWidth: MIN_TOUCH, minHeight: MIN_TOUCH }}
+      data-world-touch={label}
+    >
+      {children}
+    </button>
+  )
 }
 
 /**
@@ -31,7 +91,7 @@ type Props = {
  * both are DOM sprites positioned in CSS pixels over the SVG, the same
  * overlay World.tsx already carries for this reason (art-bible.md §1).
  */
-export function Settlements({ model, budget, scale }: Props) {
+export function Settlements({ model, budget, scale, onSelect, onEditIncome }: Props) {
   const hasFlow = model.state !== 'empty'
 
   return (
@@ -41,7 +101,9 @@ export function Settlements({ model, budget, scale }: Props) {
           className="absolute -translate-x-1/2 -translate-y-1/2"
           style={{ left: trunkX(SPRING_Y) * scale, top: SPRING_Y * scale }}
         >
-          <PixelSprite art={SPRING} palette={PAL} scale={scale} fps={WORLD_FPS} alt="" />
+          <Touchable onPress={onEditIncome} label="Edit income">
+            <PixelSprite art={SPRING} palette={PAL} scale={scale} fps={WORLD_FPS} alt="" />
+          </Touchable>
         </div>
       )}
 
@@ -64,7 +126,12 @@ export function Settlements({ model, budget, scale }: Props) {
               {category && (
                 <Signboard label={category.label} color={category.color} scale={scale} width={rankWidth} />
               )}
-              <PixelSprite art={RESERVOIR} palette={PAL} scale={scale} fps={WORLD_FPS} alt="Savings reservoir" />
+              <Touchable
+                onPress={onSelect && (() => onSelect(trib.categoryId))}
+                label={category ? `Select ${category.label}` : 'Select savings'}
+              >
+                <PixelSprite art={RESERVOIR} palette={PAL} scale={scale} fps={WORLD_FPS} alt="Savings reservoir" />
+              </Touchable>
             </div>
           )
         }
@@ -89,6 +156,10 @@ export function Settlements({ model, budget, scale }: Props) {
             {category && (
               <Signboard label={category.label} color={category.color} scale={scale} width={rankWidth} />
             )}
+            <Touchable
+              onPress={onSelect && (() => onSelect(trib.categoryId))}
+              label={category ? `Select ${category.label}` : 'Select category'}
+            >
             <div
               className="flex flex-wrap items-end justify-center"
               style={{ gap: HOUSE_GAP, width: rankWidth }}
@@ -104,6 +175,7 @@ export function Settlements({ model, budget, scale }: Props) {
                 />
               ))}
             </div>
+            </Touchable>
             {residents > 0 && (
               <div
                 className="flex justify-center"
