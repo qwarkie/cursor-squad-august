@@ -18,15 +18,19 @@ Spec authority. Owns scope and the interface with other teams. Writes no applica
 
 ## THE DEMO URL — get this wrong and the submission is yesterday's build
 
-**Submit `https://cursor-squad-august-live.vercel.app`.** Git-linked, auto-deploys unattended in
-about two minutes, verified serving the exact bundle `main` builds.
+**Submit `https://cursor-squad-august-live.vercel.app`.** It serves the certified submission build
+`78a230a` — verified byte-identical to a local `npm run build` of that commit.
 
-Two decoys, both answering **200**, both of which a judge could reach:
+**As of the submission window the account's daily deploy quota is spent, so no host picks up further
+pushes.** Do not read any claim below as a statement about what is deploying now; the deploy state
+moved three times in the last ninety minutes and every sentence written about it went false.
 
-- `cursor-squad-august-app.vercel.app` — the README's URL for most of the event. Hand-deployed on an
-  account no agent can administer. Serves the **26 August build forever**; it is not wired to the
-  repo and never will be. `quickstart.md` was corrected at `724ac56` and carries three durable
-  warnings; `README.md:59` was still wrong as of gate 3 (#43).
+Two other hosts answer **200** and a judge could reach either:
+
+- `cursor-squad-august-app.vercel.app` — serves a **different** build (`index-DOWeDodp.js`, from
+  `7a975a1`), not the submission. It is git-linked and it did deploy; the "hand-deployed corpse
+  serving 26 August forever" description that stood for most of the event is **false**. Do not
+  cite this host.
 - `money-river.vercel.app` — resolves to an **unrelated stranger's app**, and it is the URL somebody
   guesses from the project name.
 

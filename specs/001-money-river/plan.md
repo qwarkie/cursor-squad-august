@@ -42,7 +42,7 @@ The geometry is computed by a **pure, dependency-free engine function** — `Bud
 | VI — Single Owned Surface | **Pass** | Four surfaces, no overlap: `engine/` (pure geometry), `pixel/` (rasteriser, already built), `world/` (SVG river and object placement), `components/` (DOM chrome). The engine contract is the only thing crossing a boundary. |
 | Additional — stack is fixed, **no new runtime dependency the demo path does not require** | **Pass, narrowly** | Three additions, each justified below. The four heaviest candidates — `pixi.js`, `@pixi/react`, `pixi-filters`, `simplex-noise` — were added, then removed in favour of in-repo code. |
 | Additional — backend off the production demo path | **Pass** | Nothing on the demo path calls `/api`. |
-| Additional — live deployment is part of the demo path | **Pass** | Deploy is a spine task and the live URL is walked, not assumed. The deploy is not git-linked — pushing `main` does not redeploy. |
+| Additional — live deployment is part of the demo path | **Pass** | Deploy is a spine task and the live URL is walked, not assumed. (Superseded detail: this row originally stated the deploy was not git-linked. It was linked during the event, and later the account's daily deploy quota was exhausted. The verdict stands on the walk, not on the pipeline's state.) |
 | Additional — README quickstart is a claim under test | **Pass** | [quickstart.md](./quickstart.md) is written to be run literally from a fresh clone. |
 | Additional — deterministic fixtures checked in | **Pass** | `frontend/src/fixtures/budget.ts` holds the seeded month. |
 | Additional — every write path surfaces its failure | **Pass** | FR-014. The only write path is `localStorage`; a failed write renders a visible error rather than being swallowed. |
