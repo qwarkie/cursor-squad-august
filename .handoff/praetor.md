@@ -548,8 +548,11 @@ output, is how they drift — and that parse had already been wrong once in the 
    wrong*, and a plausible URL never looks wrong. Require the argument. (#58)
    **An argument with a default is not an argument.** File it beside *a 200 is not your bundle*:
    the file looks parameterised and behaves hardcoded whenever someone omits the arg — which is
-   exactly when they are least likely to check. `gradient_check.py` now exits 2 with usage
-   (`fc36f7d`); `walk_demo.py` still defaults to 5173 and the README records that as **open**.
+   exactly when they are least likely to check. **Neither script has a default and neither should
+   get one** — `gradient_check.py` at `fc36f7d`, `walk_demo.py` at `71cab62`, both exit 2 with
+   usage. The two wrong answers the defaults already produced are history and history does not
+   expire: an alpha-scrim report on a build where the scrim had been gone two commits, and a
+   fresh-clone green measured against a Vite that had moved itself to 5176.
 6. The board is a claim. Praetor published #50 as closed in five consecutive summaries while it was
    open. **A board error in the direction of *less work outstanding* is the one nobody checks.**
    Verify against `gh issue list`, not against memory.
