@@ -47,21 +47,28 @@ quantity, one level up from the code.
 **Re-certify when anything the result depends on moves. Scope the diff
 otherwise, and say nothing.**
 
-Three things the result depends on, which is what that means today:
+**A file that nothing executes is not a dependency, wherever it lives.** The
+trigger is the dependency, not the directory — this file sits inside `scripts/`
+and cannot change a result, while root `package.json` sits outside every
+watched directory and defines every result.
+
+Where the dependencies happen to live today:
 
 ```
 frontend/            what the harnesses measure
-scripts/             the harnesses themselves
+scripts/*.py         the harnesses themselves
 root package.json    what running them means — `walk`, `gradients`, `test`,
-                     `typecheck`, `build` are defined there, and a one-word
+                     `typecheck`, `build` are declared there, and a one-word
                      edit changes what every green run asserted while
                      frontend/ and scripts/ sit untouched
 ```
 
 The third is the one that gets missed, and it was missed here: the rule was
-written with two paths, and the invocation is the one input a harness
-structurally cannot see. It is also a surface this file created — the `walk`
-and `gradients` entries were added alongside it.
+first written with two directories, and **the invocation is the one input a
+harness structurally cannot observe** — the same blindness that stops it seeing
+the handoff, turned on itself. It is also a surface this file created: the
+`walk` and `gradients` entries were added in the commit that documented the
+instruments.
 
 Stated as a dependency rather than as a path list because path lists expire.
 If the result starts depending on something else, that something else joins
