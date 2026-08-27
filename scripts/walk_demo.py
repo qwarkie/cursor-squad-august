@@ -600,7 +600,20 @@ def walk(url):
 
 
 def main():
-    url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:5173"
+    if len(sys.argv) < 2:
+        # A default target is a hardcoded target wearing an argument's clothes.
+        # Taking the URL as an argument is what let this harness certify two
+        # different deployments without an edit; defaulting to a well-known dev
+        # port quietly undoes that, and 5173 is routinely another checkout's
+        # server. Honey got an alpha-scrim report on a build where the scrim had
+        # been gone for two commits, and Pollen nearly published a fresh-clone
+        # result measured against someone else's app. Printing the URL does not
+        # close it — both had the line and a plausible URL never looks wrong.
+        # A loud missing argument beats a silent wrong answer.
+        print(__doc__)
+        print("error: a URL is required — this walk will not guess what to judge")
+        sys.exit(2)
+    url = sys.argv[1]
     try:
         walk(url)
     except Exception as exc:  # a crashed walk is a failed walk, not a green one
