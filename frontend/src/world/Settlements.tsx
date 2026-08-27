@@ -4,7 +4,7 @@ import { trunkX } from './path'
 import { WORLD_H } from './World'
 import { tributaryEnd } from './geometry'
 import { PAL } from './palette'
-import { CRACK, RESERVOIR, RESIDENT, SPRING, WARNING } from './objects'
+import { CRACK, RESERVOIR, RESIDENT, SPRING, WARNING, WORLD_FPS } from './objects'
 import { iconArt, iconPlural } from './icons'
 import type { Budget, PaletteKey } from '../types'
 
@@ -41,7 +41,7 @@ export function Settlements({ model, budget, scale }: Props) {
           className="absolute -translate-x-1/2 -translate-y-1/2"
           style={{ left: trunkX(SPRING_Y) * scale, top: SPRING_Y * scale }}
         >
-          <PixelSprite art={SPRING} palette={PAL} scale={scale} fps={3} alt="" />
+          <PixelSprite art={SPRING} palette={PAL} scale={scale} fps={WORLD_FPS} alt="" />
         </div>
       )}
 
@@ -64,7 +64,7 @@ export function Settlements({ model, budget, scale }: Props) {
               {category && (
                 <Signboard label={category.label} color={category.color} scale={scale} width={rankWidth} />
               )}
-              <PixelSprite art={RESERVOIR} palette={PAL} scale={scale} fps={3} alt="Savings reservoir" />
+              <PixelSprite art={RESERVOIR} palette={PAL} scale={scale} fps={WORLD_FPS} alt="Savings reservoir" />
             </div>
           )
         }
@@ -99,7 +99,7 @@ export function Settlements({ model, budget, scale }: Props) {
                   art={art}
                   palette={PAL}
                   scale={scale}
-                  fps={4}
+                  fps={WORLD_FPS}
                   alt={i === 0 ? `${noun}, ${houses}` : ''}
                 />
               ))}
@@ -115,7 +115,7 @@ export function Settlements({ model, budget, scale }: Props) {
                     art={RESIDENT}
                     palette={PAL}
                     scale={scale}
-                    fps={4}
+                    fps={WORLD_FPS}
                     alt={i === 0 ? `Residents, ${residents}` : ''}
                   />
                 ))}
@@ -220,7 +220,13 @@ function OverspendMark({ model, scale }: { model: RiverModel; scale: number }) {
     <div className="absolute -translate-x-1/2 -translate-y-1/2 text-center" style={{ left, top }}>
       <div className="flex items-center justify-center gap-1">
         <PixelSprite art={CRACK} palette={PAL} scale={scale} alt="" />
-        <PixelSprite art={WARNING} palette={PAL} scale={scale} fps={2} alt="Overspent" />
+        {/* The pulse is scale and opacity on the wrapper, never on the sprite art
+            and never hue (art-bible.md §5, and FR-012 forbids colour-only
+            signals). The global reduced-motion rule stops it with everything
+            else, and the triangle still reads without it. */}
+        <span className="warning-pulse inline-block">
+          <PixelSprite art={WARNING} palette={PAL} scale={scale} fps={WORLD_FPS} alt="Overspent" />
+        </span>
         <PixelSprite art={CRACK} palette={PAL} scale={scale} alt="" />
       </div>
       <p

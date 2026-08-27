@@ -14,6 +14,26 @@ import type { Art } from '../pixel'
  * first. `objects.test.ts` fails if any sprite drifts from it.
  */
 
+/**
+ * One frame rate for every discrete world object, in art-bible.md §5's 4–8 fps
+ * band.
+ *
+ * The rule the bible gives is not the band, it is *"one rate per object kind —
+ * mixed rates across similar objects read as broken."* Before this constant the
+ * spring ran at 3, the reservoir at 3 and the warning at 2, while residents,
+ * markets, cars and arcades ran at 4 — so a reservoir ticked at a visibly
+ * different cadence to the settlements standing beside it.
+ *
+ * A shared constant rather than four literals, because four literals is how
+ * they drifted apart in the first place.
+ *
+ * The grass field is deliberately not on this rate. `GrassField.tsx` documents
+ * why: one object at 4 fps is alive, a whole field changing every 250 ms is a
+ * strobe. A full-screen backdrop is a different kind of object, and the bible's
+ * rule is per kind.
+ */
+export const WORLD_FPS = 4
+
 /** 5 x 5, 2 frames. Rides the river on `offset-path` (T012, T013). */
 export const COIN: readonly Art[] = [
   ['.kkk.', 'koyyk', 'kyyyk', 'kyyyk', '.kkk.'],

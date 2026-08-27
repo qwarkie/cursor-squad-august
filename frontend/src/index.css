@@ -156,3 +156,30 @@ body {
     transform: translateX(calc(var(--flow-period) * var(--flow-dir)));
   }
 }
+
+/**
+ * The overspend mark pulses (art-bible.md §5, 600ms loop).
+ *
+ * Scale and opacity only — never hue. FR-012 forbids signalling overspend by
+ * colour alone, so the pulse has to add emphasis without carrying the meaning:
+ * the cracked bed, the triangle and the sentence still say it standing still.
+ *
+ * Applied to a wrapper, not to the sprite, so the pixel grid is never scaled
+ * mid-frame. The reduced-motion rule above collapses it with everything else.
+ */
+@keyframes warning-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.72;
+  }
+}
+
+.warning-pulse {
+  animation: warning-pulse 600ms ease-in-out infinite;
+  transform-origin: center;
+}
