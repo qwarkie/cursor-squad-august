@@ -55,7 +55,7 @@ export function CategorySheet({ onSubmit, onCancel }: CategorySheetProps) {
         type="button"
         aria-label="Close"
         onClick={onCancel}
-        className="backdrop-in absolute inset-0 cursor-pointer bg-black/50"
+        className="scrim backdrop-in absolute inset-0 cursor-pointer"
       />
       <form
         onSubmit={submit}

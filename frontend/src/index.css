@@ -143,6 +143,26 @@ body {
   animation: backdrop-in 250ms ease-out both;
 }
 
+/* The sheet scrim, dimmed by dithering rather than by alpha.
+   `bg-black/50` composites toward pure black, which is not one of the twenty
+   and does not land on one either: of the 20 palette colours, 0 have a
+   50%-black composite that is still in the palette. So every pixel the scrim
+   covered was off-palette by construction — art-bible §7 #3, on the whole
+   world behind two sheets.
+   A 1px checkerboard of `night` halves the apparent brightness the way an
+   8-bit machine would: every pixel is either `night` or the untouched colour
+   underneath, so the palette cannot grow. */
+.scrim {
+  background-color: transparent;
+  background-image: conic-gradient(
+    var(--color-night) 25%,
+    transparent 0 50%,
+    var(--color-night) 0 75%,
+    transparent 0
+  );
+  background-size: 2px 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
