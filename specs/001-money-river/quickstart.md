@@ -60,7 +60,16 @@ Then, by eye, at a 390 × 844 viewport in device emulation:
 
 Live: **https://cursor-squad-august-live.vercel.app**
 
-This URL serves the certified submission build, `78a230a` — the live asset hash is byte-identical to a local `npm run build` of that commit.
+**Do not trust any commit written next to this URL, including one written here.** The host is
+git-linked and deploys unattended; on 27 August it advanced four times while every summary we wrote
+said it was frozen. The check that does not expire:
+
+```bash
+curl -s https://cursor-squad-august-live.vercel.app | grep -o 'assets/index-[A-Za-z0-9_-]*\.js'
+```
+
+Match that against a clean local `npm run build` to learn which commit is live. Read the hash; do
+not read a sentence about the hash.
 
 Warnings, written about what is fixed rather than about what is deploying:
 
