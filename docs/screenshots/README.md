@@ -3,7 +3,7 @@
 ## Provenance — a stamp, not a currency claim
 
     captured from   https://cursor-squad-august-live.vercel.app
-    serving         assets/index-BO7g_gsl.js  ==  863822d
+    serving         assets/index-DHlJcBWS.js  ==  8cb5322
     on              2026-08-27
     how             headless Chromium, 390 x 844, deviceScaleFactor 2, touch on
 
@@ -26,8 +26,10 @@ If that hash is not the one stamped above, the stills predate the live build.
 rely on them — before a demo, before a submission — and re-stamp. Nobody
 re-captures on a schedule, and nobody writes "these are current" instead.
 
-The capture script asserts the stamped hash before its first frame and aborts
-otherwise, so a set can never be *silently* mixed across two builds.
+`scripts/capture_stills.py <url>` produces a set and prints the stamp above. It
+reads the bundle name before the first frame and again after the last, and
+discards the set if they differ — so a deploy landing mid-run can never leave a
+set silently mixed across two builds. The URL is required; there is no default.
 
 ## What went wrong three times, because none of it expires
 
