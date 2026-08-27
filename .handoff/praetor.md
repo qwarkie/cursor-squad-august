@@ -535,7 +535,22 @@ does it catch EVERY case it was       the four above ask whether an instrument c
 which case can you NOT produce?       name it as unproven; someone else can build it for you
 is the baseline pinned BEFORE the     "X must be unchanged" is unenforceable otherwise
   work that must not change it?
+did every check you wrote actually    a ratio hides a missing verdict: the denominator
+  RUN?                                  shrinks with the numerator
 ```
+
+**A check that never ran and a check that passed print exactly the same thing: nothing.** `check()`
+returned `None`, so `if check(...)` was always falsy and every assertion after it silently never
+executed — while the script exited 0 and the ratio stayed green. The only symptom was a transcript
+three lines shorter than it should have been, which is not a method.
+
+**The cure is a floor, not a ratio.** `EXPECTED_CHECKS` in `walk_demo.py` and `reorder_check.py`,
+raised deliberately when checks are added, failing the run when fewer arrive. Proven by setting the
+floor to 999 rather than by trusting it — and on its first real run it found the identical
+missing-return defect in a second file that had already shipped.
+
+**This is the class the other six questions cannot reach**, because every one of them asks something
+about a check that runs.
 
 **An unchanged-from-baseline requirement is not a check until someone records the baseline first.**
 Captured afterwards, the reference records whatever the change did — and the requirement quietly
