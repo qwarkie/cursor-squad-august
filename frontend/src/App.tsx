@@ -149,45 +149,59 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-3 py-6">
-      <main className="flex w-full max-w-[390px] flex-col gap-4 rounded-3xl border border-slate-700 bg-[#07111f] px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-slate-100 shadow-2xl">
-        {loading ? (
-          <p className="py-20 text-center text-sm text-slate-400">Loading…</p>
-        ) : !budget ? (
-          <div className="py-16 text-center">
-            <p className="text-sm text-slate-300">No budget available</p>
-            <button type="button" className="hit-reset mt-3" onClick={() => void refresh()}>
-              Retry
-            </button>
-          </div>
-        ) : (
-          <>
-            <Header budget={budget} />
-            {mode === 'offline' && (
-              <p className="rounded-lg border border-amber-700 bg-amber-950/60 px-3 py-2 text-sm text-amber-100">
-                Offline — showing sample data. Changes stay in this browser.
-              </p>
-            )}
-            {error && (
-              <p
-                role="alert"
-                className="rounded-lg border border-red-400 bg-red-950/70 px-3 py-2 text-sm text-red-100"
-              >
-                {error}
-              </p>
-            )}
-            <World budget={budget} selected={selected} onSelect={setSelected} />
-            <Controls
-              selected={selected}
-              amount={budget.categories[selected]}
-              impact={impact}
-              busy={busy}
-              onStep={(delta) => void handleStep(delta)}
-              onSetAmount={(amount) => void handleSetAmount(amount)}
-              onReset={() => void handleReset()}
-            />
-          </>
-        )}
+    <div className="flex min-h-screen items-center justify-center px-0 py-0 sm:px-3 sm:py-4">
+      <main className="phone">
+        <div className="phone-inner">
+          {loading ? (
+            <div className="boot">
+              <div className="boot-houses" aria-hidden>
+                <span className="spr house">
+                  <span className="house-smoke" />
+                  <span className="house-chimney" />
+                  <span className="house-roof" />
+                  <span className="house-body" />
+                </span>
+                <span className="spr stall">
+                  <span className="stall-awning" />
+                  <span className="stall-body" />
+                </span>
+                <span className="spr vault" />
+              </div>
+              <p className="boot-copy">Loading the town…</p>
+            </div>
+          ) : !budget ? (
+            <div className="boot">
+              <p className="boot-copy">No budget available</p>
+              <button type="button" className="hit-reset mt-3" onClick={() => void refresh()}>
+                Retry
+              </button>
+            </div>
+          ) : (
+            <>
+              <Header budget={budget} />
+              {mode === 'offline' && (
+                <p className="banner banner-offline">
+                  Offline — sample town. Changes stay in this browser.
+                </p>
+              )}
+              {error && (
+                <p role="alert" className="banner banner-alert">
+                  {error}
+                </p>
+              )}
+              <World budget={budget} selected={selected} onSelect={setSelected} />
+              <Controls
+                selected={selected}
+                amount={budget.categories[selected]}
+                impact={impact}
+                busy={busy}
+                onStep={(delta) => void handleStep(delta)}
+                onSetAmount={(amount) => void handleSetAmount(amount)}
+                onReset={() => void handleReset()}
+              />
+            </>
+          )}
+        </div>
       </main>
     </div>
   )

@@ -29,12 +29,14 @@ export function Controls({
 
   return (
     <section className="controls">
-      <p className="text-sm text-slate-300">
-        Selected: <span className="font-semibold text-amber-100">{label}</span>
+      <p className="controls-kicker">Selected district</p>
+      <p className="controls-selected">
+        <span className={`swatch swatch-${selected}`} aria-hidden />
+        {label}
       </p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums text-amber-50">{formatMoney(amount)}</p>
+      <p className="controls-amount">{formatMoney(amount)}</p>
 
-      <div className="mt-3 flex items-center gap-2">
+      <div className="stepper">
         <button
           type="button"
           aria-label={`Decrease ${label} by $50`}
@@ -66,10 +68,10 @@ export function Controls({
         </button>
       </div>
 
-      {impact && <p className="mt-2 text-sm text-slate-200">{impact}</p>}
+      {impact && <p className="impact">{impact}</p>}
 
       <button type="button" disabled={busy} onClick={onReset} className="hit-reset">
-        Reset
+        Reset town
       </button>
     </section>
   )

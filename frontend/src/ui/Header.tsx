@@ -5,21 +5,28 @@ interface Props {
   budget: BudgetResponse
 }
 
+function remainingTone(remaining: number): string {
+  if (remaining < 0) return 'is-over'
+  if (remaining > 0) return 'is-plus'
+  return 'is-tight'
+}
+
 export function Header({ budget }: Props) {
   return (
-    <header className="flex items-start justify-between gap-3">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-amber-100">Money World</h1>
-        <p className="mt-1 text-sm text-slate-300">May 2026</p>
+    <header className="hud">
+      <div className="hud-top">
+        <div>
+          <p className="hud-kicker">Pixel budget</p>
+          <h1 className="hud-title">Money World</h1>
+        </div>
+        {budget.overspent && <p className="over-chip">Overspent</p>}
       </div>
-      <div className="text-right">
-        <p className="text-lg font-semibold tabular-nums text-amber-50">
+      <p className="hud-month">May 2026 · Income {formatMoney(budget.income)}</p>
+      <div className="hud-stats">
+        <p className={`hud-remaining ${remainingTone(budget.remaining)}`}>
           {formatMoney(budget.remaining)} left
         </p>
-        <p className="mt-1 text-sm text-slate-300">{formatPercent(budget.savings_rate)} saved</p>
-        {budget.overspent && (
-          <p className="mt-1 text-sm font-semibold text-red-300">Overspent</p>
-        )}
+        <p className="hud-saved">{formatPercent(budget.savings_rate)} saved</p>
       </div>
     </header>
   )

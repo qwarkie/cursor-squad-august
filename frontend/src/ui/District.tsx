@@ -10,11 +10,60 @@ interface Props {
 }
 
 const SPRITE_CAP: Record<CategoryKey, number> = {
-  housing: 8,
-  food: 6,
-  transport: 6,
-  entertainment: 6,
-  savings: 8,
+  housing: 6,
+  food: 5,
+  transport: 1,
+  entertainment: 5,
+  savings: 6,
+}
+
+function House() {
+  return (
+    <span className="spr house">
+      <span className="house-smoke" />
+      <span className="house-chimney" />
+      <span className="house-roof" />
+      <span className="house-body" />
+      <span className="house-window" />
+      <span className="house-door" />
+    </span>
+  )
+}
+
+function Stall() {
+  return (
+    <span className="spr stall">
+      <span className="stall-awning" />
+      <span className="stall-body" />
+      <span className="stall-crate" />
+    </span>
+  )
+}
+
+function Road() {
+  return (
+    <span className="roadbed">
+      <span className="road-line" />
+      <span className="car" />
+    </span>
+  )
+}
+
+function Tree() {
+  return (
+    <span className="spr tree">
+      <span className="tree-leaf" />
+      <span className="tree-trunk" />
+    </span>
+  )
+}
+
+function Arcade() {
+  return <span className="spr arcade" />
+}
+
+function Vault() {
+  return <span className="spr vault" />
 }
 
 function SpriteRow({
@@ -25,14 +74,23 @@ function SpriteRow({
   count: number
 }) {
   const shown = Math.max(count === 0 ? 0 : 1, Math.min(count, SPRITE_CAP[categoryKey]))
-  const scale = 0.55 + Math.min(count, 24) / 40
+  const scale = 0.72 + Math.min(count, 20) / 50
 
   return (
-    <div className="pixel-stage mt-2" style={{ transform: `scale(${scale})` }}>
-      {Array.from({ length: shown }, (_, index) => (
-        <span key={index} className={`pixel-sprite pixel-${categoryKey}`} />
-      ))}
-      {categoryKey === 'transport' && count > 0 && <span className="pixel-sprite pixel-car" />}
+    <div className="pixel-stage" style={{ transform: `scale(${scale})` }}>
+      {categoryKey === 'housing' && Array.from({ length: shown }, (_, i) => <House key={i} />)}
+      {categoryKey === 'food' && Array.from({ length: shown }, (_, i) => <Stall key={i} />)}
+      {categoryKey === 'transport' && count > 0 && <Road />}
+      {categoryKey === 'entertainment' &&
+        Array.from({ length: shown }, (_, i) => (i % 2 === 0 ? <Tree key={i} /> : <Arcade key={i} />))}
+      {categoryKey === 'savings' && (
+        <>
+          <Vault />
+          {Array.from({ length: Math.max(0, shown - 1) }, (_, i) => (
+            <Tree key={i} />
+          ))}
+        </>
+      )}
     </div>
   )
 }
@@ -46,11 +104,11 @@ export function District({ categoryKey, amount, selected, onSelect }: Props) {
       type="button"
       data-units={String(count)}
       onClick={() => onSelect(categoryKey)}
-      className={`district min-h-11 min-w-11 ${selected ? 'is-selected' : ''}`}
+      className={`district district-${categoryKey} min-h-11 min-w-11 ${selected ? 'is-selected' : ''}`}
     >
-      <p className="text-xs uppercase tracking-wide text-slate-400">{meta.district}</p>
-      <p className="mt-0.5 text-sm font-semibold">{meta.label}</p>
-      <p className="mt-1 text-sm tabular-nums">{formatMoney(amount)}</p>
+      <p className="district-name">{meta.district}</p>
+      <p className="district-label">{meta.label}</p>
+      <p className="district-amount">{formatMoney(amount)}</p>
       <SpriteRow categoryKey={categoryKey} count={count} />
     </button>
   )
