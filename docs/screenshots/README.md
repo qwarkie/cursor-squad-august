@@ -1,8 +1,21 @@
 # Screenshots
 
-Captured from the **live deployment**, not from a dev server:
-`https://cursor-squad-august-live.vercel.app`, headless Chromium,
-390 × 844, `deviceScaleFactor: 2`, touch enabled.
+Captured from the **submitted build**, on the live URL, not from a dev server
+and not from `main`:
+
+    https://cursor-squad-august-live.vercel.app
+    bundle index-Vuol0JCn.js  ==  78a230a, the certified submission
+    headless Chromium, 390 × 844, deviceScaleFactor 2, touch enabled
+
+The bundle hash was asserted at capture time and the run aborts if the live URL
+is serving anything else, because these are the demo's contingency stills: if the
+network dies at the podium, the presenter narrates the same script over these.
+**A still that shows a UI the live URL does not render is worse than no still.**
+
+An earlier set was captured before the signboards landed and showed coloured
+tributary strokes with no signs — a layout neither the submitted build nor `main`
+renders. They loaded fine and were wrong. Verifying that an image is *served* is
+not verifying what is *in* it.
 
 | File | State |
 |---|---|
