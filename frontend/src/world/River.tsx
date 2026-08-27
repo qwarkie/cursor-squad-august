@@ -246,7 +246,22 @@ export function River({ model, budget, onSelectTributary }: Props) {
         const showBody = rimColor ? !weakRim && bodyWidth >= 1 : true
         const clip = `river-branch-${trib.categoryId}`
         return (
-          <g key={trib.categoryId} data-tributary={trib.categoryId}>
+          <g
+            key={trib.categoryId}
+            data-tributary={trib.categoryId}
+            // Mount-only by construction: the key is the category id, so React
+            // remounts this group when a category ARRIVES and leaves it alone
+            // when its amount changes. Raise Housing and its branch widens
+            // without re-opening — the same property @Pollen's per-building
+            // keys give the settlements.
+            className="branch-grow"
+            style={
+              {
+                '--grow-l': trib.side === 'right' ? '0%' : '100%',
+                '--grow-r': trib.side === 'right' ? '100%' : '0%',
+              } as CSSProperties
+            }
+          >
             <clipPath id={clip}>
               <Rects spans={body} fill="none" />
             </clipPath>

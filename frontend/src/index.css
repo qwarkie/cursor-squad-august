@@ -246,3 +246,34 @@ body {
     transform: translateY(0);
   }
 }
+
+/* A new tributary opening from the trunk out to its shore (spec §8, "new
+   branches should grow outward from the main river toward their settlements").
+
+   A clip, not a fade. art-bible §7 forbids alpha-composited paint and a branch
+   halfway through an opacity ramp is exactly that — the water would be a ghost
+   of itself over the grass. A clip edge is hard: every pixel is either the
+   river or the field, at every frame.
+
+   `steps()` because the edge must land on whole art-pixels. A continuous clip
+   sweeps through fractional CSS pixels and slices the outermost column of the
+   branch part-way, which reads as the water fraying at its tip on a crisp-edged
+   render. Generate smooth, quantise on output — the same rule the curve follows.
+
+   --grow-l / --grow-r decide which end opens: a right-bank branch is revealed
+   left to right, a left-bank one right to left, so both run AWAY from the trunk
+   rather than toward it. Same convention as --flow-dir above.
+
+   Collapsed by the reduced-motion block: duration and delay both. */
+@keyframes branch-grow {
+  from {
+    clip-path: inset(0 var(--grow-r, 100%) 0 var(--grow-l, 0%));
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.branch-grow {
+  animation: branch-grow 380ms steps(10, end) both;
+}

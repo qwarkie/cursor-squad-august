@@ -343,7 +343,19 @@ def settle(pg, timeout_ms=3000, quiet_ms=100):
           .map((e) => at(e.getBoundingClientRect()))
         const shapes = [...world.querySelectorAll('svg rect, svg path')]
           .map((e) => at(e.getBoundingClientRect()))
-        return sprites.join('|') + '#' + shapes.join('|')
+        // Rect positions alone cannot see every animation. A clip-path reveal
+        // — which is how a new tributary opens, because a fade would be
+        // alpha-composited paint — moves nothing at all: the boxes are in their
+        // final places from the first frame and only the visible portion grows.
+        // Sampling geometry would have called that settled immediately.
+        // Infinite animations are excluded or this never returns: the coins,
+        // the grass sway and the branch crest all run forever by design.
+        const running = document.getAnimations().filter((a) => {
+          const t = a.effect && a.effect.getTiming ? a.effect.getTiming() : null
+          if (t && t.iterations === Infinity) return false
+          return a.playState === 'running'
+        }).length
+        return sprites.join('|') + '#' + shapes.join('|') + '#running:' + running
     }"""
     previous = None
     waited = 0
