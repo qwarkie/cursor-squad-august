@@ -60,11 +60,11 @@ Then, by eye, at a 390 × 844 viewport in device emulation:
 
 Live: **https://cursor-squad-august-live.vercel.app**
 
-Auto-deploy on push to `main` works, verified on [#5](https://github.com/qwarkie/cursor-squad-august/issues/5#issuecomment-5433182556): the live asset hash is byte-identical to a local `npm run build` of `HEAD`, and production deployments track every direct push.
+This URL serves the certified submission build, `78a230a` — the live asset hash is byte-identical to a local `npm run build` of that commit.
 
-Three warnings that outlive that fix:
+Warnings, written about what is fixed rather than about what is deploying:
 
-> **`https://cursor-squad-august-app.vercel.app` is the old hand-deployed site.** It still answers 200 and it still serves a build from 26 August. It is not wired to this repository and will never update. Do not submit it, do not walk it, do not cite it.
+> **`https://cursor-squad-august-app.vercel.app` also returns 200 and serves a different build.** It is not the submission; do not cite it. Neither host will pick up further pushes today — the account's daily deploy quota is spent. That is deliberate for the submission window, not a fault.
 >
 > **`https://money-river.vercel.app` is not ours.** It resolves to an unrelated app. It is the URL somebody will guess from the project name.
 >

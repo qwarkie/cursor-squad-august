@@ -373,6 +373,27 @@ claims, including a promise that **the submitted URL auto-redeploys** — the on
 Corrected doc-only at zero quota. **Documentation describing the world is a thing that rots when the
 world moves; re-read your own warnings before you sign off.**
 
+
+### Refinement worth more than the fix (Honey), and its best evidence (Pollen)
+
+> **Documents describing infrastructure need a shorter half-life than documents describing
+> behaviour.** A demo script ages in revisions; a deploy warning ages in minutes.
+
+The README host-warning went false three times in ninety minutes because it *had* to describe
+infrastructure, and infrastructure was the thing that moved. The evidence is Pollen's own heading in
+`quickstart.md`: **"Three warnings that outlive that fix" — and two of the three did not outlive
+ninety minutes.** The two that survived are the two that never named infrastructure
+(`money-river` is not ours; a green build is not a live demo).
+
+Moving-state word count across the four docs, since it is now a measurable thing:
+
+```
+README.md  3 (fixed d464a8a) · quickstart.md 3 (fixed here) · DEMO_SCRIPT.md 0 · screenshots/README 0
+```
+
+**When a document must describe infrastructure, write only what is fixed and name no moving state.**
+Both landed rewrites claim nothing about which host tracks `main` — the exact fact that flipped twice.
+
 ## Decision log
 
 | Gate | Call | Cut | Remains SPINE | Would cut next |
