@@ -38,15 +38,27 @@ results = []
 
 
 def check(size, name, ok, detail=""):
-    results.append((bool(ok), f"{size} categories: {name}"))
+    results.append((bool(ok), f"{size}: {name}"))
     print(f"    {'PASS' if ok else 'FAIL'}  {name}{'  — ' + str(detail) if detail else ''}")
     return bool(ok)
 
 
-def budget_of(n):
+def budget_of(n, savings_last=True):
     """n categories that always fit an income, so `remaining` never goes negative
-    and the overspend art is not what is under test here."""
+    and the overspend art is not what is under test here.
+
+    `savings_last` matters more than it looks. @Pollen measured that the seeded
+    demo — five categories ending in Savings — is the ROOMIEST size on the
+    board: a reservoir plants no settlement, so the last row of the month is the
+    shortest object in the world. Every gate here has been measuring that shape.
+
+    My first version of this file generated the same shape, so it inherited the
+    same luck. Both are run now: `savings_last=False` puts a full village at the
+    bottom of the river, which is what an ordinary month looks like when the
+    last thing you list is an expense.
+    """
     income = 400 * (n + 1)
+    savings_at = n - 1 if savings_last else 0
     return {
         "income": income,
         "categories": [
@@ -54,9 +66,9 @@ def budget_of(n):
                 "id": f"c{i}",
                 "label": f"Item {i + 1}",
                 "amount": 300,
-                "kind": "savings" if i == n - 1 else "expense",
+                "kind": "savings" if i == savings_at else "expense",
                 "color": COLORS[i % len(COLORS)],
-                **({} if i == n - 1 else {"icon": "house"}),
+                **({} if i == savings_at else {"icon": "house"}),
             }
             for i in range(n)
         ],
@@ -64,10 +76,12 @@ def budget_of(n):
     }
 
 
-def run(url, pg, n):
-    print(f"\n{n} categories")
+def run(url, pg, n, savings_last=True):
+    shape = "savings last" if savings_last else "expense last"
+    print(f"\n{n} categories, {shape}")
     pg.goto(url, wait_until="networkidle")
-    pg.evaluate("([k, v]) => localStorage.setItem(k, v)", [STORAGE_KEY, json.dumps(budget_of(n))])
+    pg.evaluate("([k, v]) => localStorage.setItem(k, v)",
+                [STORAGE_KEY, json.dumps(budget_of(n, savings_last))])
     pg.goto(url, wait_until="networkidle")
     settle(pg)
 
@@ -102,25 +116,26 @@ def run(url, pg, n):
                  scale: +world.dataset.scale }
     }""")
 
-    if not check(n, "the world rendered", m is not None):
+    tag = f"{n} cat, {'savings' if savings_last else 'expense'} last"
+    if not check(tag, "the world rendered", m is not None):
         return
     art = m["scale"]
     below = lambda arr: [round(r["bottom"] / art, 1) for r in arr if r["bottom"] > m["h"] + 1]
-    check(n, "every branch is drawn", m["branches"] == max(0, n - 0), f"{m['branches']} tributaries")
-    check(n, "no water is drawn below the world", not below(m["water"]),
+    check(tag, "every branch is drawn", m["branches"] == max(0, n - 0), f"{m['branches']} tributaries")
+    check(tag, "no water is drawn below the world", not below(m["water"]),
           f"{len(below(m['water']))} rects past the bottom, lowest {max(below(m['water']), default=0)} art-px over")
-    check(n, "no settlement is drawn below the world", not below(m["sprites"]),
+    check(tag, "no settlement is drawn below the world", not below(m["sprites"]),
           f"{len(below(m['sprites']))} sprites past the bottom, lowest "
           f"{max(below(m['sprites']), default=0)} art-px over")
-    check(n, "no signboard is drawn below the world", not below(m["boards"]))
+    check(tag, "no signboard is drawn below the world", not below(m["boards"]))
     if m["tally"]:
         t = m["tally"][0]
         lowest = max((r["bottom"] for r in m["water"]), default=0)
-        check(n, "the tally sits at the end of the river, not in it",
+        check(tag, "the tally sits at the end of the river, not in it",
               t["top"] >= lowest - 2 * art,
               f"tally top {round(t['top'] / art, 1)} vs lowest water {round(lowest / art, 1)} art-px")
     else:
-        check(n, "the tally is on screen", False, "not found")
+        check(tag, "the tally is on screen", False, "not found")
 
 
 def main():
@@ -132,11 +147,13 @@ def main():
         br = p.chromium.launch()
         pg = br.new_page(viewport={"width": 390, "height": 844}, device_scale_factor=2,
                          reduced_motion="reduce")
-        for n in SIZES:
-            try:
-                run(url, pg, n)
-            except Exception as exc:
-                check(n, "the page survived", False, f"{type(exc).__name__}: {exc}")
+        for savings_last in (True, False):
+            for n in SIZES:
+                label = f"{n} cat, {'savings' if savings_last else 'expense'} last"
+                try:
+                    run(url, pg, n, savings_last)
+                except Exception as exc:
+                    check(label, "the page survived", False, f"{type(exc).__name__}: {exc}")
         br.close()
 
     failed = [r for r in results if not r[0]]
