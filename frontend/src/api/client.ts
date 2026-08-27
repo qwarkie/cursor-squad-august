@@ -1,4 +1,4 @@
-import type { Item, ItemCreate, ItemUpdate } from '../types'
+import type { BudgetResponse, CategoryKey, Item, ItemCreate, ItemUpdate } from '../types'
 
 // Relative path on purpose: Vite proxies /api to the backend in dev,
 // and in production the two are served from the same origin.
@@ -46,4 +46,14 @@ export const api = {
     request<Item>(`/items/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
 
   deleteItem: (id: number) => request<void>(`/items/${id}`, { method: 'DELETE' }),
+
+  getBudget: () => request<BudgetResponse>('/budget'),
+
+  updateCategory: (key: CategoryKey, amount: number) =>
+    request<BudgetResponse>(`/budget/categories/${key}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ amount }),
+    }),
+
+  resetBudget: () => request<BudgetResponse>('/budget/reset', { method: 'POST' }),
 }

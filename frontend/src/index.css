@@ -1,8 +1,73 @@
 @import 'tailwindcss';
 
-/* Pin the page background explicitly: without it the body is transparent and
-   picks up whatever the host/browser theme paints behind it, which makes the
-   dark slate text unreadable in dark mode. */
 body {
-  @apply bg-slate-50 text-slate-900;
+  @apply bg-slate-950 text-slate-100;
+}
+
+.pixel-stage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 3px;
+  min-height: 22px;
+  transform-origin: left bottom;
+  image-rendering: pixelated;
+}
+
+.pixel-sprite {
+  display: block;
+  flex-shrink: 0;
+  image-rendering: pixelated;
+  box-shadow: inset -2px -2px 0 rgb(0 0 0 / 0.25);
+}
+
+.pixel-housing {
+  width: 14px;
+  height: 12px;
+  background: #d97706;
+  clip-path: polygon(50% 0, 100% 35%, 100% 100%, 0 100%, 0 35%);
+}
+
+.pixel-food {
+  width: 12px;
+  height: 10px;
+  background: #f87171;
+  border-top: 3px solid #facc15;
+}
+
+.pixel-transport {
+  width: 16px;
+  height: 4px;
+  background: #64748b;
+}
+
+.pixel-car {
+  width: 10px;
+  height: 6px;
+  background: #38bdf8;
+  margin-left: 2px;
+}
+
+.pixel-entertainment {
+  width: 8px;
+  height: 12px;
+  background: #a78bfa;
+  box-shadow: 0 -3px 0 #fde047;
+}
+
+.pixel-savings {
+  width: 12px;
+  height: 12px;
+  background: #22c55e;
+  border: 2px solid #14532d;
+}
+
+.world-overspent {
+  animation: world-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes world-pulse {
+  50% {
+    box-shadow: 0 0 0 3px rgb(248 113 113 / 0.7);
+  }
 }

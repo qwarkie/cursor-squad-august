@@ -1,4 +1,4 @@
-export const uiPlaceholder = {
-  version: '0.1.0',
-  status: 'initialized',
-}
+export { Controls } from './Controls'
+export { District } from './District'
+export { Header } from './Header'
+export { World } from './World'

@@ -1,40 +1,63 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { api } from './api/client'
-import { ItemForm } from './components/ItemForm'
-import { ItemList } from './components/ItemList'
-import { applyCreate, applyDelete, applyToggle } from './engine'
-import { FIXTURE_ITEMS } from './fixtures/items'
-import type { Item, ItemCreate } from './types'
+import { adjust, deriveTotals, impactLine } from './engine/budget'
+import { CATEGORY_META, seedBudget } from './fixtures/budget'
+import type { Budget, BudgetResponse, CategoryKey } from './types'
+import { Controls, Header, World } from './ui'
 
-/**
- * Two modes, one UI.
- *
- * `live`    — the API answered; reads and writes go to the server.
- * `offline` — the API did not answer; the list renders from checked-in
- *             fixtures and writes are applied locally, so the demo path still
- *             runs end to end with no network (Constitution, Principle II).
- *
- * Every write reports its own failure. A mutation that fails silently survives
- * to the demo, where a judge clicks the button and nothing happens.
- */
 type Mode = 'live' | 'offline'
 
+const LOAD_TIMEOUT_MS = 3000
+
+function toResponse(budget: Budget, id: number, updatedAt: string): BudgetResponse {
+  return {
+    id,
+    month: budget.month,
+    income: budget.income,
+    categories: budget.categories,
+    ...deriveTotals(budget.income, budget.categories),
+    updated_at: updatedAt,
+  }
+}
+
+function fixtureResponse(): BudgetResponse {
+  return toResponse(seedBudget(), 0, '2026-05-01T00:00:00')
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error('timeout')), ms)
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer)
+        resolve(value)
+      },
+      (err: unknown) => {
+        window.clearTimeout(timer)
+        reject(err)
+      },
+    )
+  })
+}
+
 export default function App() {
-  const [items, setItems] = useState<Item[]>([])
+  const [budget, setBudget] = useState<BudgetResponse | null>(null)
+  const [selected, setSelected] = useState<CategoryKey>('food')
   const [mode, setMode] = useState<Mode>('live')
   const [error, setError] = useState<string | null>(null)
+  const [impact, setImpact] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
 
   const refresh = useCallback(async () => {
     try {
-      setItems(await api.listItems())
+      const next = await withTimeout(api.getBudget(), LOAD_TIMEOUT_MS)
+      setBudget(next)
       setMode('live')
       setError(null)
     } catch {
-      // No error banner here: falling back is the designed behaviour, not a
-      // failure. The mode notice tells the user what they are looking at.
-      setItems(FIXTURE_ITEMS)
+      setBudget(fixtureResponse())
       setMode('offline')
       setError(null)
     } finally {
@@ -46,79 +69,90 @@ export default function App() {
     void refresh()
   }, [refresh])
 
-  /** Rejects on failure so ItemForm can keep the user's text and show why. */
-  async function handleCreate(payload: ItemCreate) {
-    if (mode === 'offline') {
-      setItems((current) => applyCreate(current, payload, new Date().toISOString()))
-      return
-    }
-    await api.createItem(payload)
-    await refresh()
+  function applyLocal(next: Budget, delta: number, key: CategoryKey) {
+    if (!budget) return
+    const remainingDelta = -delta
+    setBudget(toResponse(next, budget.id, budget.updated_at))
+    setImpact(impactLine(CATEGORY_META[key].label, delta, remainingDelta))
   }
 
-  async function handleToggle(item: Item) {
+  async function handleStep(delta: 50 | -50) {
+    if (!budget) return
+    const current = budget.categories[selected]
+    const nextAmount = current + delta
+    if (nextAmount < 0) return
+
+    setError(null)
     if (mode === 'offline') {
-      setItems((current) => applyToggle(current, item.id))
+      applyLocal(adjust(budget, selected, delta), delta, selected)
       return
     }
+
+    setBusy(true)
     try {
-      await api.updateItem(item.id, { is_done: !item.is_done })
-      await refresh()
+      const next = await api.updateCategory(selected, nextAmount)
+      setBudget(next)
+      setImpact(impactLine(CATEGORY_META[selected].label, delta, -delta))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update that item')
+      setError(err instanceof Error ? err.message : 'Could not update that category')
+    } finally {
+      setBusy(false)
     }
   }
 
-  async function handleDelete(item: Item) {
+  async function handleReset() {
+    if (!budget) return
+    setError(null)
     if (mode === 'offline') {
-      setItems((current) => applyDelete(current, item.id))
+      setBudget(fixtureResponse())
+      setImpact(null)
       return
     }
+
+    setBusy(true)
     try {
-      await api.deleteItem(item.id)
-      await refresh()
+      setBudget(await api.resetBudget())
+      setImpact(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not delete that item')
+      setError(err instanceof Error ? err.message : 'Could not reset the budget')
+    } finally {
+      setBusy(false)
     }
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-4 py-12">
-      <header>
-        <h1 className="text-2xl font-semibold text-slate-900">cursor-squad-august</h1>
-        <p className="mt-1 text-sm text-slate-500">Cursor Squad Hackathon Workspace</p>
-      </header>
-
-      <ItemForm onSubmit={handleCreate} />
-
-      {/* handleToggle and handleDelete never reject — they report their own
-          failures — so passing them to void-returning props drops nothing. */}
-      {loading ? (
-        <p className="text-sm text-slate-400">Loading…</p>
-      ) : (
-        <>
-          {mode === 'offline' && (
-            <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              Offline — showing sample data. Changes stay in this browser.
-            </p>
-          )}
-
-          {error && (
-            <p
-              role="alert"
-              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-            >
-              {error}
-            </p>
-          )}
-
-          <ItemList
-            items={items}
-            onToggle={(item) => void handleToggle(item)}
-            onDelete={(item) => void handleDelete(item)}
-          />
-        </>
-      )}
-    </main>
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-3 py-6">
+      <main className="flex w-full max-w-[390px] flex-col gap-4 rounded-3xl border border-slate-700 bg-slate-950 px-4 py-5 text-slate-100 shadow-2xl">
+        {loading || !budget ? (
+          <p className="py-20 text-center text-sm text-slate-400">Loading…</p>
+        ) : (
+          <>
+            <Header budget={budget} />
+            {mode === 'offline' && (
+              <p className="rounded-lg border border-amber-700 bg-amber-950/60 px-3 py-2 text-sm text-amber-100">
+                Offline — showing sample data. Changes stay in this browser.
+              </p>
+            )}
+            {error && (
+              <p
+                role="alert"
+                className="rounded-lg border border-red-400 bg-red-950/70 px-3 py-2 text-sm text-red-100"
+              >
+                {error}
+              </p>
+            )}
+            <World budget={budget} selected={selected} onSelect={setSelected} />
+            <Controls
+              selected={selected}
+              amount={budget.categories[selected]}
+              impact={impact}
+              busy={busy}
+              onStep={(delta) => void handleStep(delta)}
+              onReset={() => void handleReset()}
+            />
+          </>
+        )}
+      </main>
+    </div>
   )
 }

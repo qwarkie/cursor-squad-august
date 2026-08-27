@@ -50,6 +50,15 @@ export function adjust(budget: Budget, key: CategoryKey, delta: number): Budget 
   }
 }
 
+export function formatMoney(amount: number): string {
+  const grouped = Math.abs(amount).toLocaleString('en-US')
+  return amount < 0 ? `-$${grouped}` : `$${grouped}`
+}
+
+export function formatPercent(rate: number): string {
+  return `${Math.round(rate * 100)}%`
+}
+
 export function reset(): Budget {
   return {
     month: SEED_MONTH,
