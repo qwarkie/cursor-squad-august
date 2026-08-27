@@ -91,7 +91,10 @@ export function panRange(
 ): { lo: number; hi: number; locked: boolean } {
   const m = PAN_MARGIN * scale
   const hi = m
-  const lo = frame - m - world
+  // The far edge is the edge of what can be SEEN, not of what is painted.
+  // Clamping to the frame stops the drag while the last village is still
+  // behind the panel — reachable in principle, unreachable in fact.
+  const lo = frame - inset - m - world
   if (lo > hi) {
     // Nothing to drag on this axis, so the only question is where it settles.
     // `inset` is space the frame owns and a person cannot see into: settle in
@@ -159,8 +162,17 @@ export type View = {
  * silently walk someone's chosen zoom up or down — it can only clamp it, and
  * clamping is visible.
  */
-export function resolveView(stage: Box, world: Box, request: number | null): View {
-  const fit = fitScale(stage.w, world.w)
+export function resolveView(
+  stage: Box,
+  world: Box,
+  request: number | null,
+  insetRight = 0,
+): View {
+  // Fit the width a person can see, not the width that is painted. The field
+  // still fills the whole frame — `frameOf` is untouched — but opening the app
+  // at a scale that puts the top-right village behind a floating panel is a
+  // picture of the river with the largest expense hidden in it.
+  const fit = fitScale(Math.max(1, stage.w - insetRight), world.w)
   const maxScale = Math.min(MAX_SCALE, fit + MAX_ZOOM_IN)
   // Zooming out below fit is the point, not an edge case: it is how a phone
   // gets to see a big world. The floor is the art's own legibility limit.
@@ -176,7 +188,7 @@ export function resolveView(stage: Box, world: Box, request: number | null): Vie
     minScale,
     maxScale,
     pannable: {
-      x: !panRange(worldPx.w, frame.w, scale, 'centre').locked,
+      x: !panRange(worldPx.w, frame.w, scale, 'centre', insetRight).locked,
       y: !panRange(worldPx.h, frame.h, scale, 'start').locked,
     },
   }
@@ -218,9 +230,9 @@ export function fitToggleTarget(view: View, stage: Box, world: Box): number {
  * level instead of once per pointer move, and no unpainted edge can be dragged
  * into view.
  */
-export function fieldBounds(view: View): { x0: number; y0: number; w: number; h: number } {
+export function fieldBounds(view: View, insetRight = 0): { x0: number; y0: number; w: number; h: number } {
   const { scale, worldPx, frame } = view
-  const rx = panRange(worldPx.w, frame.w, scale, 'centre')
+  const rx = panRange(worldPx.w, frame.w, scale, 'centre', insetRight)
   const ry = panRange(worldPx.h, frame.h, scale, 'start')
   // The frame's own edges, in art units, at the two extremes of each axis.
   // Taken from the range rather than assuming the spare space is shared evenly

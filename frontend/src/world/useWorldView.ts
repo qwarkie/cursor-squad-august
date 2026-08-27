@@ -30,15 +30,21 @@ const MIN_FRAME_H = 280
 /**
  * Space the layout floats a panel over, declared by the layout itself.
  *
- * The world cannot see the rail — it is a sibling in another component — and
- * guessing at its width from the viewport would be a heuristic that goes wrong
- * the first time someone changes it. `--world-inset-right` is the marker;
- * absent, it is zero and nothing moves.
+ * Measured off a probe element whose width *is* `--world-inset-right`, rather
+ * than parsed out of `getComputedStyle`. Two reasons, and the first is the one
+ * that bit:
+ *
+ *   Declaring a custom property does not resize anything, so a `ResizeObserver`
+ *   on the stage never fires and the value is read once, at mount, before the
+ *   layout has measured its own rail. It read 404px correctly and spent 0
+ *   forever. Giving the value a box makes it an event.
+ *
+ *   A custom property is a token stream, not a length: `calc(380px + 1.5rem)`
+ *   comes back verbatim and `parseFloat` returns NaN. A box is already resolved.
  */
-function insetRight(el: HTMLElement): number {
-  const raw = getComputedStyle(el).getPropertyValue('--world-inset-right').trim()
-  const px = Number.parseFloat(raw)
-  return Number.isFinite(px) && px > 0 ? px : 0
+function insetOf(probe: HTMLElement | null): number {
+  const w = probe?.getBoundingClientRect().width ?? 0
+  return Number.isFinite(w) && w > 0 ? w : 0
 }
 
 function availableHeight(el: HTMLElement): number {
@@ -72,6 +78,7 @@ export type WorldView = {
 export function useWorldView(worldW: number, worldH: number) {
   const stageRef = useRef<HTMLDivElement>(null)
   const frameRef = useRef<HTMLDivElement>(null)
+  const insetRef = useRef<HTMLSpanElement>(null)
 
   const [inset, setInset] = useState(0)
   const [stage, setStage] = useState<Box>(() => ({
@@ -86,7 +93,10 @@ export function useWorldView(worldW: number, worldH: number) {
   const [dragging, setDragging] = useState(false)
 
   const world = useMemo<Box>(() => ({ w: worldW, h: worldH }), [worldW, worldH])
-  const view = useMemo(() => resolveView(stage, world, request), [stage, world, request])
+  const view = useMemo(
+    () => resolveView(stage, world, request, inset),
+    [stage, world, request, inset],
+  )
   const pannable = view.pannable.x || view.pannable.y
 
   // Measure the space the layout actually gives the world. `clientWidth` of the
@@ -98,7 +108,7 @@ export function useWorldView(worldW: number, worldH: number) {
     const measure = () => {
       const w = el.clientWidth || window.innerWidth
       const h = availableHeight(el)
-      const right = insetRight(el)
+      const right = insetOf(insetRef.current)
       setInset((prev) => (prev === right ? prev : right))
       setStage((prev) => (prev.w === w && prev.h === h ? prev : { w, h }))
     }
@@ -106,6 +116,9 @@ export function useWorldView(worldW: number, worldH: number) {
     const ro =
       typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
     ro?.observe(el)
+    // The probe changes width the moment the layout declares its rail, which
+    // is the only signal that a custom property was set at all.
+    if (insetRef.current) ro?.observe(insetRef.current)
     window.addEventListener('resize', measure)
     return () => {
       ro?.disconnect()
@@ -129,7 +142,7 @@ export function useWorldView(worldW: number, worldH: number) {
   /** Absolute, clamped, and centre-preserving — see `panAfterZoom`. */
   const zoomTo = useCallback(
     (target: number) => {
-      const next = resolveView(stage, world, target)
+      const next = resolveView(stage, world, target, inset)
       if (next.scale === view.scale) return
       touched.current = true
       setRequest(next.scale)
@@ -148,7 +161,7 @@ export function useWorldView(worldW: number, worldH: number) {
 
   const zoomIn = useCallback(() => zoomTo(view.scale + 1), [zoomTo, view.scale])
   const zoomOut = useCallback(() => zoomTo(view.scale - 1), [zoomTo, view.scale])
-  const fitTarget = fitToggleTarget(view, stage, world)
+  const fitTarget = fitToggleTarget(view, { w: Math.max(1, stage.w - inset), h: stage.h }, world)
   const toggleFit = useCallback(() => zoomTo(fitTarget), [zoomTo, fitTarget])
 
   // ---- gestures ------------------------------------------------------------
@@ -279,6 +292,8 @@ export function useWorldView(worldW: number, worldH: number) {
   return {
     stageRef,
     frameRef,
+    insetRef,
+    inset,
     view,
     pan,
     dragging,

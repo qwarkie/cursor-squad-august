@@ -53,6 +53,8 @@ export function World({ model, children, overlay }: Props) {
   const {
     stageRef,
     frameRef,
+    insetRef,
+    inset,
     view,
     pan,
     dragging,
@@ -73,10 +75,23 @@ export function World({ model, children, overlay }: Props) {
   // The meadow is not the world: it fills the frame at every scale and every
   // pan, so zooming out reveals field rather than page. Constant per zoom
   // level, so the grass is generated once and not once per pointer move.
-  const field = fieldBounds(view)
+  const field = fieldBounds(view, inset)
 
   return (
-    <div ref={stageRef} className="w-full">
+    <div ref={stageRef} className="relative w-full">
+      {/* A probe, not a parse: its width IS `--world-inset-right`, so the view's
+          ResizeObserver fires when the layout declares or changes the rail.
+          Setting a custom property resizes nothing, so without a box to watch
+          the value is read once at mount — before the layout has measured its
+          own rail — and is 0 forever after. Outside the frame, so it cannot
+          reach any world fingerprint. */}
+      <span
+        ref={insetRef}
+        data-world-inset=""
+        aria-hidden="true"
+        className="pointer-events-none absolute left-0 top-0 block"
+        style={{ height: 0, width: 'var(--world-inset-right, 0px)', visibility: 'hidden' }}
+      />
       <div
         ref={frameRef}
         className="relative mx-auto overflow-hidden rounded"
