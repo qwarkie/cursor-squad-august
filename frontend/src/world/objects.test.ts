@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { rasterize, type Art, type Palette } from '../pixel'
+import { grassField } from './grass'
+import { WORLD_W, WORLD_H } from './World'
 import {
   ARCADE,
   BUSH,
@@ -138,15 +140,45 @@ describe('the object inventory', () => {
  * palette characters only. **Size-correct and palette-legal is not visible.**
  */
 describe('foliage stands out from the ground it stands on', () => {
-  const FIELD = 'g' // palette.ts: grass — the green field itself
+  /**
+   * The reference is *derived from the field*, not hardcoded.
+   *
+   * The first version of this guard asserted against the literal `'g'`. That
+   * is a fact about `grass.ts` written down in a second place, and a fact
+   * written twice is the shape that expired four times in this repo tonight.
+   * `grassField` is pure, so the test asks the field what it is mostly made
+   * of and measures against that.
+   *
+   * Deliberately the *dominant* character rather than the ground family:
+   * `grassDark` and `grassLit` are speckles at roughly 4% each, so a canopy
+   * made of either reads clearly against a field that is ~94% plain grass.
+   * Widening this to the family would fail `TREE` at 48.8% — an instrument
+   * fitted to a sprite that is plainly visible.
+   *
+   * The threshold is 10%, not 25%. At 25% this guard went red on the broken
+   * `TREE` (48.8% ground) and **green on the broken `BUSH`** — 3 ground cells
+   * in 16 is 18.8%, under the bar, on a sprite with exactly the same defect.
+   * A check written for two sprites that caught one of them is not a check.
+   * Both fixed sprites use the ground colour zero times, so 10% separates
+   * *essentially none* from *some*, which is the property, rather than
+   * separating today's two numbers.
+   */
+  const dominantFieldChar = (): string => {
+    const tally = new Map<string, number>()
+    for (const row of grassField(WORLD_W, WORLD_H)[0]) {
+      for (const ch of row) tally.set(ch, (tally.get(ch) ?? 0) + 1)
+    }
+    return [...tally.entries()].sort((a, b) => b[1] - a[1])[0][0]
+  }
 
   it.each([
     ['TREE', TREE[0]],
     ['BUSH', BUSH],
-  ])('%s is not mostly the field colour', (_name, frame) => {
+  ])('%s is not mostly the colour the field is mostly made of', (_name, frame) => {
+    const ground = dominantFieldChar()
     const chars = frame.join('').split('').filter((c) => c !== '.')
-    const field = chars.filter((c) => c === FIELD).length
-    expect(field / chars.length).toBeLessThan(0.25)
+    const share = chars.filter((c) => c === ground).length / chars.length
+    expect({ ground, under: share < 0.1 }).toEqual({ ground, under: true })
   })
 })
 
