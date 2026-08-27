@@ -19,7 +19,7 @@ from playwright.sync_api import sync_playwright
 
 VIEWPORT = {"width": 390, "height": 844}
 # Floor, not a target: see the note in main(). Raise it when you add checks.
-EXPECTED_CHECKS = 51
+EXPECTED_CHECKS = 55
 SEED = {"income": 4200, "housing": 1500, "food": 650, "remaining_after_housing": 2700}
 
 results = []
@@ -524,6 +524,110 @@ def walk(url):
                   wet["spilled"] == 0,
                   f"{wet['spilled']} water rects outside {wet['box']}: {wet['spill']}"
                   if wet["spilled"] else f"all {wet['water']} within {wet['box']}")
+
+        # ---- 4a3. the signboards are readable -------------------------------
+        print("\n4a3. no signboard sits on anything (#75)")
+        boards = pg.evaluate("""() => {
+            const world = document.querySelector('[data-scale]')
+            if (!world) return null
+            const svg = world.querySelector('svg')
+            const scale = +world.dataset.scale || 1
+            // Area, not minimum dimension — and the difference is the whole
+            // check. The foliage/water gate above requires 2 art-px in BOTH
+            // axes, because a tree touching a bank by a pixel is a tree beside
+            // a river. A signboard's overlaps are the opposite shape: @Pollen's
+            // remaining bushes measure 5 x 1 and 5 x 0.5 art-px — wide, thin,
+            // and plainly visible poking out from under a label — and a
+            // min-dimension test reports both as clear.
+            // Touching in both axes, and extending at least MIN_RUN art-pixels
+            // in one of them. Set from the pixels rather than from taste — I
+            // cropped every disputed case at device_scale_factor 6 and looked:
+            //
+            //   Housing over a bush        5.0 x 1.0   dark green plainly
+            //   Food over a bush           5.0 x 0.5   poking from under the board
+            //   Entertainment over water   2.0 x 1.0   invisible; the board's own
+            //                                          ink border kissing its rim
+            //
+            // Area alone cannot separate those — 5 x 0.5 and 2 x 1 are 2.5 and 2.
+            // What separates them is EXTENT: an overlap that runs 3+ art-pixels
+            // along an edge is a shape a reader sees. A min-dimension test misses
+            // all three, because a label's overlaps are wide and thin.
+            // Two clauses, and each earned its place by a case that broke the
+            // version without it:
+            //
+            //   >= HAIR in BOTH axes    Housing's board overlapped a water rect
+            //                           by 0.1 x 4.0 art-px. Nothing is drawn in
+            //                           a tenth of a pixel.
+            //   >= RUN in ONE axis      Entertainment's board kisses its own rim
+            //                           2.0 x 1.0 — invisible at x6 magnification.
+            //                           A shape a reader sees runs along an edge.
+            //
+            // Set from the pixels, not from taste: I cropped every disputed case
+            // at device_scale_factor 6 and looked before choosing either number.
+            // Housing 5.0 x 1.0 and Food 5.0 x 0.5 are dark green plainly poking
+            // out from under their boards; both clear HAIR and both clear RUN.
+            // Note a min-DIMENSION test — the one the water/foliage gate above
+            // uses — misses all three, because a label's overlaps are wide and
+            // thin while a tree's are square.
+            const HAIR = 0.5 * scale
+            const RUN = 3 * scale
+            const overlap = (a, b) => {
+              const dx = Math.min(a.right, b.right) - Math.max(a.left, b.left)
+              const dy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
+              if (dx < HAIR || dy < HAIR) return null
+              if (dx < RUN && dy < RUN) return null
+              return `${(dx / scale).toFixed(1)}x${(dy / scale).toFixed(1)} art-px`
+            }
+            const signs = [...world.querySelectorAll('[data-signboard]')]
+            const allSprites = [...world.querySelectorAll('span, div')]
+              .filter((e) => getComputedStyle(e).backgroundImage.startsWith('url('))
+            const areaOf = (e) => { const r = e.getBoundingClientRect(); return r.width * r.height }
+            let field = null
+            for (const e of allSprites) if (!field || areaOf(e) > areaOf(field)) field = e
+            const village = allSprites
+              .filter((e) => e !== field && !e.closest('[data-foliage]'))
+              .map((e) => e.getBoundingClientRect())
+            const water = svg ? [...svg.querySelectorAll('rect')].map((r) => r.getBoundingClientRect()) : []
+            const trees = [...world.querySelectorAll('[data-foliage]')].map((e) => e.getBoundingClientRect())
+            const hits = { water: [], foliage: [], sign: [] }
+            signs.forEach((s, i) => {
+              const b = s.getBoundingClientRect()
+              const name = s.getAttribute('data-signboard')
+              for (const w of water) { const o = overlap(b, w); if (o) { hits.water.push(`${name} over water ${o}`); break } }
+              for (const t of trees) { const o = overlap(b, t); if (o) { hits.foliage.push(`${name} over foliage ${o}`); break } }
+              for (let j = i + 1; j < signs.length; j += 1) {
+                const o = overlap(b, signs[j].getBoundingClientRect())
+                if (o) hits.sign.push(`${name} over ${signs[j].getAttribute('data-signboard')} ${o}`)
+              }
+            })
+            // Foliage against the village itself, not just its board. The
+            // keep-out band is built from RANK_ART_W/2, so it reserves a square
+            // 27 art-px tall — and @Pollen's §2 clusters reach 35 for six
+            // houses. A band that assumes a shape the villages no longer have
+            // leaves the bottom rows unprotected.
+            const inVillage = []
+            for (const t of trees.length ? [...world.querySelectorAll('[data-foliage]')] : []) {
+              const b = t.getBoundingClientRect()
+              for (const v of village) {
+                const o = overlap(b, v)
+                if (o) { inVillage.push(`${t.getAttribute('data-foliage')} in a village ${o}`); break }
+              }
+            }
+            return { count: signs.length, water: water.length, trees: trees.length,
+                     villageSprites: village.length, hits, inVillage }
+        }""")
+        if boards is None or boards["count"] == 0:
+            check("there are signboards to judge", False, "none found — this check would be vacuous")
+        else:
+            check("no signboard sits on the water", not boards["hits"]["water"],
+                  boards["hits"]["water"][:3] or f"{boards['count']} boards clear of {boards['water']} water rects")
+            check("no signboard sits on a tree", not boards["hits"]["foliage"],
+                  boards["hits"]["foliage"][:3] or f"clear of {boards['trees']} sprites")
+            check("no signboard sits on another signboard", not boards["hits"]["sign"],
+                  boards["hits"]["sign"][:3] or "all readable")
+            check("no tree grows inside a village", not boards["inVillage"],
+                  boards["inVillage"][:3]
+                  or f"{boards['trees']} sprites clear of {boards['villageSprites']} village sprites")
 
         print("\n4b. the open field is planted (#59)")
         flora = pg.evaluate("""() => {

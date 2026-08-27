@@ -258,6 +258,13 @@ function Signboard({
 
   return (
     <div
+      // A marker, so a gate can find a board by asking rather than by guessing
+      // at a background colour. @Pollen's #75 found four of six boards
+      // overlapping something with every gate on the board green — labels were
+      // the only thing in the world with no geometric check at all, because
+      // they carry a background colour rather than an image and so were never
+      // in the sprite census.
+      data-signboard={label}
       className="absolute bottom-full left-1/2 whitespace-nowrap"
       style={{
         // Anchored away from the river rather than centred on the village.
