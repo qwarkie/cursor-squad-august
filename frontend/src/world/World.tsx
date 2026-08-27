@@ -228,7 +228,7 @@ function ZoomButton({
       title={label}
       onClick={onClick}
       disabled={disabled}
-      className="pointer-events-auto flex cursor-pointer items-center justify-center font-pixel text-[12px] leading-none disabled:cursor-default disabled:opacity-40"
+      className="pointer-events-auto flex cursor-pointer items-center justify-center font-pixel text-[12px] leading-none disabled:cursor-default"
       style={{
         // FR-018 — 44 CSS px is the floor for anything a thumb has to find.
         minWidth: 44,
@@ -236,9 +236,12 @@ function ZoomButton({
         // Solid, not translucent: art-bible.md §7 forbids alpha-composited
         // paint, and scripts/walk_demo.py asserts it — a 82%-opacity chip over
         // the field failed three checks before this line was a flat colour.
-        background: 'var(--color-ink)',
-        color: 'var(--color-paper)',
-        border: '2px solid var(--color-paper)',
+        // Disabled is a second flat colour rather than `opacity-40`, which over
+        // a bright field reads as a smudge rather than as an unavailable
+        // control.
+        background: disabled ? 'var(--color-night)' : 'var(--color-ink)',
+        color: disabled ? 'var(--color-slate)' : 'var(--color-paper)',
+        border: `2px solid ${disabled ? 'var(--color-slate)' : 'var(--color-paper)'}`,
       }}
     >
       {children}
