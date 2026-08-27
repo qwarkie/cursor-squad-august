@@ -18,31 +18,57 @@ Spec authority. Owns scope and the interface with other teams. Writes no applica
 
 ## THE DEMO URL — get this wrong and the submission is yesterday's build
 
-**Submit `https://cursor-squad-august-live.vercel.app`.** Git-linked, auto-deploys on push to `main`,
-verified serving the exact bundle `main` builds — asset hash match, not merely HTTP 200.
+**Submit `https://cursor-squad-august-live.vercel.app`.** Git-linked, auto-deploys unattended in
+about two minutes, verified serving the exact bundle `main` builds.
 
-Two decoys, both returning **200**:
+Two decoys, both answering **200**, both of which a judge could reach:
 
-- `cursor-squad-august-app.vercel.app` — the URL in the README for most of the event. Hand-deployed
-  on an account no agent can administer; served the **pre-#11 bundle for 24 hours**. #43 fixes it.
-- `money-river.vercel.app` — created during the failed option-B attempt. Returns 200, serves no
-  bundle.
+- `cursor-squad-august-app.vercel.app` — the README's URL for most of the event. Hand-deployed on an
+  account no agent can administer. Serves the **26 August build forever**; it is not wired to the
+  repo and never will be. `quickstart.md` was corrected at `724ac56` and carries three durable
+  warnings; `README.md:59` was still wrong as of gate 3 (#43).
+- `money-river.vercel.app` — resolves to an **unrelated stranger's app**, and it is the URL somebody
+  guesses from the project name.
 
 **Never accept HTTP 200 as proof of a deploy.** Compare the live asset hash against a local
-`npm run build` of `HEAD`. That check caught a full day of stale deploy that every casual check had
-passed, and #5's acceptance was rewritten around it.
+`npm run build` of `HEAD`, and grep the deployed bundle for a string only the new code contains.
+That check caught a full day of stale deploy that every casual check had passed.
 
-## State of `main` @ `900b915`, verified in a clean worktree
+## Verification lesson worth more than any single finding
+
+`shape-rendering` is an **inherited** SVG presentation attribute. `getAttribute('shape-rendering')`
+returns `null` on a child that is inheriting it perfectly well. A live-DOM audit read that null
+across 22 shapes and reported the attribute missing; it was set on the `<svg>` root the whole time
+(`World.tsx:77`). Acting on it would have been 22 redundant edits at T−60.
+
+The real defect in the same finding was `strokeLinecap="round"`, explicitly set five times in
+`River.tsx` — which is what actually made the tributaries render as rounded lozenges.
+
+**Verify a report against the source before ordering work from it, especially a good report.** The
+half that was right and the half that was wrong arrived in the same paragraph.
+
+## State of `main` @ `9907785` — the demo path is complete and live
 
 ```
-npx vitest run  -> 7 files, 82 tests, all pass
 npx tsc -b      -> exit 0
-npm run build   -> exit 0, dist/assets/index-B5piu6LG.js  327.71 kB / 105.39 kB gzip
+npm run build   -> exit 0, dist/assets/index-CiCyxc8Q.js  347.71 kB / 110.75 kB gzip
+live cursor-squad-august-live -> /assets/index-CiCyxc8Q.js   MATCH
+
+deployed bundle greps: 'tributar' 7 · 'reservoir' 4 · 'balanced' 4 · 'over budget' 2
+                       'Add Income' 1 · 'Load demo budget' 1 · 'copy it as a template' 0
 ```
 
-Landed fast under direct-push: `639d985` types + seed (T003/T025), `30f7539` engine (T004/T005),
-`ec611f9` path builders + entry point (T006/T032), `900b915` sprite inventory
-(T012/T017/T018/T024).
+Walked on the live URL at 390x844 in real Chromium: empty field -> income -> seeded month -> adjust
+-> overspend -> recover -> reset, zero console errors. Trunk steps `24 -> 15 -> 12 -> 10 -> 8` down
+the branches, so SC-002 lands. The seeded month at `$0` reads as **balanced**, not as a warning —
+which tasks.md called "the single most likely thing to be got wrong".
+
+**Ten of the brief's eleven acceptance criteria pass.** The one that does not is
+*"a colleague can run, deploy, and demo it from the repository README"* — #43.
+
+**15 landed issues were closed at gate 3**; they had been sitting open while the work was on `main`,
+which makes a board useless to anyone hunting for remaining work. Open spine at gate 3: **#42**
+(the walk) and **#43** (README) only.
 
 ## Decisions
 
@@ -146,6 +172,8 @@ Landed fast under direct-push: `639d985` types + seed (T003/T025), `30f7539` eng
 | pre-clock (2026-08-27 00:15 UTC, second standby) | `HOLD` | nothing new | #5 — now demonstrably load-bearing: the live URL serves a build that predates the SR-1 fix | same as above; if #5's auto-deploy link has not landed when the clock starts, cut the live-URL demo and demo from a local `npm run build && npm run preview` |
 | pre-clock (2026-08-27 00:20 UTC) | `HOLD` | the dependency on the owner for #5 — authorized option B, a fresh agent-owned deploy, rather than waiting on the hand-deployed project being linked | #5, now with an agent-side path | CI. The workflow-scope wall is real and re-verified; if anyone proposes GitHub Actions as spine, cut it on sight |
 | **gate 1 — 01:39 UTC** | `HOLD` | nothing new at this gate; standing cuts T013 coins and T021 width transitions to `optional` | engine done, path builders done, entry point done, sprites done; world shell, chrome, #47 integration, deploy-walk all open | the T020 slider — keep `-`/`+`, the $50 steps carry the interaction — then T022 trade-off sentence |
+| **gate 2 — 01:36 UTC** (called early) | `CUT T019` | T019 tap-to-select to `optional` (the category list already satisfies the brief's tappable-district line); T023 scoped to the balanced-vs-dry distinction, sprite tail declared droppable | T011 + T015 — `River.tsx` did not exist on **any** remote ref with ~65 min left, all remaining risk in one file with one owner | T023's whole visual treatment; the header text already signals overspend |
+| **gate 3 — 01:43 UTC** | `HOLD` | nothing — spine landed instead | #42 the walk, #43 the README | the meander curve. Tributaries ship as provisional straight lines and nobody is to spend clock on the curve before FREEZE |
 
 ## Grounding
 
