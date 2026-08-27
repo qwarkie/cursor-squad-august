@@ -22,13 +22,31 @@ const VILLAGE_HALF_W = RANK_ART_W / 2
  * from the bank and to the near edge, the constant below *is* the water you
  * see.
  *
- * Provisional straight line — T015 (the curved branch) is Fizz's and belongs
- * in `path.ts` alongside `riverPath`/`scalePath`. Swap the body of
- * `tributaryEnd` for their curve's endpoint without touching any caller.
+ * T015 landed, and not where this comment expected: the curve lives inside
+ * `water.ts`'s column walk, not in `path.ts`, because the walk is what
+ * guarantees contiguity and `crispEdges`. `tributaryEnd` was never the thing
+ * that needed swapping — it computes where a branch ENDS, and a curved branch
+ * ends in the same place a straight one did. Nothing here was provisional
+ * after all. (@Glass asked whether this attribution was live; it was stale.)
  */
 const STREAM_REACH = 10
 
-/** How far below its branch point a village sits — the stream runs down as well as out. */
+/**
+ * How far below its branch point a village sits — the stream runs down as well
+ * as out.
+ *
+ * This constant is the ceiling on how steeply a branch can arrive, and it is
+ * the reason @Pollen's §1 verdict found branches "bend once, then dead
+ * straight". Measured on the seeded month, every branch spends this same 10px
+ * over 26-29 columns:
+ *
+ *     1px of descent every 2.8 columns
+ *
+ * At whole-art-pixel resolution that is a flat arrival no matter what shape the
+ * curve takes — a curve can only redistribute the drop, and concentrating it at
+ * the village is a hook rather than a river. Raising it is §5's call, not
+ * `water.ts`'s.
+ */
 const TRIBUTARY_DROP = 10
 
 /** The slice of `RiverModel` the bank offset reads — structural, so `world/` keeps no import on `engine/`. */
