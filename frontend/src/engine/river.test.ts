@@ -1,6 +1,19 @@
 import { describe, it, expect } from 'vitest'
 
-import { budgetToRiver, TRUNK_MAX, MEANDER_A, MEANDER_W } from './river'
+import {
+  budgetToRiver,
+  TRUNK_MAX,
+  MEANDER_A,
+  MEANDER_W,
+  SPRING_Y,
+  MOUTH_Y,
+  BRANCH_GAP,
+  MOUTH_TAIL,
+  REACH_MIN,
+  REACH_MAX,
+  DROP_MIN,
+  DROP_MAX,
+} from './river'
 import { SEEDED_BUDGET, EMPTY_BUDGET } from '../fixtures/budget'
 import type { Budget } from '../types'
 
@@ -139,5 +152,105 @@ describe('budgetToRiver: worked example (contracts/engine.md)', () => {
     expect(model.remaining).toBe(2050)
     expect(model.state).toBe('surplus')
     expect(model.segments[0].width).toBe(TRUNK_MAX)
+  })
+})
+
+/**
+ * The river grows instead of the branches compressing.
+ *
+ * Before this, branch points were an even division of a fixed 88 art-px span
+ * with a 14 px floor under it: every category added pulled all of them closer
+ * together, and past six the villages piled up around the mouth pool because
+ * the river had nowhere left to put them. ADR-0002 rules that WORLD_H may
+ * follow the Budget and `World.tsx`'s `drawnDepth` already lets the camera
+ * travel to whatever is drawn, so the span was a constraint that did not need
+ * to exist.
+ */
+describe('budgetToRiver: the river lengthens with the month', () => {
+  const withN = (n: number): Budget => ({
+    income: 4200,
+    categories: Array.from({ length: n }, (_, i) => cat(`c${i}`, 100)),
+    updatedAt: 'x',
+  })
+  const mouthOf = (n: number) => {
+    const segs = budgetToRiver(withN(n)).segments
+    return segs[segs.length - 1].toY
+  }
+
+  it('spaces branches a constant BRANCH_GAP apart, however many there are', () => {
+    for (const n of [1, 2, 5, 8, 12]) {
+      const ys = budgetToRiver(withN(n)).tributaries.map((t) => t.atY)
+      expect(ys[0]).toBe(SPRING_Y + BRANCH_GAP)
+      for (let i = 1; i < ys.length; i++) expect(ys[i] - ys[i - 1]).toBe(BRANCH_GAP)
+    }
+  })
+
+  it('pushes the mouth further down for every category added', () => {
+    // Strictly increasing past the point where the tail clears MOUTH_Y — the
+    // thing "the towns bunch up at the bottom lake" was the absence of.
+    for (let n = 4; n < 12; n++) expect(mouthOf(n + 1)).toBeGreaterThan(mouthOf(n))
+  })
+
+  it('leaves the unbranched river exactly where it was', () => {
+    // The opening frame must not move: US1 scenario 1 is income and no
+    // categories, and it is the first thing a judge sees.
+    expect(mouthOf(0)).toBe(MOUTH_Y)
+  })
+
+  it('keeps MOUTH_TAIL of clearance below the last branch, so the last village is not standing in the pool', () => {
+    for (const n of [6, 9, 12]) {
+      const model = budgetToRiver(withN(n))
+      const lastBranch = model.tributaries[model.tributaries.length - 1].atY
+      expect(mouthOf(n) - lastBranch).toBeGreaterThanOrEqual(MOUTH_TAIL)
+      expect(mouthOf(n) - lastBranch).toBeGreaterThan(DROP_MAX)
+    }
+  })
+})
+
+/**
+ * Varied, but never arbitrary. One constant reach and one constant drop made
+ * every branch the same shape — and because `water.ts` derives its curve
+ * amplitude from the branch's own length, the curves came out near-identical
+ * too. Varying the two lengths is what makes six streams look like six
+ * streams.
+ */
+describe('budgetToRiver: streams vary in shape', () => {
+  const many: Budget = {
+    income: 9000,
+    categories: Array.from({ length: 10 }, (_, i) => cat(`cat-${i}`, 300)),
+    updatedAt: 'x',
+  }
+
+  it('stays inside the declared ranges', () => {
+    for (const t of budgetToRiver(many).tributaries) {
+      expect(t.reach).toBeGreaterThanOrEqual(REACH_MIN)
+      expect(t.reach).toBeLessThanOrEqual(REACH_MAX)
+      expect(t.drop).toBeGreaterThanOrEqual(DROP_MIN)
+      expect(t.drop).toBeLessThanOrEqual(DROP_MAX)
+      expect(Number.isInteger(t.reach)).toBe(true)
+      expect(Number.isInteger(t.drop)).toBe(true)
+    }
+  })
+
+  it('actually varies — the whole point, and a hash that collapses would pass every other test here', () => {
+    const tribs = budgetToRiver(many).tributaries
+    expect(new Set(tribs.map((t) => t.drop)).size).toBeGreaterThan(2)
+    expect(new Set(tribs.map((t) => `${t.reach}x${t.drop}`)).size).toBeGreaterThan(4)
+  })
+
+  it('is a pure function of the category id, so two loads draw one picture (SC-007)', () => {
+    const a = budgetToRiver(many).tributaries
+    const b = budgetToRiver(many).tributaries
+    expect(a.map((t) => [t.reach, t.drop])).toEqual(b.map((t) => [t.reach, t.drop]))
+
+    // Same id in a different budget, at a different index, on the other bank:
+    // the shape follows the category, not its position.
+    const moved = budgetToRiver({
+      income: 9000,
+      categories: [cat('filler', 10), cat('cat-3', 300)],
+      updatedAt: 'x',
+    }).tributaries[1]
+    const original = a.find((t) => t.categoryId === 'cat-3')!
+    expect([moved.reach, moved.drop]).toEqual([original.reach, original.drop])
   })
 })

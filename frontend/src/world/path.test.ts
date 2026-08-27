@@ -116,9 +116,17 @@ describe('scalePath', () => {
  */
 describe('engine seam', () => {
   it('accepts a real RiverModel from budgetToRiver', () => {
-    const d = riverPath(budgetToRiver(SEEDED_BUDGET))
+    const model = budgetToRiver(SEEDED_BUDGET)
+    // Read the mouth off the model rather than from MOUTH_Y. The constant is
+    // where an *unbranched* river ends; a branched one follows its last
+    // category down (engine/river.ts `mouthFor`), so pinning the curve to the
+    // constant asserted the river could never grow — which is the opposite of
+    // what this seam is for.
+    const mouthY = model.segments[model.segments.length - 1].toY
+    expect(mouthY).toBeGreaterThan(MOUTH_Y)
+    const d = riverPath(model)
     expect(d.startsWith(`M${trunkX(SPRING_Y)} ${SPRING_Y}`)).toBe(true)
-    expect(d.endsWith(`L${trunkX(MOUTH_Y)} ${MOUTH_Y}`)).toBe(true)
+    expect(d.endsWith(`L${trunkX(mouthY)} ${mouthY}`)).toBe(true)
   })
 
   it('keeps the seeded month exact at every scale in the art-bible table', () => {

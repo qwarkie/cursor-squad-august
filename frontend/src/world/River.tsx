@@ -181,7 +181,7 @@ export function River({ model, onSelectTributary }: Props) {
         if (trib.width <= 0) return null
 
         const trunkW = trunkWidthAt(model, trib.atY)
-        const end = tributaryWaterEnd(trib.atY, trib.side, trunkW)
+        const end = tributaryWaterEnd(trib.atY, trib.side, trunkW, trib.reach, trib.drop)
         const dir: 1 | -1 = trib.side === 'right' ? 1 : -1
 
         // Start two art-pixels inside the bank rather than on the centre

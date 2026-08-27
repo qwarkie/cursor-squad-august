@@ -3,7 +3,6 @@ import type { ReactNode } from 'react'
 import { PixelSprite, type Art } from '../pixel'
 import { SPRING_Y, type RiverModel } from '../engine'
 import { trunkX } from './path'
-import { WORLD_H } from './World'
 import { RANK_ART_W, tributaryEnd, tributaryWaterEnd, trunkWidthAt } from './geometry'
 import { PAL } from './palette'
 import { CRACK, POND, RESERVOIR, RESIDENT, SPRING, WARNING, WORLD_FPS } from './objects'
@@ -122,13 +121,13 @@ export function Settlements({ model, budget, scale, onSelect, onEditIncome }: Pr
       {model.tributaries.map((trib) => {
         if (trib.width <= 0) return null
         const trunkW = trunkWidthAt(model, trib.atY)
-        const { x, y } = tributaryEnd(trib.atY, trib.side, trunkW)
+        const { x, y } = tributaryEnd(trib.atY, trib.side, trunkW, trib.reach, trib.drop)
         const left = x * scale
         const top = y * scale
         // The shore the branch arrives at. Drawn from the settlement's frame
         // rather than the river's so the two cannot disagree about where the
         // water stops — one call, one answer.
-        const shore = tributaryWaterEnd(trib.atY, trib.side, trunkW)
+        const shore = tributaryWaterEnd(trib.atY, trib.side, trunkW, trib.reach, trib.drop)
 
         const category = budget.categories.find((c) => c.id === trib.categoryId)
         const rankWidth = RANK_ART_W * scale + 2 * HOUSE_GAP
@@ -407,7 +406,13 @@ function MouthTally({ model, scale }: { model: RiverModel; scale: number }) {
   if (!last || model.state === 'empty') return null
 
   const border = Math.max(1, Math.round(scale / 2))
-  const top = Math.min(last.toY + 12, WORLD_H - 12) * scale
+  // No clamp against WORLD_H. That constant is the height of an *unbranched*
+  // river; since the world grows with the month (World.tsx `drawnDepth`) the
+  // clamp pinned the tally at art-y 116 while the water ran on to 142 and
+  // beyond, leaving "$1,200 left" floating in mid-river with the mouth still
+  // two villages below it. The world is tall enough by construction — the same
+  // `drawnDepth` reserves MOUTH_MARGIN for exactly this label.
+  const top = (last.toY + 12) * scale
 
   return (
     <div

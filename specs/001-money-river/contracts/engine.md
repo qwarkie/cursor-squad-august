@@ -20,7 +20,7 @@ The world may rely on all of these without checking:
 2. **Whole numbers.** Every coordinate and width in the result is an integer art-pixel. The world never has to round.
 3. **Ordered.** `segments` runs top to bottom; `tributaries` matches `budget.categories` index for index, including categories whose amount is `0`.
 4. **Total.** Never throws. Junk input — negative income, `NaN` amounts, an empty list — yields a valid `RiverModel`, degrading to `state: 'empty'` rather than failing.
-5. **Bounded.** Widths fall in `0 … TRUNK_MAX`; `atY` falls in `SPRING_Y … MOUTH_Y`.
+5. **Bounded.** Widths fall in `0 … TRUNK_MAX`; `reach` in `REACH_MIN … REACH_MAX`; `drop` in `DROP_MIN … DROP_MAX`. `atY` starts at `SPRING_Y + BRANCH_GAP` and climbs by `BRANCH_GAP` — it is **not** bounded by `MOUTH_Y`, which is where an *unbranched* river ends. A long month makes a taller world; `World.tsx`'s `drawnDepth` is the height it is drawn at.
 6. **Exact where money is concerned.** `remaining` is exact dollars. Only settlement counts are normalized.
 
 ## Obligations the world takes on
@@ -49,20 +49,20 @@ budgetToRiver({
 })
 ```
 
-yields, with `TRUNK_MAX = 16`, `SPRING_Y = 16`, `MOUTH_Y = 104`:
+yields, with `TRUNK_MAX = 16`, `SPRING_Y = 16`, `BRANCH_GAP = 20`, `MOUTH_TAIL = 34`:
 
 ```ts
 {
   segments: [
-    { fromY:  16, toY:  45, carried: 4200, width: 16 },  // full income
-    { fromY:  45, toY:  75, carried: 2700, width: 10 },  // after Housing
-    { fromY:  75, toY: 104, carried: 2050, width:  8 },  // after Food
+    { fromY: 16, toY:  36, carried: 4200, width: 16 },  // full income
+    { fromY: 36, toY:  56, carried: 2700, width: 10 },  // after Housing
+    { fromY: 56, toY: 104, carried: 2050, width:  8 },  // after Food
   ],
   tributaries: [
-    { categoryId: 'h', atY: 45, amount: 1500, width: 6, side: 'right',
-      settlements: 6, residents: 3, reservoir: false },
-    { categoryId: 'f', atY: 75, amount:  650, width: 2, side: 'left',
-      settlements: 3, residents: 1, reservoir: false },
+    { categoryId: 'h', atY: 36, amount: 1500, width: 6, side: 'right',
+      reach: 14, drop: 17, settlements: 6, residents: 3, reservoir: false },
+    { categoryId: 'f', atY: 56, amount:  650, width: 2, side: 'left',
+      reach: 12, drop: 13, settlements: 3, residents: 1, reservoir: false },
   ],
   remaining: 2050,
   state: 'surplus',
@@ -70,6 +70,10 @@ yields, with `TRUNK_MAX = 16`, `SPRING_Y = 16`, `MOUTH_Y = 104`:
 ```
 
 Read the widths: `16 → 10 → 8`, and the tributaries that took the difference are `6` and `2`. Rounding means those do not sum exactly — **that is expected and accepted.** Widths are integers for crispness; the dollar figures alongside them are exact, and the dollars are what the user is promised.
+
+Read the branch points: `36` and `56`, one `BRANCH_GAP` apart, and they would stay that far apart at twelve categories — the river lengthens rather than the branches closing up. Two categories is short enough that `atY(1) + MOUTH_TAIL = 90` is still above `MOUTH_Y`, so the mouth stays at `104` and this month is drawn in the original 128-tall world.
+
+Read `reach` and `drop`: `14/17` for Housing against `12/13` for Food, from the ids alone. They differ because a river whose every branch leaves at the same length and the same angle reads as one stream copied down the bank — and `water.ts` derives its curve amplitude from the branch's own length, so identical lengths produced identical curves on top of that.
 
 ## Tests that must exist
 

@@ -164,7 +164,7 @@ export function coinRoutes(model: RiverModel | undefined): CoinRoute[] {
     if (branches[k] <= 0 || trib.width <= 0) return
 
     const trunkWidth = trunkWidthAt(model, trib.atY)
-    const end = tributaryEnd(trib.atY, trib.side, trunkWidth)
+    const end = tributaryEnd(trib.atY, trib.side, trunkWidth, trib.reach, trib.drop)
     const dir = trib.side === 'right' ? 1 : -1
 
     // The same point River.tsx starts the branch from: two art-pixels inside

@@ -35,6 +35,14 @@ export interface GroveInput extends TrunkGeometry {
      * flex-wrapped block half a rank tall, so half a rank was the whole story.
      */
     settlements: number
+    /**
+     * How far this stream runs out and falls. Per-branch since the river
+     * started growing rather than compressing (engine/river.ts) — a keep-out
+     * computed from one shared constant would sit where the average stream
+     * used to be and let trees stand in the ones that vary from it.
+     */
+    reach: number
+    drop: number
   }[]
 }
 
@@ -69,8 +77,19 @@ const SIGNBOARD_H = 6
 const POOL_RX = 20
 const POOL_RY = 11
 
-const clearOfPools = (cx: number, cy: number): boolean =>
-  [SPRING_Y, MOUTH_Y].every((py) => {
+/**
+ * The mouth is read off the model, never from `MOUTH_Y`.
+ *
+ * That constant is where an *unbranched* river ends. Since the river grows
+ * with the Budget (engine/river.ts `mouthFor`) the pool of a five-category
+ * month sits well below it, and a keep-out anchored to the constant guards
+ * open grass while leaving trees free to stand in the actual lake.
+ */
+const mouthOf = (model: GroveInput): number =>
+  model.segments.length > 0 ? model.segments[model.segments.length - 1].toY : MOUTH_Y
+
+const clearOfPools = (model: GroveInput, cx: number, cy: number): boolean =>
+  [SPRING_Y, mouthOf(model)].every((py) => {
     const dx = (cx - trunkX(py)) / POOL_RX
     const dy = (cy - py) / POOL_RY
     return dx * dx + dy * dy >= 1
@@ -99,7 +118,7 @@ function clearOfTrunk(model: GroveInput, x: number, y: number, w: number, h: num
  */
 function clearOfTributaries(model: GroveInput, x: number, y: number, w: number, h: number): boolean {
   return model.tributaries.every((trib) => {
-    const end = tributaryEnd(trib.atY, trib.side, trunkWidthAt(model, trib.atY))
+    const end = tributaryEnd(trib.atY, trib.side, trunkWidthAt(model, trib.atY), trib.reach, trib.drop)
     const near = trunkX(trib.atY)
     const outer = end.x + (trib.side === 'right' ? RANK_ART_W / 2 : -RANK_ART_W / 2)
     const bandL = Math.min(near, outer) - VILLAGE_PAD
@@ -218,7 +237,7 @@ export function grove(model: GroveInput, region: GroveRegion | number): GroveSpo
         if (y < 1 || y + h > coreH - 1) continue
       }
 
-      if (!clearOfPools(x + w / 2, y + h / 2)) continue
+      if (!clearOfPools(model, x + w / 2, y + h / 2)) continue
       if (!clearOfTrunk(model, x, y, w, h)) continue
       if (!clearOfTributaries(model, x, y, w, h)) continue
 

@@ -32,6 +32,15 @@ const VILLAGE_HALF_W = RANK_ART_W / 2
 const STREAM_REACH = 10
 
 /**
+ * Fallbacks, not the values in play.
+ *
+ * `reach` and `drop` are per-branch data on the model now (engine/river.ts) —
+ * one constant for every branch is what made six streams look like six copies
+ * of one. These stand in only for a caller that has an `atY` and a side but no
+ * tributary, which is a test fixture and nothing on the demo path.
+ */
+
+/**
  * How far below its branch point a village sits — the stream runs down as well
  * as out.
  *
@@ -100,8 +109,10 @@ export function tributaryWaterEnd(
   atY: number,
   side: 'left' | 'right',
   trunkWidth = 0,
+  streamReach = STREAM_REACH,
+  streamDrop = TRIBUTARY_DROP,
 ): { x: number; y: number } {
-  const end = tributaryEnd(atY, side, trunkWidth)
+  const end = tributaryEnd(atY, side, trunkWidth, streamReach, streamDrop)
   const dir = side === 'right' ? 1 : -1
   return { x: end.x - dir * VILLAGE_HALF_W, y: end.y }
 }
@@ -110,17 +121,19 @@ export function tributaryEnd(
   atY: number,
   side: 'left' | 'right',
   trunkWidth = 0,
+  streamReach = STREAM_REACH,
+  streamDrop = TRIBUTARY_DROP,
 ): { x: number; y: number } {
   const dir = side === 'right' ? 1 : -1
   const bank = Math.max(0, trunkWidth) / 2
   // Round the reach, not the result: `Math.round` breaks a .5 tie upwards,
   // which on the left bank rounds *towards* the river. The two banks would
   // then sit a pixel apart on an otherwise symmetric world.
-  const reach = Math.round(bank + STREAM_REACH + VILLAGE_HALF_W)
+  const reach = Math.round(bank + streamReach + VILLAGE_HALF_W)
   const limit = Math.ceil(VILLAGE_HALF_W)
 
   return {
     x: Math.min(Math.max(trunkX(atY) + dir * reach, limit), WORLD_W - limit),
-    y: atY + TRIBUTARY_DROP,
+    y: atY + streamDrop,
   }
 }

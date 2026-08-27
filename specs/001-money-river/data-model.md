@@ -68,8 +68,11 @@ All constants live in one place, `frontend/src/engine/river.ts`. Every result is
 TRUNK_MAX   = 16    art-px  — trunk width when it carries the full income
 MIN_WIDTH   =  2    art-px  — floor, so a tiny category is still visible
 SPRING_Y    = 16    art-px  — where the river starts
-MOUTH_Y     = 104   art-px  — where the pool begins
-MIN_GAP     = 14    art-px  — floor on the spacing between branch points
+MOUTH_Y     = 104   art-px  — where the pool sits on an UNBRANCHED river
+BRANCH_GAP  = 20    art-px  — between branch points; constant, never divided
+MOUTH_TAIL  = 34    art-px  — clearance below the last branch for its village
+REACH_MIN/MAX = 7/15 art-px — how far a stream runs out, varied per branch
+DROP_MIN/MAX  = 7/18 art-px — how far it falls, varied per branch
 MEANDER_A   =  6    art-px  — how far the trunk wanders off centre
 MEANDER_W   = 20    art-px  — wavelength of that wander
 ```
@@ -103,10 +106,30 @@ carried(i) = income − sum(amount of categories 0 … i−1)
 **Where a branch meets the trunk**, for `n` categories:
 
 ```text
-atY(i) = SPRING_Y + round((i + 1) × (MOUTH_Y − SPRING_Y) / (n + 1))
+atY(i) = SPRING_Y + (i + 1) × BRANCH_GAP
 ```
 
-Once that spacing would fall below `MIN_GAP`, branches are placed at `MIN_GAP` apart from `SPRING_Y` and the world scrolls rather than overlapping.
+**The spacing is constant and the river grows** — it is not a division of a fixed span. Dividing meant every category added pulled all of them closer together, and past six the villages piled up around the mouth pool because the river had nowhere left to put them. ADR-0002 rules that the world's *height* may follow the Budget while its width may not, and the camera already travels to whatever is drawn.
+
+**Where the mouth sits:**
+
+```text
+mouthY = n == 0  →  MOUTH_Y                                (the opening frame does not move)
+         n >  0  →  max(MOUTH_Y, atY(n−1) + MOUTH_TAIL)    (it follows the last branch down)
+```
+
+`MOUTH_TAIL` is what keeps the last village out of the pool. A short month stays inside the original 128-tall box; a long one makes the world taller, and `World.tsx`'s `drawnDepth` is the height in play.
+
+**How far a stream runs, and how far it falls:**
+
+```text
+reach(id) = REACH_MIN + round(draw(id, 'reach') × (REACH_MAX − REACH_MIN))
+drop(id)  = DROP_MIN  + round(draw(id, 'drop')  × (DROP_MAX  − DROP_MIN))
+```
+
+`draw` is FNV-1a over the category id, salted — a stable `[0, 1)` per (id, salt), so a category's stream is the same shape on every load and follows the category rather than its position in the list. One constant reach and one constant drop made every branch identical, and because `water.ts` derives its curve amplitude from the branch's own length, the curves came out identical too.
+
+Drop varies more widely than reach on purpose: horizontal room is scarce and unevenly distributed (ADR-0002 measured 0.5 to 14.5 art-px of it, least where a branch is widest), while vertical room costs nothing now that the river grows.
 
 **Which side it leaves on:** `side(i) = i is even ? 'right' : 'left'`. Alternating keeps the trunk readable and is fully determined by index.
 

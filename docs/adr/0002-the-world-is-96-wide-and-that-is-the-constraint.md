@@ -30,7 +30,14 @@ The alternative — growing the world with the viewport — was proposed and rej
 
 ## Consequences
 
-**§3 escapes downward.** The river can get longer and the lower lake can move with it, because the camera follows. That work is specified and unbuilt at the time of writing.
+**§3 escapes downward — built.** Branch spacing is now a constant `BRANCH_GAP`, not a division of a fixed 88-px span, and the mouth follows the last branch down with `MOUTH_TAIL` of clearance so the last village is not standing in the pool. `WORLD_H` became the floor under the world's height rather than a ceiling over it: `World.tsx`'s `drawnDepth` is the height in play, and it feeds the SVG's own `viewBox`, not just the camera's reach. Those were two different properties and only one of them had been fixed — a seven-category river was reachable and still clipped away at art-y 128.
+
+Two things this surfaced, neither of them obvious from the desk:
+
+- *Reachable is not drawn, and drawn is not visible.* The mouth tally was clamped to `WORLD_H − 12`, so at five categories it floated in mid-river while the water ran on past it. `scale_check` caught it at eleven budget sizes; no unit test could have.
+- *A world that outgrows its frame settles differently.* It used to be shorter than the frame, so it locked and centred and the top of the frame stayed empty. Taller, it rests at the top — and rested flush, which put art row 0, and at scale 3 the spring's own tap target, underneath the control rail. `REST_TOP` now separates *where an untouched world settles* from `PAN_MARGIN`, *how far past its edge you may drag*. They had been one number answering to opposite pressures.
+
+**§5 is still open, and it moved.** Streams now vary in reach and drop, drawn deterministically from the category id — which is variety, not the amount-proportional rule §5 asks for. Vertical room is what made even that possible: it costs nothing now that the river grows, while horizontal room is still the 0.5 art-px measured below.
 
 **§4 and §5 have nowhere to escape to.** Neither can be solved by giving the village more room, because the room does not exist where it is needed and cannot be created without breaking the decision above. §4 was therefore solved by moving the *water* rather than the town, which is why `tributaryWaterEnd()` exists alongside `tributaryEnd()`.
 

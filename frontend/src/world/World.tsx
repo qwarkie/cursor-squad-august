@@ -12,22 +12,33 @@ import { useWorldView } from './useWorldView'
 /**
  * How far down the drawn month actually goes, in art units.
  *
- * NOT the world's height. `WORLD_H` is the coordinate space the river is
- * composed in and it stays fixed (FR-015) — this is how far the camera has to
- * be able to travel to reach what is already on the page.
+ * This IS the world's height — `WORLD_H` is the floor under it, the height of
+ * a month with nothing in it yet, not a ceiling over it (ADR-0002).
  *
- * At seven categories and up the model puts settlements below art-y 128, and
- * the pan clamp — which knew only about the world box — stranded them: at
- * twelve, sixty-six pixels of the month were drawn and could not be dragged
- * to. Spacing them properly is spec §3 and is not this; letting a person see
- * what the app drew for them is the camera's own job, and the camera is here.
+ * It was the camera's reach and nothing more, which was half a fix: the pan
+ * clamp stopped stranding the deep villages, but the SVG's viewBox was still
+ * a fixed 96x128, so at seven categories the bottom of the month was drawn and
+ * then clipped away. Reachable and drawn are different properties and both
+ * have to hold.
+ *
+ * Depends on the model and on nothing else — never on the viewport. That is
+ * the whole of FR-015 here: a bigger screen shows more OF the world, a bigger
+ * month makes more world.
  */
+/**
+ * Room below the mouth for the things that hang off it: the pool's own lower
+ * half (`poolSize` caps `ry` at 14) and the running tally under it. `toY` is
+ * the centre of the pool, not its bottom — taking it as the bottom left the
+ * basin half drawn and the tally clamped into the middle of the river.
+ */
+const MOUTH_MARGIN = 20
+
 function drawnDepth(model: RiverModel): number {
   let deepest = WORLD_H
   const mouth = model.segments[model.segments.length - 1]
-  if (mouth) deepest = Math.max(deepest, mouth.toY)
+  if (mouth) deepest = Math.max(deepest, mouth.toY + MOUTH_MARGIN)
   for (const trib of model.tributaries) {
-    const end = tributaryEnd(trib.atY, trib.side, trunkWidthAt(model, trib.atY))
+    const end = tributaryEnd(trib.atY, trib.side, trunkWidthAt(model, trib.atY), trib.reach, trib.drop)
     deepest = Math.max(
       deepest,
       end.y + maxHamletHeight(trib.settlements, RANK_ART_W) / 2,
@@ -43,11 +54,16 @@ function drawnDepth(model: RiverModel): number {
  * The width lives in path.ts — the trunk's centre line is derived from it, so
  * a second copy here could drift and put the river off its own field.
  *
- * These are constants and must stay constants. Growing the world with the
- * viewport would make outlet positions (geometry.ts) and foliage placement
- * (grove.ts) functions of the browser window; FR-015/SC-007 require them to be
- * a pure function of the Budget. A bigger screen shows more of the world, not
- * more world.
+ * `WORLD_W` is a constant and must stay one: outlet positions (geometry.ts)
+ * and foliage placement (grove.ts) are derived from it, and making it a
+ * function of the browser window would make them functions of the browser
+ * window too — FR-015/SC-007 require both to be a pure function of the Budget.
+ *
+ * `WORLD_H` is the starting height, not a fixed one. Height following the
+ * number of categories is data in the same way trunk width and settlement
+ * count are data, and it stays deterministic; ADR-0002 rules the two halves
+ * separately for exactly this reason. `drawnDepth` above is the height in play.
+ * A bigger screen shows more of the world; a bigger month makes more world.
  */
 export { WORLD_H, WORLD_W }
 
@@ -96,11 +112,27 @@ export function World({ model, children, overlay }: Props) {
     zoomOut,
     toggleFit,
     handlers,
-  } = useWorldView(WORLD_W, WORLD_H, drawnDepth(model))
+    // ADR-0002's second half, built: the width is fixed and the HEIGHT follows
+    // the Budget. Those look like one question and are two. Growing the world
+    // with the *viewport* would make outlet and foliage positions functions of
+    // the browser window and break FR-015; growing it with the *month* is data,
+    // exactly like trunk width or settlement count, and stays a pure function
+    // of the Budget.
+    //
+    // `drawnDepth` used to arrive here as `contentH`, which stretched the
+    // camera's reach and left the SVG's viewBox at a fixed 96x128 — so a
+    // seven-category river was drawn past art-y 128 and then clipped away by
+    // the viewport it was drawn in. Reachable and drawn are not the same
+    // property: the camera could travel to pixels the SVG had already thrown
+    // out. It is the world's height now, so there is one number and nothing to
+    // disagree.
+  } = useWorldView(WORLD_W, drawnDepth(model))
 
   const { scale, worldPx, frame } = view
   const width = worldPx.w
   const height = worldPx.h
+  /** Art units, and the height every layer in this file draws against. */
+  const worldH = height / scale
   // The meadow is not the world: it fills the frame at every scale and every
   // pan, so zooming out reveals field rather than page. Constant per zoom
   // level, so the grass is generated once and not once per pointer move.
@@ -203,7 +235,7 @@ export function World({ model, children, overlay }: Props) {
           </div>
 
           <svg
-            viewBox={`0 0 ${WORLD_W} ${WORLD_H}`}
+            viewBox={`0 0 ${WORLD_W} ${worldH}`}
             width={width}
             height={height}
             shapeRendering="crispEdges"

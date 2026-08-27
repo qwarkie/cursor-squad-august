@@ -802,8 +802,15 @@ def walk(url):
             return { count: groups.length, branches,
                      hues: [...new Set(branches.map(b => b.hue).filter(Boolean))].sort() }
         }""")
-        check("each tributary is distinguishable by its category colour in the river layer",
-              colour["count"] > 0 and len(colour["hues"]) >= 5,
+        # Inverted deliberately. This asserted the opposite until df48247: every
+        # branch carried its category's hue on a rim, and the world read as six
+        # differently coloured liquids leaving one blue river. Water is water —
+        # a tributary is the trunk continuing, and identity lives on the
+        # signboard and in what the money built at the far end (art-bible.md
+        # §2). The measurement is worth keeping either way round: it is the only
+        # thing that can see a category colour leak back into the water.
+        check("no tributary carries a category colour — a branch is water (art-bible.md §2)",
+              colour["count"] > 0 and len(colour["hues"]) == 0,
               f"{len(colour['hues'])} hues across {colour['count']} marked tributaries {colour['hues']}"
               if colour["count"] else "no [data-tributary] groups found — nothing was measured")
 

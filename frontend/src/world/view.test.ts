@@ -13,6 +13,7 @@ import {
   MAX_SCALE,
   MIN_SCALE,
   PAN_MARGIN,
+  REST_TOP,
 } from './view'
 
 const WORLD = { w: 96, h: 128 }
@@ -133,7 +134,24 @@ describe('restingPan', () => {
 
   it('starts at the spring, not the middle, when there is room below', () => {
     const view = resolveView({ w: 960, h: 774 }, WORLD, null)
-    expect(restingPan(view.worldPx, view.frame, view.scale).y).toBe(0)
+    const y = restingPan(view.worldPx, view.frame, view.scale).y
+    // The claim is "at the top", not a literal 0. It used to be flush with the
+    // frame, which put art row 0 — and at scale 3 the spring's own tap target —
+    // underneath the control rail. It now rests inside the meadow border, which
+    // is the top of the vertical range and still nowhere near the middle.
+    expect(y).toBe(REST_TOP * view.scale)
+    const centred = Math.round((view.frame.h - view.worldPx.h) / 2)
+    expect(y).toBeGreaterThan(centred)
+  })
+
+  it('does not rest flush against the frame on a world taller than it', () => {
+    // The shape of the `Edit income <- Zoom out` regression, and no more than
+    // that: whether a specific control clears a specific rail is occlusion, and
+    // `scripts/responsive_check.py` measures it with `elementFromPoint` at six
+    // widths. Restating the rail's pixel geometry here would duplicate that
+    // badly and rot the first time the rail is restyled.
+    const view = resolveView({ w: 320, h: 568 }, { w: 96, h: 190 }, null)
+    expect(restingPan(view.worldPx, view.frame, view.scale).y).toBeGreaterThan(0)
   })
 })
 

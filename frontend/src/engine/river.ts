@@ -14,8 +14,56 @@ import type { Budget, Category } from '../types'
 export const TRUNK_MAX = 16
 export const MIN_WIDTH = 2
 export const SPRING_Y = 16
+/** Where the mouth sits on a river with nothing taken out of it. A branched river's mouth is computed; see `mouthFor`. */
 export const MOUTH_Y = 104
-export const MIN_GAP = 14
+
+/**
+ * Distance between branch points, in art-pixels — fixed, not divided.
+ *
+ * It used to be a *floor* under an even division of a fixed 88-px span, which
+ * meant every category added squeezed all of them closer together: five fitted
+ * at 14.7 apart, six collapsed to the 14 floor, and past that the villages
+ * piled up around the mouth pool because the river had nowhere left to put
+ * them. The span was the constraint and it did not need to be: ADR-0002 rules
+ * that `WORLD_H` may follow the Budget, and `World.tsx`'s `drawnDepth` already
+ * lets the camera travel to whatever the model draws.
+ *
+ * So the spacing is now constant and the river lengthens instead. A village is
+ * up to ~30 art-px tall and neighbours alternate banks, so same-side
+ * neighbours sit 2 x BRANCH_GAP = 40 apart — clear of each other at the tallest
+ * village and the deepest drop.
+ */
+export const BRANCH_GAP = 20
+
+/**
+ * Clearance between the last branch point and the mouth pool.
+ *
+ * The last village hangs `drop` below its branch and reaches about half its
+ * own height below that. Without this the pool was drawn level with it and the
+ * two crowded — which is what "the towns bunch up at the bottom lake" was.
+ * Covers the deepest `DROP_MAX` plus half the tallest village.
+ */
+export const MOUTH_TAIL = 34
+
+/**
+ * How far out a stream reaches, and how far it falls, before it arrives at its
+ * village — a range now, not one number for every branch.
+ *
+ * Every branch used to get exactly 10 and 10. Identical run and identical drop
+ * make identical geometry, and `water.ts` derives its curve amplitude from the
+ * branch's own length, so the curves came out near-identical too: six copies of
+ * one stream leaving the river at six heights.
+ *
+ * Drop is the wider of the two ranges on purpose. Horizontal room is scarce and
+ * unevenly distributed — ADR-0002 measured 0.5 to 14.5 art-px of it, with the
+ * least exactly where a branch is widest — while vertical room costs nothing
+ * now that the river grows. Varying the fall is what buys visible variety;
+ * varying the reach is what stops the arrivals from lining up.
+ */
+export const REACH_MIN = 7
+export const REACH_MAX = 15
+export const DROP_MIN = 7
+export const DROP_MAX = 18
 /** How far the trunk wanders off centre, and the wavelength of that wander — consumed by world/path.ts's xOffset. */
 export const MEANDER_A = 6
 export const MEANDER_W = 20
@@ -35,6 +83,10 @@ export interface Tributary {
   amount: number
   width: number
   side: 'left' | 'right'
+  /** Art-pixels of open water between the bank and the village's near edge. Varies per branch; see REACH_MIN/REACH_MAX. */
+  reach: number
+  /** Art-pixels the stream falls between its branch point and its village. Varies per branch; see DROP_MIN/DROP_MAX. */
+  drop: number
   settlements: number
   residents: number
   reservoir: boolean
@@ -67,15 +119,55 @@ function residentsFor(category: Category): number {
   return clamp(Math.floor(category.amount / 500), 0, 4)
 }
 
-/** Branch points, floored at MIN_GAP apart when the naive even spacing would crowd them (data-model.md §The maths). */
-function branchYs(n: number): number[] {
-  if (n === 0) return []
-  const span = MOUTH_Y - SPRING_Y
-  const evenSpacing = span / (n + 1)
-  if (evenSpacing >= MIN_GAP) {
-    return Array.from({ length: n }, (_, i) => SPRING_Y + Math.round((i + 1) * (span / (n + 1))))
+/**
+ * FNV-1a over the category id.
+ *
+ * A branch's shape has to be varied but not arbitrary: the same category must
+ * come back identical on the next load, or SC-007 — two loads, one picture —
+ * stops holding. `Math.random` is forbidden here for exactly that reason, and a
+ * noise dependency was removed from this project once already. Six lines and no
+ * state does the job.
+ */
+function hashOf(id: string): number {
+  let h = 0x811c9dc5
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
   }
-  return Array.from({ length: n }, (_, i) => SPRING_Y + (i + 1) * MIN_GAP)
+  return h >>> 0
+}
+
+/** A stable [0, 1) per (id, salt), so one id yields several independent draws. */
+function draw(id: string, salt: string): number {
+  return (hashOf(`${salt}#${id}`) % 4096) / 4096
+}
+
+/** Picks an integer in [min, max] from the id — same id, same answer, always. */
+function vary(id: string, salt: string, min: number, max: number): number {
+  return min + Math.round(draw(id, salt) * (max - min))
+}
+
+/**
+ * Branch points, a constant BRANCH_GAP apart.
+ *
+ * No division by `n`: the river grows downward instead of the branches
+ * compressing. See BRANCH_GAP.
+ */
+function branchYs(n: number): number[] {
+  return Array.from({ length: n }, (_, i) => SPRING_Y + (i + 1) * BRANCH_GAP)
+}
+
+/**
+ * Where the mouth pool sits.
+ *
+ * A river with no branches keeps the classic MOUTH_Y so the opening frame is
+ * unchanged, and a short budget stays inside the original world box. Past that
+ * the pool follows the last branch down, keeping MOUTH_TAIL of clearance so the
+ * last village is not standing in it.
+ */
+function mouthFor(ys: number[]): number {
+  if (ys.length === 0) return MOUTH_Y
+  return Math.max(MOUTH_Y, ys[ys.length - 1] + MOUTH_TAIL)
 }
 
 /**
@@ -93,8 +185,7 @@ export function budgetToRiver(budget: Budget): RiverModel {
     income <= 0 ? 'empty' : remaining > 0 ? 'surplus' : remaining === 0 ? 'balanced' : 'overspent'
 
   const ys = branchYs(categories.length)
-  const lastY = categories.length > 0 ? ys[ys.length - 1] : MOUTH_Y
-  const mouthY = Math.max(MOUTH_Y, lastY)
+  const mouthY = mouthFor(ys)
 
   const segments: Segment[] = []
   let boundary = SPRING_Y
@@ -122,6 +213,8 @@ export function budgetToRiver(budget: Budget): RiverModel {
     amount: amounts[i],
     width: widthFor(amounts[i], income),
     side: i % 2 === 0 ? 'right' : 'left',
+    reach: vary(category.id, 'reach', REACH_MIN, REACH_MAX),
+    drop: vary(category.id, 'drop', DROP_MIN, DROP_MAX),
     settlements: settlementsFor(category),
     residents: residentsFor(category),
     reservoir: category.kind === 'savings',

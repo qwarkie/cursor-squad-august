@@ -37,6 +37,20 @@ export const DRAG_SLOP = 5
  */
 export const PAN_MARGIN = 16
 
+/**
+ * Where an untouched world rests below the frame's top edge, in art units.
+ *
+ * Deliberately NOT `PAN_MARGIN`. That is how far you may drag *past* the
+ * world's edge; this is where it settles when nobody has dragged it, and the
+ * two answer to opposite pressures. It has to be more than zero, or art row 0
+ * sits under the control rail and at scale 3 that is the spring's own "Edit
+ * income" target. It has to stay small, or a month that now grows downward
+ * pushes its lower villages under the action bar fixed to the bottom of the
+ * page — `Select Food`, unreachable at 320x568. Both are measured by
+ * `scripts/responsive_check.py`, at six widths, and this sits between them.
+ */
+export const REST_TOP = 6
+
 const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi)
 
 /**
@@ -135,7 +149,19 @@ export function restingPan(
   insetRight = 0,
 ): Pan {
   return clampPan(
-    { x: Math.round((frame.w - insetRight - worldPx.w) / 2), y: 0 },
+    // Rest inside the meadow border, not flush against the frame.
+    //
+    // `y: 0` was fine while the world was always shorter than its frame: it
+    // was locked, `clampPan` overrode it with the centred anchor, and the top
+    // of the frame stayed empty. A world that grows with the month is taller
+    // than the frame and unlocked, so `y: 0` put art row 0 exactly under the
+    // control rail — and at scale 3 that is where the spring's "Edit income"
+    // target sits, covered and unreachable without a drag nobody knows to make.
+    //
+    // `clampPan` caps this at the drag margin, so the value only ever asks.
+    // A locked axis is unaffected: `panRange` pins both ends to its own anchor
+    // and this is discarded.
+    { x: Math.round((frame.w - insetRight - worldPx.w) / 2), y: REST_TOP * scale },
     worldPx,
     frame,
     scale,
