@@ -488,6 +488,16 @@ can the observer distinguish the states? the instrument — human or code — ha
 Necessary, and **not sufficient**: two checks passed all of these while printing PASS on a screen
 with no river, because "no bad ones found" is vacuously true on an empty set.
 
+## Read this before the taxonomy below it
+
+**Every measurement that failed tonight was answering a question nobody had checked was the right
+one.** A luminance table measured contrast when the eye needed hue. A colour selector measured a
+hue the art bible mandates in three places. Praetor's `geometry.ts` derivation measured the path
+when the question was the rim. **Each was correct arithmetic on real data.**
+
+The rules below catch contamination. They do not catch this, and nothing does except asking what
+the question is before reaching for the handle.
+
 ## What separates an instrument that survives from one that gets retracted
 
 Pollen's taxonomy, in its final form after two refinements — the first version said *no selector*,
