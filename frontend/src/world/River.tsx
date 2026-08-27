@@ -128,7 +128,7 @@ export function River({ model, budget, onSelectTributary }: Props) {
         <Pool
           cx={trunkX(first.fromY)}
           cy={first.fromY}
-          {...poolSize(first.width, 10, 18, 0.42)}
+          {...poolSize(first.width, 10, 24, 0.42)}
           fill="var(--color-water)"
           rim="var(--color-water-deep)"
           shimmer
@@ -361,6 +361,17 @@ const SHIMMER: CSSProperties = { animation: 'water-shimmer 2s steps(2, jump-none
  * the river's blunt end rather than as somewhere the river arrives. Hence the
  * `+ 8` and the floor: even a two-pixel trickle opens into something. The
  * ceiling keeps a full-width river's mouth inside the 96 x 128 world.
+ *
+ * §6 — a caller's `max` has to clear `width + 8` at the widest width that
+ * caller ever sees, or the pool stops answering long before the trunk does.
+ * The spring's ceiling was 18 against a trunk that reaches 16 (TRUNK_MAX):
+ * `width + 8` saturates at 18 once width hits 10, so roughly the top half
+ * of the income range — every carried amount from 10/16 to 16/16 of the
+ * trunk's width — drew an identical spring. Financially distinct months
+ * looked the same at the one place income actually arrives. Fixed at the
+ * call site, not here: `poolSize` is shared with the mouth pool, whose
+ * ceiling (26) never was the problem — mouth's width also tops out at
+ * TRUNK_MAX, and 16 + 8 = 24 never reaches 26.
  */
 function poolSize(width: number, min: number, max: number, flatten: number) {
   const rx = Math.min(max, Math.max(min, Math.round(Math.max(0, width)) + 8))
