@@ -58,6 +58,18 @@ export type PaletteKey =
 /** `expense` ends in settlements; `savings` ends in a reservoir. */
 export type CategoryKind = 'expense' | 'savings'
 
+/**
+ * Which sprite an expense category plants at the end of its tributary.
+ *
+ * Five, because every settlement being a house made the world one village
+ * repeated six times — the map said how much was spent but never on what.
+ * The art for each lives in `world/icons.ts`; this union is the stored value,
+ * so it is names rather than art, and `types.ts` still imports nothing.
+ *
+ * `savings` categories ignore it: a reservoir is the only savings terminus.
+ */
+export type CategoryIcon = 'house' | 'market' | 'arcade' | 'car' | 'clinic'
+
 export interface Category {
   /** Stable across edits — the React key and the selection target. */
   id: string
@@ -68,6 +80,15 @@ export interface Category {
   kind: CategoryKind
   /** One value in three places: tributary stroke, label, bottom-sheet control. */
   color: PaletteKey
+  /**
+   * Optional, and absent means `house`.
+   *
+   * Optional rather than required because every budget saved before icons
+   * existed is missing it, and those are still valid months — `storage.ts`
+   * reads them as-is instead of throwing the whole thing away, and
+   * `iconArt()` resolves the absence at the one place that draws.
+   */
+  icon?: CategoryIcon
 }
 
 export interface Budget {

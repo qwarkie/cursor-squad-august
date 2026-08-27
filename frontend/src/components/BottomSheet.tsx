@@ -1,4 +1,5 @@
-import type { Category } from '../types'
+import type { Category, CategoryIcon } from '../types'
+import { IconPicker } from './IconPicker'
 import { formatMoney } from './money'
 import { HEX, hexForCategory } from './palette'
 
@@ -16,6 +17,7 @@ export interface BottomSheetProps {
   /** Ceiling for the slider: this category's amount plus whatever is unspent. */
   sliderMax: number
   onChange: (amount: number) => void
+  onIcon: (icon: CategoryIcon) => void
   onRemove: () => void
   onClose: () => void
 }
@@ -24,6 +26,7 @@ export function BottomSheet({
   category,
   sliderMax,
   onChange,
+  onIcon,
   onRemove,
   onClose,
 }: BottomSheetProps) {
@@ -97,6 +100,15 @@ export function BottomSheet({
             +
           </button>
         </div>
+
+        {/* Under the slider, not above it: the amount is what a judge came to
+            this sheet for, and the icon is a decision made once. A savings
+            category has no icon — it ends in a reservoir. */}
+        {category.kind === 'expense' && (
+          <div className="mt-3">
+            <IconPicker value={category.icon} onChange={onIcon} />
+          </div>
+        )}
 
         <button
           type="button"

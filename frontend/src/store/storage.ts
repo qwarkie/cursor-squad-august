@@ -1,5 +1,6 @@
 import { EMPTY_BUDGET } from '../fixtures/budget'
 import type { Budget, Category, CategoryKind } from '../types'
+import { isCategoryIcon } from '../world/icons'
 
 /** The one key. Versioned, so a shape change never tries to read old data. */
 export const STORAGE_KEY = 'money-river:budget:v1'
@@ -29,6 +30,15 @@ export function browserStorage(): BudgetStorage | null {
 
 const KINDS: CategoryKind[] = ['expense', 'savings']
 
+/**
+ * `icon` is the one field allowed to be missing.
+ *
+ * Every budget saved before icons existed has no `icon` at all, and those are
+ * real months a judge may still have in their browser. Rejecting them would
+ * empty the field on reload — the one failure this module exists to prevent.
+ * An unrecognised name is let through here and dropped by `normalize`, because
+ * a decoration this build cannot draw is not a reason to throw a month away.
+ */
 function isCategory(value: unknown): value is Category {
   if (typeof value !== 'object' || value === null) return false
   const c = value as Record<string, unknown>
@@ -42,8 +52,19 @@ function isCategory(value: unknown): value is Category {
     typeof c.kind === 'string' &&
     KINDS.includes(c.kind as CategoryKind) &&
     typeof c.color === 'string' &&
-    (c.color as string).length === 1
+    (c.color as string).length === 1 &&
+    // Absent is valid, and so is a name this build has never heard of — see
+    // the note above.
+    (c.icon === undefined || typeof c.icon === 'string')
   )
+}
+
+/** Drops an unrecognised icon so the rest of the app only ever sees the five. */
+function normalize(category: Category): Category {
+  if (category.icon === undefined || isCategoryIcon(category.icon)) return category
+  const known = { ...category }
+  delete known.icon
+  return known
 }
 
 /**
@@ -70,7 +91,7 @@ export function parseBudget(raw: string | null): Budget {
   if (!Array.isArray(b.categories) || !b.categories.every(isCategory)) return EMPTY_BUDGET
   return {
     income: b.income,
-    categories: b.categories as Category[],
+    categories: (b.categories as Category[]).map(normalize),
     updatedAt: typeof b.updatedAt === 'string' ? b.updatedAt : EMPTY_BUDGET.updatedAt,
   }
 }

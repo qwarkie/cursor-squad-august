@@ -18,10 +18,10 @@ export const SEEDED_BUDGET: Budget = {
   income: 4200,
   updatedAt: '2026-08-26T09:00:00.000Z',
   categories: [
-    { id: 'housing', label: 'Housing', amount: 1500, kind: 'expense', color: 'r' },
-    { id: 'food', label: 'Food', amount: 650, kind: 'expense', color: 'f' },
-    { id: 'transport', label: 'Transport', amount: 350, kind: 'expense', color: 't' },
-    { id: 'entertainment', label: 'Entertainment', amount: 300, kind: 'expense', color: 'm' },
+    { id: 'housing', label: 'Housing', amount: 1500, kind: 'expense', color: 'r', icon: 'house' },
+    { id: 'food', label: 'Food', amount: 650, kind: 'expense', color: 'f', icon: 'market' },
+    { id: 'transport', label: 'Transport', amount: 350, kind: 'expense', color: 't', icon: 'car' },
+    { id: 'entertainment', label: 'Entertainment', amount: 300, kind: 'expense', color: 'm', icon: 'arcade' },
     { id: 'savings', label: 'Savings', amount: 1400, kind: 'savings', color: 'v' },
   ],
 }

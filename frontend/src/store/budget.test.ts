@@ -50,6 +50,46 @@ describe('parseBudget', () => {
   it('round-trips a well-formed budget', () => {
     expect(parseBudget(JSON.stringify(SEEDED_BUDGET))).toEqual(SEEDED_BUDGET)
   })
+
+  /**
+   * Icons arrived after the storage key was already `v1` and already in
+   * browsers. A month saved before them has no `icon` on any category, and
+   * dropping it would empty the field on reload — the one failure this module
+   * exists to prevent. It loads as it was; `iconArt()` draws the house.
+   */
+  it('loads a budget saved before icons existed', () => {
+    const raw = JSON.stringify({
+      income: 4200,
+      updatedAt: '2026-08-26T09:00:00.000Z',
+      categories: [{ id: 'housing', label: 'Housing', amount: 1500, kind: 'expense', color: 'r' }],
+    })
+    expect(parseBudget(raw).categories).toEqual([
+      { id: 'housing', label: 'Housing', amount: 1500, kind: 'expense', color: 'r' },
+    ])
+  })
+
+  /** Same reasoning for an icon a later build named and this one cannot draw. */
+  it('drops an unrecognised icon rather than rejecting the month', () => {
+    const raw = JSON.stringify({
+      income: 4200,
+      updatedAt: '2026-08-26T09:00:00.000Z',
+      categories: [
+        { id: 'housing', label: 'Housing', amount: 1500, kind: 'expense', color: 'r', icon: 'castle' },
+      ],
+    })
+    expect(parseBudget(raw).categories[0].icon).toBeUndefined()
+  })
+
+  it('keeps an icon it recognises', () => {
+    const raw = JSON.stringify({
+      income: 4200,
+      updatedAt: '2026-08-26T09:00:00.000Z',
+      categories: [
+        { id: 'food', label: 'Food', amount: 650, kind: 'expense', color: 'f', icon: 'market' },
+      ],
+    })
+    expect(parseBudget(raw).categories[0].icon).toBe('market')
+  })
 })
 
 describe('readBudget / writeBudget', () => {
@@ -159,6 +199,25 @@ describe('the store', () => {
     expect(store.getState().budget.categories).toEqual([])
     expect(store.getState().budget.income).toBe(0)
     expect(store.getState().selectedId).toBeNull()
+  })
+
+  it('adds a category with the icon it was given, and none when it was given none', () => {
+    const store = createBudgetStore(storage)
+    store.getState().addCategory({ label: 'Food', amount: 650, kind: 'expense', color: 'f', icon: 'market' })
+    store.getState().addCategory({ label: 'Housing', amount: 1500, kind: 'expense', color: 'r' })
+    const [food, housing] = store.getState().budget.categories
+    expect(food.icon).toBe('market')
+    expect(housing.icon).toBeUndefined()
+  })
+
+  it('changes one category\'s icon and persists it, leaving the others alone', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    store.getState().setCategoryIcon('housing', 'clinic')
+    const after = store.getState().budget.categories
+    expect(after.find((c) => c.id === 'housing')?.icon).toBe('clinic')
+    expect(after.find((c) => c.id === 'food')?.icon).toBe('market')
+    expect(parseBudget(storage.data[STORAGE_KEY]).categories[0].icon).toBe('clinic')
   })
 
   it('clears the selection when the selected category is removed', () => {

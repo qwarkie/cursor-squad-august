@@ -9,7 +9,10 @@ import { formatMoney } from './components/money'
 import { HEX, hexForCategory } from './components/palette'
 import { TradeOff } from './components/TradeOff'
 import { budgetToRiver } from './engine'
+import { PixelSprite } from './pixel'
 import { useBudget } from './store/budget'
+import { iconArt } from './world/icons'
+import { PAL } from './world/palette'
 import { River } from './world/River'
 import { Settlements } from './world/Settlements'
 import { World } from './world/World'
@@ -44,6 +47,7 @@ export default function App() {
   const setIncome = useBudget((s) => s.setIncome)
   const addCategory = useBudget((s) => s.addCategory)
   const setCategoryAmount = useBudget((s) => s.setCategoryAmount)
+  const setCategoryIcon = useBudget((s) => s.setCategoryIcon)
   const removeCategory = useBudget((s) => s.removeCategory)
   const select = useBudget((s) => s.select)
   const loadDemo = useBudget((s) => s.loadDemo)
@@ -136,7 +140,11 @@ export default function App() {
           className="w-full max-w-md px-4"
           style={{
             paddingBottom: selected
-              ? 'calc(280px + env(safe-area-inset-bottom))'
+              ? // The icon picker adds a row of 48px targets, so an expense
+                // sheet is taller than a savings one and needs more clearance.
+                selected.kind === 'expense'
+                ? 'calc(360px + env(safe-area-inset-bottom))'
+                : 'calc(280px + env(safe-area-inset-bottom))'
               : 'calc(120px + env(safe-area-inset-bottom))',
           }}
         >
@@ -158,6 +166,15 @@ export default function App() {
                       border: `2px solid ${HEX.ink}`,
                     }}
                   />
+                  {category.kind === 'expense' && (
+                    <PixelSprite
+                      art={iconArt(category.icon)}
+                      palette={PAL}
+                      scale={2}
+                      fps={4}
+                      alt=""
+                    />
+                  )}
                   <span className="truncate font-pixel text-[10px]">{category.label}</span>
                   {category.kind === 'savings' && (
                     <span className="shrink-0 text-xs opacity-70">held</span>
@@ -213,6 +230,7 @@ export default function App() {
           category={selected}
           sliderMax={selected.amount + Math.max(model.remaining, 0)}
           onChange={(amount) => changeAmount(selected.id, selected.label, amount, selected.amount)}
+          onIcon={(icon) => setCategoryIcon(selected.id, icon)}
           onRemove={() => {
             removeCategory(selected.id)
             setLastChange({ id: selected.id, label: selected.label, delta: -selected.amount })

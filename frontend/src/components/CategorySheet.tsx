@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react'
 
-import type { CategoryKind, PaletteKey } from '../types'
+import type { CategoryIcon, CategoryKind, PaletteKey } from '../types'
+import { DEFAULT_ICON } from '../world/icons'
+import { IconPicker } from './IconPicker'
 import { CATEGORY_COLORS, HEX } from './palette'
 import { validateAmount } from './validate'
 
@@ -13,7 +15,13 @@ import { validateAmount } from './validate'
  * product is arguing for.
  */
 export interface CategorySheetProps {
-  onSubmit: (input: { label: string; amount: number; kind: CategoryKind; color: PaletteKey }) => void
+  onSubmit: (input: {
+    label: string
+    amount: number
+    kind: CategoryKind
+    color: PaletteKey
+    icon: CategoryIcon
+  }) => void
   onCancel: () => void
 }
 
@@ -22,6 +30,7 @@ export function CategorySheet({ onSubmit, onCancel }: CategorySheetProps) {
   const [amount, setAmount] = useState('')
   const [kind, setKind] = useState<CategoryKind>('expense')
   const [color, setColor] = useState<PaletteKey>(CATEGORY_COLORS[0].key)
+  const [icon, setIcon] = useState<CategoryIcon>(DEFAULT_ICON)
   const [error, setError] = useState<string | null>(null)
 
   const submit = (event: FormEvent) => {
@@ -37,7 +46,7 @@ export function CategorySheet({ onSubmit, onCancel }: CategorySheetProps) {
       return
     }
     setError(null)
-    onSubmit({ label: trimmed.slice(0, 20), amount: parsed.amount, kind, color })
+    onSubmit({ label: trimmed.slice(0, 20), amount: parsed.amount, kind, color, icon })
   }
 
   return (
@@ -110,10 +119,18 @@ export function CategorySheet({ onSubmit, onCancel }: CategorySheetProps) {
           </div>
           <p className="mt-2 text-xs leading-snug opacity-80">
             {kind === 'expense'
-              ? 'Ends in houses — money that turned into something.'
+              ? 'Ends in a village — money that turned into something.'
               : 'Ends in a reservoir — money held, not consumed.'}
           </p>
         </fieldset>
+
+        {/* Savings has no icon to choose — its terminus is a reservoir, not a
+            village — so the picker is not shown rather than shown inert. */}
+        {kind === 'expense' && (
+          <div className="mt-4">
+            <IconPicker value={icon} onChange={setIcon} />
+          </div>
+        )}
 
         <fieldset className="mt-4">
           <legend className="font-pixel text-[10px]">Colour</legend>

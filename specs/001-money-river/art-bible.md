@@ -141,6 +141,9 @@ Everything the demo path needs. Each is one claimable task, independent of every
 | `CAR` | 8 × 5 | 2 | Transport tributary, rides its bank | optional |
 | `ARCADE` | 10 × 10 | 2 | Entertainment tributary, blinking | optional |
 | `TREE` | 7 × 9 | 2 | Bank decoration, sways | optional |
+| `CLINIC` | 9 × 9 | 1 | Fifth spend icon; flat roof, cross | optional |
+
+**Five spend icons, not one.** An expense category picks which of `HOUSE`, `MARKET`, `ARCADE`, `CAR` and `CLINIC` stands at the end of its tributary (`world/icons.ts`); absent a choice it is `HOUSE`. Before this every settlement was a house, so a six-category month drew the same village six times and the map said how much went out but never what on. Savings has no choice to make — a reservoir is its only terminus.
 
 **Not sprites.** The trunk, the tributaries, and the mouth pool are SVG paths — their width is live data, not fixed art. The dry bed is the trunk path stroked in `sand` with `CRACK` sprites laid over it.
 

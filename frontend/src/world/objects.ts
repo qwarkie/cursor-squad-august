@@ -268,3 +268,23 @@ export const TREE: readonly Art[] = [
     '..kkk..',
   ],
 ]
+
+/**
+ * 9 x 9, 1 frame. The fifth spend icon (`world/icons.ts`).
+ *
+ * Flat roof and a cross where HOUSE has a peak and windows: the two are told
+ * apart by silhouette rather than by roof colour alone, so the choice still
+ * reads at scale 3 on a phone — FR-012's rule about never leaning on colour,
+ * applied to the icon set rather than to the overspend mark.
+ */
+export const CLINIC: Art = [
+  '.kkkkkkk.',
+  '.kvvvvvk.',
+  '.kvvvvvk.',
+  'kkkkkkkkk',
+  'kwwwrwwwk',
+  'kwrrrrrwk',
+  'kwwwrwwwk',
+  'kwwdddwwk',
+  'kkkkkkkkk',
+]

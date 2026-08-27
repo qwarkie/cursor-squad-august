@@ -4,6 +4,7 @@ import { rasterize, type Art, type Palette } from '../pixel'
 import {
   ARCADE,
   CAR,
+  CLINIC,
   COIN,
   CRACK,
   HOUSE,
@@ -68,13 +69,14 @@ const INVENTORY: ReadonlyArray<{
   { name: 'CAR', art: CAR, width: 8, height: 5, frames: 2 },
   { name: 'ARCADE', art: ARCADE, width: 10, height: 10, frames: 2 },
   { name: 'TREE', art: TREE, width: 7, height: 9, frames: 2 },
+  { name: 'CLINIC', art: CLINIC, width: 9, height: 9, frames: 1 },
 ]
 
 const framesOf = (art: Art | readonly Art[]): readonly Art[] =>
   Array.isArray(art[0]) ? (art as readonly Art[]) : [art as Art]
 
 describe('the object inventory', () => {
-  it('holds every object in art-bible.md §4 — the eight spine, then the three optional', () => {
+  it('holds every object in art-bible.md §4 — the eight spine, then the four optional', () => {
     expect(INVENTORY.map((o) => o.name)).toEqual([
       'COIN',
       'HOUSE',
@@ -87,6 +89,7 @@ describe('the object inventory', () => {
       'CAR',
       'ARCADE',
       'TREE',
+      'CLINIC',
     ])
   })
 

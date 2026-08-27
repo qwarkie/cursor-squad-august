@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 import { EMPTY_BUDGET, SEEDED_BUDGET } from '../fixtures/budget'
-import type { Budget, Category, CategoryKind, PaletteKey } from '../types'
+import type { Budget, Category, CategoryIcon, CategoryKind, PaletteKey } from '../types'
 import {
   browserStorage,
   readBudget,
@@ -14,6 +14,8 @@ export interface NewCategory {
   amount: number
   kind: CategoryKind
   color: PaletteKey
+  /** Optional — omitted means the house, the same as an older saved budget. */
+  icon?: CategoryIcon
 }
 
 export interface BudgetState {
@@ -29,6 +31,7 @@ export interface BudgetState {
   setIncome: (income: number) => void
   addCategory: (input: NewCategory) => void
   setCategoryAmount: (id: string, amount: number) => void
+  setCategoryIcon: (id: string, icon: CategoryIcon) => void
   removeCategory: (id: string) => void
   select: (id: string | null) => void
   loadDemo: () => void
@@ -84,6 +87,7 @@ export function createBudgetStore(storage: BudgetStorage | null) {
           amount: dollars(input.amount),
           kind: input.kind,
           color: input.color,
+          ...(input.icon ? { icon: input.icon } : null),
         }
         return commit(s, {
           ...s.budget,
@@ -98,6 +102,20 @@ export function createBudgetStore(storage: BudgetStorage | null) {
           categories: s.budget.categories.map((c) =>
             c.id === id ? { ...c, amount: dollars(amount) } : c,
           ),
+        }),
+      ),
+
+    /**
+     * A savings category keeps whatever it is given but never draws it — its
+     * terminus is a reservoir. Storing it anyway means flipping a category
+     * back to `expense` restores the icon it had, rather than silently
+     * resetting it to a house.
+     */
+    setCategoryIcon: (id, icon) =>
+      set((s) =>
+        commit(s, {
+          ...s.budget,
+          categories: s.budget.categories.map((c) => (c.id === id ? { ...c, icon } : c)),
         }),
       ),
 

@@ -3,11 +3,18 @@ import { SPRING_Y, type RiverModel } from '../engine'
 import { trunkX } from './path'
 import { tributaryEnd } from './geometry'
 import { PAL } from './palette'
-import { CRACK, HOUSE, RESERVOIR, RESIDENT, SPRING, WARNING } from './objects'
+import { CRACK, RESERVOIR, RESIDENT, SPRING, WARNING } from './objects'
+import { iconArt, iconPlural } from './icons'
 import type { Budget, PaletteKey } from '../types'
 
-/** HOUSE is 9 x 9 art-pixels (art-bible.md §4); three to a rank keeps the village clear of the trunk. */
-const HOUSE_ART_W = 9
+/**
+ * A rank is three houses wide — HOUSE is 9 x 9 art-pixels (art-bible.md §4) —
+ * and that width is fixed regardless of which icon a category picked. The
+ * rank wraps, so a wider icon simply fits fewer to a row (MARKET at 12 fits
+ * two) and the village still stays clear of the trunk. `icons.test.ts` holds
+ * every icon to this width.
+ */
+const RANK_ART_W = 27
 const HOUSE_GAP = 2
 
 type Props = {
@@ -44,7 +51,7 @@ export function Settlements({ model, budget, scale }: Props) {
         const top = y * scale
 
         const category = budget.categories.find((c) => c.id === trib.categoryId)
-        const rankWidth = 3 * HOUSE_ART_W * scale + 2 * HOUSE_GAP
+        const rankWidth = RANK_ART_W * scale + 2 * HOUSE_GAP
 
         if (trib.reservoir) {
           return (
@@ -72,6 +79,10 @@ export function Settlements({ model, budget, scale }: Props) {
          */
         const houses = Math.max(0, Math.floor(trib.settlements) || 0)
         const residents = Math.max(0, Math.floor(trib.residents) || 0)
+        // The category's own icon, or the house for a budget saved before
+        // icons existed. `iconArt` is total, so an unknown name draws too.
+        const art = iconArt(category?.icon)
+        const noun = iconPlural(category?.icon)
         return (
           <div key={trib.categoryId} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left, top }}>
             {category && (
@@ -84,10 +95,11 @@ export function Settlements({ model, budget, scale }: Props) {
               {Array.from({ length: houses }, (_, i) => (
                 <PixelSprite
                   key={i}
-                  art={HOUSE}
+                  art={art}
                   palette={PAL}
                   scale={scale}
-                  alt={i === 0 ? `Houses, ${houses}` : ''}
+                  fps={4}
+                  alt={i === 0 ? `${noun}, ${houses}` : ''}
                 />
               ))}
             </div>
