@@ -467,6 +467,33 @@ describe('undo', () => {
     expect(store.getState().budget.categories.length).toBeGreaterThan(0)
   })
 
+  /**
+   * Reorder landed while undo was being written, and git merged
+   * `moveCategory` calling `commit()` with no history label perfectly
+   * cleanly — leaving the one action in the app with no way back, and the
+   * one that reshapes the whole river. `label` is a required parameter
+   * rather than an optional one precisely so the compiler catches that;
+   * this test is what catches it if the parameter ever gains a default.
+   */
+  it('takes back a reorder, like every other mutation', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    const before = store.getState().budget.categories.map((c) => c.id)
+    store.getState().moveCategory('savings', 'up')
+    expect(store.getState().budget.categories.map((c) => c.id)).not.toEqual(before)
+    expect(store.getState().undoLabel).toBe('moving Savings')
+    store.getState().undo()
+    expect(store.getState().budget.categories.map((c) => c.id)).toEqual(before)
+  })
+
+  it('does not offer a step back for a move that could not happen', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    const before = store.getState().undoLabel
+    store.getState().moveCategory('housing', 'up')
+    expect(store.getState().undoLabel).toBe(before)
+  })
+
   it('does not redo — a second undo goes further back, never forward', () => {
     const store = createBudgetStore(storage)
     store.getState().loadDemo()

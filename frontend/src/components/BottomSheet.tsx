@@ -46,6 +46,22 @@ export interface BottomSheetProps {
   onRename: (label: string) => void
   onRemove: () => void
   onClose: () => void
+  /**
+   * The sheet's own root, so the page behind it can clear exactly this sheet
+   * rather than a number someone measured once. See the note in `App.tsx`.
+   */
+  hostRef?: React.Ref<HTMLDivElement>
+  /**
+   * The way back, while the sheet is open.
+   *
+   * Undo lives in the fixed action bar — which this sheet covers. Without it
+   * here, every edit made *in* the sheet is the one kind you cannot take back:
+   * a rename needs you to remember the old name, and a slider drag needs you
+   * to remember the old number. The bar and this are mutually exclusive by
+   * construction, so exactly one Undo is ever mounted.
+   */
+  undoLabel: string | null
+  onUndo: () => void
 }
 
 export function BottomSheet({
@@ -59,6 +75,9 @@ export function BottomSheet({
   onRename,
   onRemove,
   onClose,
+  hostRef,
+  undoLabel,
+  onUndo,
 }: BottomSheetProps) {
   const swatch = hexForCategory(category.color)
   const step = (delta: number) => onChange(Math.max(0, category.amount + delta))
@@ -91,6 +110,7 @@ export function BottomSheet({
 
   return (
     <div
+      ref={hostRef}
       className="sheet-in fixed inset-x-0 bottom-0 z-20 w-full px-4 pt-4"
       style={{
         background: HEX.night,
@@ -132,6 +152,21 @@ export function BottomSheet({
               style={{ color: HEX.paper }}
             />
           </div>
+          {/* In the row that already exists, so the sheet gains no height —
+              its clearance is measured now, but a taller sheet still costs
+              the list room it does not have at 390x844. */}
+          {undoLabel !== null && (
+            <button
+              type="button"
+              onClick={onUndo}
+              aria-label={`Undo ${undoLabel}`}
+              data-undo="true"
+              className="min-h-[44px] shrink-0 cursor-pointer px-2 font-pixel text-[8px] leading-none underline decoration-dotted underline-offset-4"
+              style={{ background: 'transparent', color: HEX.gold }}
+            >
+              Undo
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}

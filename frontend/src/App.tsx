@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 
 import { BottomSheet } from './components/BottomSheet'
 import { CategorySheet } from './components/CategorySheet'
@@ -61,6 +61,38 @@ export default function App() {
 
   const [sheet, setSheet] = useState<OpenSheet>('none')
   const [lastChange, setLastChange] = useState<Change | null>(null)
+
+  /**
+   * How far the list has to clear whatever is fixed over the bottom of the
+   * page — measured, not declared.
+   *
+   * This was two hardcoded numbers, 360px for an expense sheet and 280px for a
+   * savings one, and they were correct on the day they were measured. The
+   * moment the sheet grew reorder controls it stood 378px tall against a 360px
+   * clearance and quietly sliced 2px off the last category — a broken list
+   * rather than a scrollable one, which is the exact failure the number was
+   * added to prevent. Three people edited that sheet tonight and nobody could
+   * have known which of them owed the constant an update.
+   *
+   * A `ResizeObserver` on the sheet's own box cannot go stale: whatever anyone
+   * adds to it next, the list clears it.
+   */
+  const [sheetHeight, setSheetHeight] = useState(0)
+  const observed = useRef<ResizeObserver | null>(null)
+  const sheetHost = useCallback((node: HTMLDivElement | null) => {
+    observed.current?.disconnect()
+    if (!node) {
+      setSheetHeight(0)
+      return
+    }
+    setSheetHeight(node.getBoundingClientRect().height)
+    const ro = new ResizeObserver(([entry]) => {
+      setSheetHeight(entry.target.getBoundingClientRect().height)
+    })
+    ro.observe(node)
+    observed.current = ro
+  }, [])
+  useLayoutEffect(() => () => observed.current?.disconnect(), [])
 
   const model = budgetToRiver(budget)
   const selected = budget.categories.find((c) => c.id === selectedId) ?? null
@@ -132,19 +164,7 @@ export default function App() {
         </p>
       )}
 
-      {/* The sentence and the way back from it, in one row.
-          Undoing clears the sentence rather than negating it: `Food −$100`
-          describes a change that no longer happened, and printing
-          `Food +$100` next would claim the person moved money back when what
-          they did was take the move away. */}
-      <TradeOff
-        change={lastChange}
-        undoLabel={undoLabel}
-        onUndo={() => {
-          undo()
-          setLastChange(null)
-        }}
-      />
+      <TradeOff change={lastChange} />
 
       <main className="flex flex-1 flex-col items-center gap-4 py-4">
         <World
@@ -161,19 +181,14 @@ export default function App() {
           <River model={model} budget={budget} onSelectTributary={select} />
         </World>
 
-        {/* Clearance for whichever bar is fixed over the bottom of the page —
-            the action bar (87px) or the open bottom sheet — plus the notch
-            inset. Without it the last category is sliced by the bar on a
-            phone, which reads as a broken list rather than a scrollable one. */}
+        {/* Clearance for whichever bar is fixed over the bottom of the page.
+            The open sheet is measured (see `sheetHost` above); the action bar
+            is a fixed 87px of buttons this file draws itself and knows. */}
         <ul
           className="w-full max-w-md px-4"
           style={{
             paddingBottom: selected
-              ? // The icon picker adds a row of 48px targets, so an expense
-                // sheet is taller than a savings one and needs more clearance.
-                selected.kind === 'expense'
-                ? 'calc(360px + env(safe-area-inset-bottom))'
-                : 'calc(280px + env(safe-area-inset-bottom))'
+              ? `calc(${Math.round(sheetHeight) + 8}px + env(safe-area-inset-bottom))`
               : 'calc(120px + env(safe-area-inset-bottom))',
           }}
         >
@@ -235,6 +250,31 @@ export default function App() {
           >
             Add category
           </button>
+          {/* Undo lives in the fixed bar, not in the trade-off row above the
+              world, and that is a correction rather than a preference.
+              In the row it was present in the DOM and off the screen: after
+              tapping Remove the page sits scrolled down at the list, and the
+              row measured `top: -72` — a control that exists and cannot be
+              reached, which is worse than one that is missing. A sticky row
+              looked like the one-line fix and silently did nothing, because
+              `overflow-x-hidden` on this component's root makes it a scroll
+              container. Fixed cannot scroll away, and it puts the way back
+              beside Reset, the other action you take back. */}
+          <button
+            type="button"
+            onClick={() => {
+              undo()
+              setLastChange(null)
+            }}
+            disabled={undoLabel === null}
+            aria-label={undoLabel === null ? undefined : `Undo ${undoLabel}`}
+            aria-hidden={undoLabel === null}
+            data-undo={undoLabel !== null}
+            className="min-h-[52px] flex-1 cursor-pointer font-pixel text-[10px] leading-none transition-opacity disabled:cursor-default disabled:opacity-30"
+            style={{ background: 'transparent', color: HEX.gold, border: `3px solid ${HEX.gold}` }}
+          >
+            Undo
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -256,6 +296,7 @@ export default function App() {
 
       {selected && (
         <BottomSheet
+          hostRef={sheetHost}
           category={selected}
           sliderMax={selected.amount + Math.max(model.remaining, 0)}
           onChange={(amount) => changeAmount(selected.id, selected.label, amount, selected.amount)}
@@ -264,6 +305,11 @@ export default function App() {
           total={budget.categories.length}
           onMove={(direction) => moveCategory(selected.id, direction)}
           onRename={(label) => setCategoryLabel(selected.id, label)}
+          undoLabel={undoLabel}
+          onUndo={() => {
+            undo()
+            setLastChange(null)
+          }}
           onRemove={() => {
             removeCategory(selected.id)
             setLastChange({ id: selected.id, label: selected.label, delta: -selected.amount })
