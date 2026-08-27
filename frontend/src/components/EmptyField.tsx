@@ -97,8 +97,14 @@ export function EmptyField({ onAddIncome, onLoadDemo }: EmptyFieldProps) {
           onClick={onLoadDemo}
           className="min-h-[44px] w-full cursor-pointer px-6 font-pixel text-[10px] leading-none transition-transform active:translate-y-[2px]"
           style={{
-            background: 'transparent',
-            color: HEX.ink,
+            // Opaque, because the field behind it is textured now. This was
+            // `transparent` with ink text, which read cleanly on flat green
+            // and turned busy the moment 4bee108 put grass blades under the
+            // label — on the one control that starts the demo. `night` with
+            // `paper` text is the surface idiom the sheets already use, and
+            // it stays clearly subordinate to the gold primary above it.
+            background: HEX.night,
+            color: HEX.paper,
             border: `3px solid ${HEX.ink}`,
           }}
         >
