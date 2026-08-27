@@ -87,8 +87,35 @@ def audit(pg, label):
         check(label, "the world exposes a viewBox to measure against", False,
               "no svg[viewBox] inside the world box")
 
+    # `scrollWidth - clientWidth` is structurally incapable of catching content
+    # pushed off the right edge here: App's root carries `overflow-x-hidden`, so
+    # anything past the edge is CLIPPED, not scrolled, and scrollWidth reads back
+    # the viewport width however far out the content went. This check was green
+    # at 1440 on 465ee26 while the right third of the rail — amounts, Undo and
+    # Reset — was off the screen. @Honey found that in a screenshot. Kept because
+    # a genuine scroll is still worth knowing about; it is no longer trusted to
+    # answer the question below it.
     check(label, "nothing spills sideways", world["overflowX"] <= 1,
           f"{world['overflowX']}px of horizontal overflow")
+
+    # The question that one could not express: is every control still ON the
+    # screen? Controls inside the world are excluded — the world is deliberately
+    # bigger than its frame once it pans, and its own targets travel with it.
+    off = pg.evaluate("""() => {
+        const out = []
+        for (const el of document.querySelectorAll('button, [role=button], input')) {
+          if (el.closest('[data-scale]')) continue
+          const r = el.getBoundingClientRect()
+          if (r.width <= 0 || r.height <= 0) continue
+          if (r.left < -1 || r.right > innerWidth + 1) {
+            const n = (el.getAttribute('aria-label') || el.textContent || el.tagName).trim()
+            out.push(`${n.slice(0, 18)} @${Math.round(r.left)}..${Math.round(r.right)}`)
+          }
+        }
+        return out
+    }""")
+    check(label, "every control is on the screen, not clipped off the edge",
+          not off, off or f"all within 0..{pg.viewport_size['width']}")
     check(label, "the world is on screen", world["right"] > 0 and world["left"] < pg.viewport_size["width"],
           f"left {round(world['left'])} right {round(world['right'])}")
 
