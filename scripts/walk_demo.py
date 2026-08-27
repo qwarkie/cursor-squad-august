@@ -107,12 +107,32 @@ def geometry_fingerprint(pg):
                '|' + (el.getAttribute('stroke-width') || ''))
         const world = document.querySelector('[data-scale]')
         const box = world ? world.getBoundingClientRect() : null
-        const sprites = [...document.querySelectorAll('[data-scale] span, [data-scale] div')]
+        // Anything riding `offset-path` is where it is because of the clock, so
+        // its rectangle is not world geometry and must not be fingerprinted —
+        // sampling two loads a second apart would report a false difference.
+        // What IS deterministic about it is how many there are and how they are
+        // timed, which comes from the model, so that gets fingerprinted instead.
+        const all = [...document.querySelectorAll('[data-scale] span, [data-scale] div')]
           .filter(e => getComputedStyle(e).backgroundImage.startsWith('url('))
+        // The sprite carries the background image; its *wrapper* carries the
+        // offset-path. Testing only the element itself finds nothing and silently
+        // fingerprints moving coins as if they were fixed scenery.
+        const riding = e => {
+          for (let n = e; n && n !== document.body; n = n.parentElement) {
+            const op = getComputedStyle(n).offsetPath
+            if (op && op !== 'none') return true
+          }
+          return false
+        }
+        const sprites = all.filter(e => !riding(e))
           .map(e => { const r = e.getBoundingClientRect()
                       return [Math.round(r.left - (box?box.left:0)), Math.round(r.top - (box?box.top:0)),
                               Math.round(r.width), Math.round(r.height)].join(',') })
-        return { shapes, sprites, scale: world ? world.dataset.scale : null }
+        const flowing = all.filter(riding).map(e => {
+          const cs = getComputedStyle(e)
+          return [cs.animationDuration, cs.animationDelay, cs.offsetRotate, cs.offsetPath.length].join(',')
+        }).sort()
+        return { shapes, sprites, flowing, scale: world ? world.dataset.scale : null }
     }""")
 
 
@@ -190,30 +210,46 @@ def walk(url):
         check("no river shape uses a round line cap", not round_caps,
               f"{len(round_caps)} round-capped")
 
-        # ---- 5b. category colour on the stroke (art-bible §2) --------------------
+        # ---- 5b. the branches are distinguishable (art-bible §2) ----------------
         #
-        # The stroke is one of the three places the category colour must live, and
-        # the only one of the three in the world layer. When it was moved off, the
-        # trunk and all five tributaries rendered in the same two water blues and
-        # the middle of the river read as one braided blob — SC-002, with the
-        # geometry completely unchanged. Every geometric check still passed.
+        # The property is that each tributary can be told apart by its category
+        # colour. It is deliberately NOT "the stroke is coloured": that mechanism
+        # has changed twice — stroked lines, then rasterised water bands — and an
+        # assertion about the mechanism fails on a refactor and passes on a
+        # regression. Honey made that point and it is right.
         #
-        # This asserts the cause, not the effect. Whether the narrowing *reads*
-        # to a stranger is a person's judgement and stays with the human walk.
-        print("\n5b. category colour rides the tributary stroke (art-bible §2)")
-        strokes = pg.evaluate("""() => {
-            const water = ['rgb(43, 127, 212)', 'rgb(92, 179, 255)', 'rgb(23, 83, 143)']
-            const seen = [...document.querySelectorAll('svg line')]
-              .map(e => getComputedStyle(e).stroke)
-              .filter(s => s && s !== 'none' && !s.startsWith('rgba(0, 0, 0, 0'))
-            return {
-              all: [...new Set(seen)],
-              categorical: [...new Set(seen.filter(s => !water.includes(s)))],
+        # But it is also not "the colour appears anywhere": the signboards and the
+        # category list carry all five colours as DOM backgrounds, so an
+        # anywhere-check passes while the branches themselves are invisible water
+        # on water. The water is SVG and the labels are DOM, so the honest test is
+        # whether the colours reach the layer the river is drawn in, however that
+        # layer chooses to paint them.
+        print("\n5b. the branches are distinguishable by category colour (art-bible §2)")
+        colour = pg.evaluate("""() => {
+            const CATEGORY = {
+              'rgb(192, 57, 43)': 'brick', 'rgb(224, 140, 58)': 'wheat',
+              'rgb(107, 122, 153)': 'slate', 'rgb(138, 79, 168)': 'plum',
+              'rgb(47, 168, 138)': 'teal',
             }
+            const inSvg = new Set()
+            for (const el of document.querySelectorAll('svg *')) {
+              const cs = getComputedStyle(el)
+              for (const paint of [cs.stroke, cs.fill]) {
+                if (CATEGORY[paint]) inSvg.add(CATEGORY[paint])
+              }
+            }
+            const inDom = new Set()
+            for (const el of document.querySelectorAll('*')) {
+              const bg = getComputedStyle(el).backgroundColor
+              if (CATEGORY[bg]) inDom.add(CATEGORY[bg])
+            }
+            return { svg: [...inSvg].sort(), dom: [...inDom].sort() }
         }""")
-        check("each tributary strokes in its own category colour, not the trunk's water",
-              len(strokes["categorical"]) >= 5,
-              f"{len(strokes['categorical'])} non-water stroke colours: {strokes['categorical']}")
+        detail = f"{len(colour['svg'])} in the river layer {colour['svg']}"
+        if not colour["svg"] and colour["dom"]:
+            detail += f" — but {len(colour['dom'])} on labels only {colour['dom']}, so the branches read as water on water"
+        check("each tributary is distinguishable by its category colour in the river layer",
+              len(colour["svg"]) >= 5, detail)
 
         # ---- 6. SC-007 determinism ----------------------------------------------
         print("\n6. two loads, identical geometry (SC-007 / FR-015)")
@@ -225,6 +261,9 @@ def walk(url):
               f"{len(first['shapes'])} vs {len(second['shapes'])} shapes")
         check("sprite placement is identical across two loads", first["sprites"] == second["sprites"],
               f"{len(first['sprites'])} vs {len(second['sprites'])} sprites")
+        check("what rides the river is identically timed across two loads (FR-015)",
+              first["flowing"] == second["flowing"],
+              f"{len(first['flowing'])} vs {len(second['flowing'])} riding the path")
         check("the budget survived the reload (US5 scenario 3)", "$4,200" in body(pg))
 
         # ---- 7. editing the income (US1 scenario 3) ------------------------------
