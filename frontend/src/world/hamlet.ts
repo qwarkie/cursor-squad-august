@@ -73,8 +73,19 @@ const ROW_CLEARANCE = 3
 const LEAN = 1
 /** How far a row may slide off centre. */
 const STAGGER = 2
-/** Corridor width held back from the widest row, so there is room to stagger. */
-const MIN_SLACK = 2 * STAGGER
+/**
+ * Every building sprite in the app, by size — art-bible.md §4 and
+ * `world/icons.ts`. Sizes rather than art, so this module stays free of the
+ * sprite format and of which icon any category chose.
+ */
+const BUILDING_SIZES: readonly Size[] = [
+  { w: 9, h: 9 }, // house, clinic
+  { w: 12, h: 9 }, // market
+  { w: 10, h: 10 }, // arcade — the tallest
+  { w: 8, h: 5 }, // car
+]
+/** RESIDENT is 5x5; the rank below a village adds its height plus a gap. */
+const RESIDENT_H = 5
 
 /**
  * A stable value from an id and an index. Same inputs, same number, forever —
@@ -137,7 +148,39 @@ export function rowPlan(id: string, count: number, perRow: number): number[] {
  * Leaving room to stagger is what makes a second row a different row.
  */
 export function perRowFor(building: Size, maxWidth: number): number {
-  return Math.max(1, Math.floor((maxWidth - MIN_SLACK) / Math.max(1, building.w)))
+  const w = Math.max(1, building.w)
+  const wide = Math.floor(maxWidth / w)
+  // Give up a column for stagger room only when the wide row would have none
+  // to give. Taking `MIN_SLACK` unconditionally cost a market — 12 art-px in a
+  // 27 corridor — its second column, and six markets became a single stack:
+  // the repeated-line failure §2 removed, turned ninety degrees.
+  return wide > 1 && maxWidth - wide * w < 1 ? wide - 1 : Math.max(1, wide)
+}
+
+/**
+ * The tallest cluster a given count can produce, over every building sprite in
+ * the app.
+ *
+ * `grove.ts` needs a village's extent to keep foliage out of it and cannot see
+ * which icon a category picked — that lives on the Budget, and the placement
+ * modules stay free of it. The worst case over all icons is the honest bound:
+ * a little generous for a village of cars, exact for a village of arcades, and
+ * never smaller than what is actually drawn, which is the direction that
+ * matters when the alternative is a tree between the houses.
+ */
+export function maxHamletHeight(count: number, maxWidth: number): number {
+  const n = Math.max(0, Math.floor(count) || 0)
+  // Zero buildings is not zero village: the engine floors settlements at one,
+  // but a caller that passes none still gets the villagers' rank drawn, and a
+  // bound that says nothing is there is exactly the under-report this exists
+  // to prevent.
+  let tallest = 0
+  for (const b of BUILDING_SIZES) {
+    const rows = Math.ceil(n / perRowFor(b, maxWidth))
+    tallest = Math.max(tallest, rows * (b.h + ROW_CLEARANCE) - ROW_CLEARANCE + 2 * LEAN)
+  }
+  // Villagers fall below the last row when it has no room beside it.
+  return tallest + RESIDENT_H + 2
 }
 
 /**

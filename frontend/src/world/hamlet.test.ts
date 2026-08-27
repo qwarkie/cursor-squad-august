@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { hamlet, perRowFor, rowPlan, type HamletSpot } from './hamlet'
+import { hamlet, maxHamletHeight, perRowFor, rowPlan, type HamletSpot } from './hamlet'
 import { RANK_ART_W } from './geometry'
 
 const HOUSE = { w: 9, h: 9 }
 const MARKET = { w: 12, h: 9 }
-const RESIDENT = { w: 5, h: 7 }
+const RESIDENT = { w: 5, h: 5 }
 
 const village = (id: string, buildings: number, residents = 0, building = HOUSE) =>
   hamlet({ id, buildings, residents, building, resident: RESIDENT, maxWidth: RANK_ART_W })
@@ -170,10 +170,55 @@ describe('rowPlan', () => {
   })
 })
 
+describe('maxHamletHeight', () => {
+  /**
+   * grove.ts keeps foliage out of a village using this and cannot see which
+   * icon the category picked. Under-reporting plants a tree between the houses,
+   * so the bound has to hold for every sprite and every id.
+   */
+  it('is never smaller than a village that actually gets drawn', () => {
+    for (const b of [HOUSE, MARKET, { w: 10, h: 10 }, { w: 8, h: 5 }]) {
+      for (const id of ['housing', 'food', 'transport', 'entertainment', 'savings']) {
+        for (let n = 0; n <= 6; n++) {
+          const drawn = hamlet({
+            id,
+            buildings: n,
+            residents: 3,
+            building: b,
+            resident: RESIDENT,
+            maxWidth: RANK_ART_W,
+          })
+          expect(drawn.h, `${id} n=${n} ${b.w}x${b.h}`).toBeLessThanOrEqual(
+            maxHamletHeight(n, RANK_ART_W),
+          )
+        }
+      }
+    }
+  })
+
+  it('still covers the villagers when a caller passes no buildings', () => {
+    expect(maxHamletHeight(0, RANK_ART_W)).toBeGreaterThan(0)
+  })
+
+  it('grows with the count, never shrinks', () => {
+    for (let n = 1; n <= 6; n++) {
+      expect(maxHamletHeight(n, RANK_ART_W)).toBeGreaterThanOrEqual(
+        maxHamletHeight(n - 1, RANK_ART_W),
+      )
+    }
+  })
+})
+
 describe('perRowFor', () => {
   it('leaves room to stagger rather than filling the corridor edge to edge', () => {
+    // Three houses are exactly 27 and could not slide, so a column is given up.
     expect(perRowFor(HOUSE, RANK_ART_W)).toBe(2)
-    expect(perRowFor(MARKET, RANK_ART_W)).toBe(1)
+  })
+
+  it('does not give up a column a wide sprite cannot spare', () => {
+    // Two markets are 24 in a 27 corridor — 3px of stagger, and the difference
+    // between a cluster and a single stack of six.
+    expect(perRowFor(MARKET, RANK_ART_W)).toBe(2)
   })
 
   it('never returns zero, however narrow the corridor', () => {

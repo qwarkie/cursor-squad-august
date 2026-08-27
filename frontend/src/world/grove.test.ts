@@ -5,6 +5,7 @@ import { SEEDED_BUDGET } from '../fixtures/budget'
 import { trunkX, WORLD_H, WORLD_W } from './path'
 import { trunkWidthAt, tributaryEnd, RANK_ART_W } from './geometry'
 import { grove, type GroveInput } from './grove'
+import { maxHamletHeight } from './hamlet'
 
 const SIZE = { tree: { w: 7, h: 9 }, bush: { w: 5, h: 4 } } as const
 
@@ -46,18 +47,28 @@ describe('grove', () => {
     }
   })
 
-  it('never overlaps a village rank', () => {
+  /**
+   * The band is the village's own height, not a square of RANK_ART_W.
+   *
+   * This test asserted the square, and the square was the bug: §2's clusters
+   * reach 35 art-px for six houses against a 27-px box, so `walk_demo` found a
+   * bush planted inside a village while this stayed green. Asserting against
+   * `maxHamletHeight` rather than a copy of the number means the two cannot
+   * drift apart again.
+   */
+  it('never overlaps a village, at that village\u2019s own height', () => {
     const m = seeded()
     for (const spot of grove(m, WORLD_H)) {
       const { w, h } = SIZE[spot.kind]
       for (const trib of m.tributaries) {
         const end = tributaryEnd(trib.atY, trib.side, trunkWidthAt(m, trib.atY))
-        const half = RANK_ART_W / 2
+        const halfW = RANK_ART_W / 2
+        const halfH = maxHamletHeight(trib.settlements, RANK_ART_W) / 2
         const clear =
-          spot.x + w <= end.x - half ||
-          spot.x >= end.x + half ||
-          spot.y + h <= end.y - half ||
-          spot.y >= end.y + half
+          spot.x + w <= end.x - halfW ||
+          spot.x >= end.x + halfW ||
+          spot.y + h <= end.y - halfH ||
+          spot.y >= end.y + halfH
         expect({ spot, trib: trib.atY, clear }).toEqual({ spot, trib: trib.atY, clear: true })
       }
     }

@@ -1,6 +1,7 @@
 import { SPRING_Y, MOUTH_Y } from '../engine'
 import { trunkX, WORLD_H, WORLD_W } from './path'
 import { RANK_ART_W, trunkWidthAt, tributaryEnd, type TrunkGeometry } from './geometry'
+import { maxHamletHeight } from './hamlet'
 
 /**
  * Where foliage stands on the open field.
@@ -25,7 +26,16 @@ export interface GroveSpot {
 }
 
 export interface GroveInput extends TrunkGeometry {
-  tributaries: readonly { atY: number; side: 'left' | 'right' }[]
+  tributaries: readonly {
+    atY: number
+    side: 'left' | 'right'
+    /**
+     * Buildings at this tributary's end. The village's extent is a function of
+     * it, and before §2 it did not need to be here — every village was one
+     * flex-wrapped block half a rank tall, so half a rank was the whole story.
+     */
+    settlements: number
+  }[]
 }
 
 /** art-bible.md §4 sizes. A spot is rejected on the box, not on a centre point. */
@@ -48,6 +58,12 @@ const BANK_CLEARANCE = 4
 
 /** Grass left around a village rank and the stream feeding it. */
 const VILLAGE_PAD = 3
+/**
+ * Room above a village for its signboard, in art units — the board's own box
+ * at the smallest scale the app draws, rounded up. `walk_demo` found trees
+ * under two of them.
+ */
+const SIGNBOARD_H = 6
 
 /** The spring and the mouth are pools, wider than the trunk they belong to. */
 const POOL_RX = 20
@@ -93,8 +109,16 @@ function clearOfTributaries(model: GroveInput, x: number, y: number, w: number, 
     // its own anchor. The village's top edge sits above the branch line when
     // the drop is shorter than half a rank, so taking the branch line alone
     // leaves a sliver of village uncovered.
-    const half = RANK_ART_W / 2
-    const bandT = Math.min(trib.atY, end.y - half) - VILLAGE_PAD
+    // The band used to be a square: `RANK_ART_W / 2` in both directions. That
+    // was true while a village was one flex-wrapped block, and stopped being
+    // true the moment §2 made clusters that reach 35 art-px for six houses —
+    // eight pixels of every tall village were left unprotected, and a bush was
+    // planted inside one. The width is still the corridor; the height is the
+    // village's own, from the module that places it.
+    const half = maxHamletHeight(trib.settlements, RANK_ART_W) / 2
+    // The signboard hangs above the cluster and is part of the settlement as
+    // far as anything else in the world is concerned.
+    const bandT = Math.min(trib.atY, end.y - half - SIGNBOARD_H) - VILLAGE_PAD
     const bandB = Math.max(trib.atY, end.y + half) + VILLAGE_PAD
     return x + w <= bandL || x >= bandR || y + h <= bandT || y >= bandB
   })
