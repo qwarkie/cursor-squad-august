@@ -58,6 +58,14 @@ Then, by eye, at a 390 × 844 viewport in device emulation:
 
 ## The live deployment
 
-Live: https://cursor-squad-august-app.vercel.app
+Live: **https://cursor-squad-august-live.vercel.app**
 
-> **The Vercel project is not linked to this repository.** A push to `main` does **not** redeploy. Deploys are manual, and the live site can silently lag `main`. Open the live URL and walk the demo path on it — never infer it from a green build. Tracked in [#5](https://github.com/qwarkie/cursor-squad-august/issues/5).
+Auto-deploy on push to `main` works, verified on [#5](https://github.com/qwarkie/cursor-squad-august/issues/5#issuecomment-5433182556): the live asset hash is byte-identical to a local `npm run build` of `HEAD`, and production deployments track every direct push.
+
+Three warnings that outlive that fix:
+
+> **`https://cursor-squad-august-app.vercel.app` is the old hand-deployed site.** It still answers 200 and it still serves a build from 26 August. It is not wired to this repository and will never update. Do not submit it, do not walk it, do not cite it.
+>
+> **`https://money-river.vercel.app` is not ours.** It resolves to an unrelated app. It is the URL somebody will guess from the project name.
+>
+> **A green build still is not a live demo.** Open the URL and walk the path on it. Auto-deploy proves the bundle shipped, not that the product works.
