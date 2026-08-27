@@ -111,10 +111,13 @@ export function BottomSheet({
   return (
     <div
       ref={hostRef}
-      className="sheet-in fixed inset-x-0 bottom-0 z-20 w-full px-4 pt-4"
+      // Docked to the controls rail from `lg` up rather than spanning the
+      // viewport: a sheet 1440px wide to hold a slider and five icons reads as
+      // a page, not a sheet, and it covers the river it is there to reshape.
+      className="sheet-in fixed inset-x-0 bottom-0 z-20 w-full px-4 pt-4 lg:inset-x-auto lg:bottom-8 lg:right-8 lg:w-[380px]"
       style={{
         background: HEX.night,
-        borderTop: `3px solid ${HEX.ink}`,
+        border: `3px solid ${HEX.ink}`,
         color: HEX.paper,
         paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
       }}

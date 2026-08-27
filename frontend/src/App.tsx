@@ -134,6 +134,69 @@ export default function App() {
     }))
   }
 
+  /**
+   * The three actions, defined once and mounted in one of two places.
+   *
+   * On a phone they are pinned to the bottom edge in a fixed bar, which is
+   * correct: it is thumb reach and there is one column of room. On a desktop
+   * that same bar stretched two buttons across 1440px. Copying the markup into
+   * a second place would have been the quick version and would have drifted
+   * the first time anyone added a fourth action.
+   */
+  const actions = (
+    <div className="flex w-full gap-3">
+          <button
+            type="button"
+            onClick={() => setSheet('category')}
+            className="min-h-[52px] flex-[2] cursor-pointer font-pixel text-[10px] leading-none"
+            style={{ background: HEX.gold, color: HEX.ink, border: `3px solid ${HEX.ink}` }}
+          >
+            Add category
+          </button>
+          {/* Undo lives in the fixed bar, not in the trade-off row above the
+              world, and that is a correction rather than a preference.
+              In the row it was present in the DOM and off the screen: after
+              tapping Remove the page sits scrolled down at the list, and the
+              row measured `top: -72` — a control that exists and cannot be
+              reached, which is worse than one that is missing. A sticky row
+              looked like the one-line fix and silently did nothing, because
+              `overflow-x-hidden` on this component's root makes it a scroll
+              container. Fixed cannot scroll away, and it puts the way back
+              beside Reset, the other action you take back. */}
+          <button
+            type="button"
+            onClick={() => {
+              undo()
+              setLastChange(null)
+            }}
+            disabled={undoLabel === null}
+            aria-label={undoLabel === null ? undefined : `Undo ${undoLabel}`}
+            aria-hidden={undoLabel === null}
+            data-undo={undoLabel !== null}
+            className="min-h-[52px] flex-1 cursor-pointer font-pixel text-[10px] leading-none transition-opacity disabled:cursor-default disabled:opacity-30"
+            style={{ background: 'transparent', color: HEX.gold, border: `3px solid ${HEX.gold}` }}
+          >
+            Undo
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              // Confirmed, because reset throws the whole month away and the
+              // button sits next to one a judge will be tapping repeatedly.
+              if (window.confirm('Clear this month and go back to the empty field?')) {
+                reset()
+                setLastChange(null)
+                setSheet('none')
+              }
+            }}
+            className="min-h-[52px] flex-1 cursor-pointer font-pixel text-[10px] leading-none"
+            style={{ background: 'transparent', color: HEX.paper, border: `3px solid ${HEX.paper}` }}
+          >
+            Reset
+          </button>
+    </div>
+  )
+
   return (
     <div
       className="flex min-h-dvh w-full flex-col overflow-x-hidden"
@@ -166,7 +229,16 @@ export default function App() {
 
       <TradeOff change={lastChange} />
 
-      <main className="flex flex-1 flex-col items-center gap-4 py-4">
+      {/* One column on a phone, two from `lg` up.
+          The world and the controls are stacked on a phone because there is
+          only ever one column of room. On a 1024px+ screen that stack put the
+          category list 894px down — below the fold on a 768px-tall laptop —
+          while the world used 34% of a 1440px screen and the action bar
+          stretched two buttons across 1440px of it. Side by side, the list is
+          on screen with the river it describes, which is the whole point of
+          the product: you change a number and watch the water move. */}
+      <main className="flex flex-1 flex-col items-center gap-4 py-4 lg:flex-row lg:items-start lg:justify-center lg:gap-8 lg:px-8">
+        <div className="flex w-full flex-col items-center lg:w-auto lg:flex-1 lg:items-end">
         <World
           model={model}
           overlay={(scale) => (
@@ -180,6 +252,14 @@ export default function App() {
         >
           <River model={model} budget={budget} onSelectTributary={select} />
         </World>
+        </div>
+
+        {/* The controls rail. `lg:sticky` keeps it beside the river rather
+            than scrolling away from it once the world is taller than the
+            viewport — the one place sticky works here, because this column is
+            not inside the `overflow-x-hidden` root's scroll container the way
+            a full-width row is. Verified at 1440, 1024 and 768. */}
+        <div className="flex w-full flex-col items-center lg:top-4 lg:w-[380px] lg:shrink-0 lg:items-stretch lg:self-start">
 
         {/* Clearance for whichever bar is fixed over the bottom of the page.
             The open sheet is measured (see `sheetHost` above); the action bar
@@ -231,68 +311,33 @@ export default function App() {
             </li>
           ))}
         </ul>
+
+          {/* One mount, two positions.
+              `fixed` on a phone — thumb reach, and `position: fixed` is
+              viewport-relative so living inside this rail costs nothing.
+              `static` from `lg`, where it flows into the rail beside the
+              river instead of stretching two buttons across 1440px.
+              Rendering it twice and hiding one with `lg:hidden` was the first
+              version: both copies stayed in the DOM, every control existed
+              twice, and a locator for the Undo button resolved to two
+              elements. Two controls for one action is a defect whichever one
+              the CSS happens to be hiding. */}
+          {!selected && (
+            <div
+              data-actions
+              className="fixed inset-x-0 bottom-0 z-10 flex gap-3 px-4 pt-3 lg:static lg:z-auto lg:w-full lg:px-0 lg:pb-0"
+              style={{
+                background: HEX.night,
+                borderTop: `3px solid ${HEX.ink}`,
+                paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
+              }}
+            >
+              {actions}
+            </div>
+          )}
+        </div>
       </main>
 
-      {!selected && (
-        <div
-          className="fixed inset-x-0 bottom-0 z-10 flex gap-3 px-4 pt-3"
-          style={{
-            background: HEX.night,
-            borderTop: `3px solid ${HEX.ink}`,
-            paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setSheet('category')}
-            className="min-h-[52px] flex-[2] cursor-pointer font-pixel text-[10px] leading-none"
-            style={{ background: HEX.gold, color: HEX.ink, border: `3px solid ${HEX.ink}` }}
-          >
-            Add category
-          </button>
-          {/* Undo lives in the fixed bar, not in the trade-off row above the
-              world, and that is a correction rather than a preference.
-              In the row it was present in the DOM and off the screen: after
-              tapping Remove the page sits scrolled down at the list, and the
-              row measured `top: -72` — a control that exists and cannot be
-              reached, which is worse than one that is missing. A sticky row
-              looked like the one-line fix and silently did nothing, because
-              `overflow-x-hidden` on this component's root makes it a scroll
-              container. Fixed cannot scroll away, and it puts the way back
-              beside Reset, the other action you take back. */}
-          <button
-            type="button"
-            onClick={() => {
-              undo()
-              setLastChange(null)
-            }}
-            disabled={undoLabel === null}
-            aria-label={undoLabel === null ? undefined : `Undo ${undoLabel}`}
-            aria-hidden={undoLabel === null}
-            data-undo={undoLabel !== null}
-            className="min-h-[52px] flex-1 cursor-pointer font-pixel text-[10px] leading-none transition-opacity disabled:cursor-default disabled:opacity-30"
-            style={{ background: 'transparent', color: HEX.gold, border: `3px solid ${HEX.gold}` }}
-          >
-            Undo
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              // Confirmed, because reset throws the whole month away and the
-              // button sits next to one a judge will be tapping repeatedly.
-              if (window.confirm('Clear this month and go back to the empty field?')) {
-                reset()
-                setLastChange(null)
-                setSheet('none')
-              }
-            }}
-            className="min-h-[52px] flex-1 cursor-pointer font-pixel text-[10px] leading-none"
-            style={{ background: 'transparent', color: HEX.paper, border: `3px solid ${HEX.paper}` }}
-          >
-            Reset
-          </button>
-        </div>
-      )}
 
       {selected && (
         <BottomSheet

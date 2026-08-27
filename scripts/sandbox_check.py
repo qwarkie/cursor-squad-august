@@ -194,6 +194,53 @@ with sync_playwright() as pw:
         over = page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
         check(f"no horizontal scroll at {w}px", not over)
 
+    # --- the desktop chrome: one column of controls, not a stretched phone ---
+    # At 1440x900 this was a 1440px-wide action bar with two 700px buttons, the
+    # category list 894px down (below the fold on a 768px laptop) and a 1270px
+    # document in a 900px window. The world is Pollen's lane and is deliberately
+    # not asserted here — only the chrome around it.
+    for w, h in ((1440, 900), (1024, 768)):
+        page.set_viewport_size({"width": w, "height": h})
+        page.evaluate("localStorage.clear()"); page.reload(wait_until="networkidle")
+        page.get_by_role("button", name="Load demo budget").click(); page.wait_for_timeout(500)
+        m = page.evaluate("""() => {
+          const bar = document.querySelector('[data-actions]');
+          const br = bar.getBoundingClientRect();
+          const lr = document.querySelector('main ul').getBoundingClientRect();
+          const wr = document.querySelector('svg').getBoundingClientRect();
+          return {barW: br.width, barLeft: br.left, listTop: lr.top, worldH: wr.height,
+                  vw: innerWidth, vh: innerHeight,
+                  doc: document.documentElement.scrollHeight,
+                  btns: [...bar.querySelectorAll('button')].map(b => Math.round(b.getBoundingClientRect().width))}
+        }""")
+        check(f"{w}: the actions do not span the viewport",
+              m["barW"] < m["vw"] * 0.5, f"bar {m['barW']:.0f} of {m['vw']} — {m['btns']}")
+        check(f"{w}: the category list is above the fold",
+              m["listTop"] < m["vh"], f"list top {m['listTop']:.0f} in {m['vh']}px")
+        # Two different failures produce one overflow, and only one of them is
+        # the chrome's. The world is a fixed 96x128 art grid at an integer
+        # scale; at 1024x768 it alone stands 768px tall and nothing the layout
+        # does around it can make the page fit. Attribute it, or this red gets
+        # read as "the desktop layout is broken" against a rail that fits.
+        chrome = m["doc"] - m["worldH"]
+        if m["doc"] > m["vh"] + 1 and m["worldH"] >= m["vh"]:
+            check(f"{w}: the chrome fits the window", chrome <= m["vh"] + 1,
+                  f"chrome {chrome:.0f}px fits, but the world is {m['worldH']:.0f}px "
+                  f"tall in a {m['vh']}px window — the world's own scale, not this layout "
+                  f"(fit-don't-cap is #68, world/World.tsx)")
+        else:
+            check(f"{w}: the page fits the window", m["doc"] <= m["vh"] + 1,
+                  f"document {m['doc']}px in {m['vh']}px")
+        # Exactly one of each control, whatever the CSS is hiding.
+        page.get_by_role("button", name="Food").first.click(); page.wait_for_timeout(500)
+        sr = page.evaluate("document.querySelector('.sheet-in').getBoundingClientRect().width")
+        check(f"{w}: the sheet docks rather than spanning the screen",
+              sr < m["vw"] * 0.5, f"sheet {sr:.0f} of {m['vw']}")
+        check(f"{w}: exactly one Undo control in the DOM",
+              page.locator("[data-undo]").count() == 1,
+              page.locator("[data-undo]").count())
+        page.get_by_role("button", name="Close").click(); page.wait_for_timeout(300)
+
     check("no page errors", not errors, errors[:2])
     b.close()
 
