@@ -50,6 +50,7 @@ export default function App() {
   const setCategoryAmount = useBudget((s) => s.setCategoryAmount)
   const setCategoryIcon = useBudget((s) => s.setCategoryIcon)
   const setCategoryLabel = useBudget((s) => s.setCategoryLabel)
+  const setCategoryKind = useBudget((s) => s.setCategoryKind)
   const removeCategory = useBudget((s) => s.removeCategory)
   const moveCategory = useBudget((s) => s.moveCategory)
   const undoLabel = useBudget((s) => s.undoLabel)
@@ -350,6 +351,7 @@ export default function App() {
           total={budget.categories.length}
           onMove={(direction) => moveCategory(selected.id, direction)}
           onRename={(label) => setCategoryLabel(selected.id, label)}
+          onChangeKind={(kind) => setCategoryKind(selected.id, kind)}
           undoLabel={undoLabel}
           onUndo={() => {
             undo()

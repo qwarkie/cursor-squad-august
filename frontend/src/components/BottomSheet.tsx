@@ -44,6 +44,7 @@ export interface BottomSheetProps {
   total: number
   onMove: (direction: 'up' | 'down') => void
   onRename: (label: string) => void
+  onChangeKind: (kind: Category['kind']) => void
   onRemove: () => void
   onClose: () => void
   /**
@@ -73,6 +74,7 @@ export function BottomSheet({
   total,
   onMove,
   onRename,
+  onChangeKind,
   onRemove,
   onClose,
   hostRef,
@@ -216,6 +218,29 @@ export function BottomSheet({
           >
             +
           </button>
+        </div>
+
+        {/* Two buttons, not a select — the same choice `CategorySheet` offers
+            when a category is created. Kept here too: today's spend can
+            become tomorrow's saving without a delete-and-re-add, which would
+            cost the category its position the same way a typo used to. */}
+        <div className="mt-3 flex gap-2">
+          {(['expense', 'savings'] as const).map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => onChangeKind(k)}
+              aria-pressed={category.kind === k}
+              className="min-h-[44px] flex-1 cursor-pointer font-pixel text-[9px] leading-none"
+              style={{
+                background: category.kind === k ? HEX.gold : 'transparent',
+                color: category.kind === k ? HEX.ink : HEX.paper,
+                border: `2px solid ${category.kind === k ? HEX.ink : HEX.paper}`,
+              }}
+            >
+              {k === 'expense' ? 'Spent' : 'Saved'}
+            </button>
+          ))}
         </div>
 
         {/* Under the slider, not above it: the amount is what a judge came to

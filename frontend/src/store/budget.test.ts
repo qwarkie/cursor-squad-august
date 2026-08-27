@@ -303,6 +303,60 @@ describe('rename', () => {
   })
 })
 
+describe('change kind', () => {
+  let storage: ReturnType<typeof fakeStorage>
+  beforeEach(() => {
+    storage = fakeStorage()
+  })
+
+  it('swaps expense for savings without moving the category or touching its amount', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    store.getState().setCategoryKind('food', 'savings')
+    const after = store.getState().budget.categories
+    expect(after.map((c) => c.id)).toEqual(['housing', 'food', 'transport', 'entertainment', 'savings'])
+    const food = after.find((c) => c.id === 'food')!
+    expect(food.kind).toBe('savings')
+    expect(food.amount).toBe(650)
+    expect(food.color).toBe('f')
+  })
+
+  it('keeps the icon in the budget through a savings phase, so flipping back restores it', () => {
+    const store = createBudgetStore(storage)
+    store.getState().addCategory({ label: 'Food', amount: 650, kind: 'expense', color: 'f', icon: 'market' })
+    store.getState().setCategoryKind('food', 'savings')
+    expect(store.getState().budget.categories.find((c) => c.id === 'food')?.icon).toBe('market')
+    store.getState().setCategoryKind('food', 'expense')
+    expect(store.getState().budget.categories.find((c) => c.id === 'food')?.icon).toBe('market')
+  })
+
+  it('ignores an unknown id and a no-op change', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    const before = store.getState().budget
+    store.getState().setCategoryKind('nope', 'savings')
+    store.getState().setCategoryKind('food', 'expense')
+    expect(store.getState().budget).toBe(before)
+    expect(store.getState().undoLabel).toBe('loading the demo budget')
+  })
+
+  it('is undoable', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    store.getState().setCategoryKind('food', 'savings')
+    expect(store.getState().budget.categories.find((c) => c.id === 'food')?.kind).toBe('savings')
+    store.getState().undo()
+    expect(store.getState().budget.categories.find((c) => c.id === 'food')?.kind).toBe('expense')
+  })
+
+  it('persists the new kind', () => {
+    const store = createBudgetStore(storage)
+    store.getState().loadDemo()
+    store.getState().setCategoryKind('housing', 'savings')
+    expect(parseBudget(storage.data[STORAGE_KEY]).categories[0].kind).toBe('savings')
+  })
+})
+
 describe('undo', () => {
   let storage: ReturnType<typeof fakeStorage>
   beforeEach(() => {

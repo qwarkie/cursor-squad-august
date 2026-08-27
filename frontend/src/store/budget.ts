@@ -63,6 +63,7 @@ export interface BudgetState {
   setCategoryAmount: (id: string, amount: number) => void
   setCategoryIcon: (id: string, icon: CategoryIcon) => void
   setCategoryLabel: (id: string, label: string) => void
+  setCategoryKind: (id: string, kind: CategoryKind) => void
   removeCategory: (id: string) => void
   /**
    * Move a category one place up or down the list.
@@ -241,6 +242,33 @@ export function createBudgetStore(storage: BudgetStorage | null) {
           },
           `renaming ${current.label}`,
           `label:${id}`,
+        )
+      }),
+
+    /**
+     * Swaps the terminus — a village for a reservoir, or back — without
+     * touching `amount`, `color`, `icon` or position.
+     *
+     * The icon is left in the budget rather than cleared: `setCategoryIcon`'s
+     * own note says storing it through a savings phase is what lets flipping
+     * back to `expense` restore the house it had instead of resetting to the
+     * default. This setter is the other half of that promise — it must not
+     * be the one place that breaks it.
+     *
+     * A no-op change (already that kind, or an id no longer in the budget)
+     * writes nothing, the same guard `setCategoryLabel` uses.
+     */
+    setCategoryKind: (id, kind) =>
+      set((s) => {
+        const current = s.budget.categories.find((c) => c.id === id)
+        if (!current || current.kind === kind) return {}
+        return commit(
+          s,
+          {
+            ...s.budget,
+            categories: s.budget.categories.map((c) => (c.id === id ? { ...c, kind } : c)),
+          },
+          `${current.label} as ${kind === 'savings' ? 'savings' : 'a spend'}`,
         )
       }),
 
