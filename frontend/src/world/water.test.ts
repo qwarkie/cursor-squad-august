@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { trunkX } from './path'
-import { bandSpans, poolRows } from './water'
+import { bandSpans, colorDistance, poolRows } from './water'
 
 describe('bandSpans', () => {
   it('draws nothing for an absent, empty or zero-width band list', () => {
@@ -69,5 +69,35 @@ describe('poolRows', () => {
 
     expect(waist?.w).toBe(40)
     expect(Math.max(...rows.map((r) => r.w))).toBe(40)
+  })
+})
+
+describe('colorDistance', () => {
+  it('is zero for identical colours and symmetric for different ones', () => {
+    expect(colorDistance('#2b7fd4', '#2b7fd4')).toBe(0)
+    expect(colorDistance('#000000', '#ffffff')).toBeCloseTo(Math.sqrt(3 * 255 ** 2))
+    expect(colorDistance('#c0392b', '#2b7fd4')).toBeCloseTo(colorDistance('#2b7fd4', '#c0392b'))
+  })
+
+  it('ranks the palette the way SC-002 measured it by eye — slate and teal nearest water, clear of the rest', () => {
+    // art-bible.md §2's five category hues (palette.ts) against the water
+    // core (#2b7fd4). Pollen's luminance-contrast table picked the wrong
+    // pair (brick's 1.32:1 is *lower* than teal's 1.39:1, yet brick reads
+    // stronger) — this is the check that this metric picks the right ones.
+    const water = '#2b7fd4'
+    const brick = colorDistance('#c0392b', water)
+    const wheat = colorDistance('#e08c3a', water)
+    const slate = colorDistance('#6b7a99', water)
+    const plum = colorDistance('#8a4fa8', water)
+    const teal = colorDistance('#2fa88a', water)
+
+    const weak = [slate, teal]
+    const strong = [brick, wheat, plum]
+
+    for (const w of weak) {
+      for (const s of strong) {
+        expect(w).toBeLessThan(s)
+      }
+    }
   })
 })

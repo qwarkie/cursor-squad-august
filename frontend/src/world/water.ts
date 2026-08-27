@@ -242,3 +242,26 @@ export function branchSpans(
 
   return spans
 }
+
+/**
+ * How close two `#rrggbb` colours read, in RGB space.
+ *
+ * Measured against the branch-legibility problem (SC-002), not against WCAG:
+ * a luminance-contrast ratio alone picked the wrong two weak branches, because
+ * it misses hue. Brick's contrast against water is *lower* than teal's
+ * (1.32:1 vs 1.39:1) and yet brick reads as the stronger branch by eye — hue
+ * distance is carrying it. Plain Euclidean RGB distance folds hue and
+ * lightness into one number and ranks the branches the way a person actually
+ * sees them: slate and teal — the two hues nearest water's blue — come out
+ * lowest and everything else clears them by a wide margin.
+ */
+export function colorDistance(a: string, b: string): number {
+  const [ar, ag, ab] = rgb(a)
+  const [br, bg, bb] = rgb(b)
+  return Math.sqrt((ar - br) ** 2 + (ag - bg) ** 2 + (ab - bb) ** 2)
+}
+
+function rgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}

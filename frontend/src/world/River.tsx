@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react'
 
 import { riverPath, trunkX } from './path'
 import { tributaryEnd, trunkWidthAt } from './geometry'
-import { branchSpans, halfWidthAt, poolRows, type Span } from './water'
+import { branchSpans, colorDistance, halfWidthAt, poolRows, type Span } from './water'
 import { PAL } from './palette'
 import type { RiverModel } from '../engine'
 import type { Budget } from '../types'
@@ -31,6 +31,14 @@ type Props = {
  * obligation 4: inflate hit areas, don't inflate the model).
  */
 const MIN_HIT_WIDTH = 15
+
+/**
+ * RGB distance (water.ts's `colorDistance`) below which a category colour
+ * reads too close to the water to carry a branch on hue alone (SC-002).
+ * Measured on art-bible.md §2's five hues against `--color-water`: slate and
+ * teal fall at ~85-87, the other three clear 115 — this sits in the gap.
+ */
+const WEAK_RIM_DISTANCE = 100
 
 /**
  * `shape-rendering="crispEdges"` on the ancestor `<svg>` (World.tsx) is not
@@ -188,6 +196,14 @@ export function River({ model, budget, onSelectTributary }: Props) {
         const body = branchSpans(start, end, trib.width)
         const category = budget?.categories.find((c) => c.id === trib.categoryId)
         const rimColor = category ? PAL[category.color] : null
+        // Hue alone doesn't carry every colour equally: slate and teal sit
+        // close to the water's own blue in RGB space (~85-87 apart) while
+        // the rest clear it by 115+ (WEAK_RIM_DISTANCE splits the two
+        // groups). Those two get a wider rim and a thinner water body so
+        // more of the branch shows the colour a person is meant to read,
+        // rather than trying to fix it by shifting a mandated hue.
+        const weakRim = rimColor !== null && colorDistance(rimColor, PAL.b!) < WEAK_RIM_DISTANCE
+        const bodyInset = rimColor ? (weakRim ? 4 : 2) : 0
         const clip = `river-branch-${trib.categoryId}`
         return (
           <g key={trib.categoryId} data-tributary={trib.categoryId}>
@@ -207,7 +223,7 @@ export function River({ model, budget, onSelectTributary }: Props) {
               </>
             )}
             <Rects
-              spans={branchSpans(start, end, rimColor ? Math.max(1, trib.width - 2) : trib.width)}
+              spans={branchSpans(start, end, Math.max(1, trib.width - bodyInset))}
               fill="var(--color-water)"
               className="river-width"
             />
