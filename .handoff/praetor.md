@@ -429,3 +429,111 @@ From the July 2026 retro across 27 repos: technical scores saturated at mean 8.4
 zero correlation to final rank. **Functional Completeness and Problem–Solution Fit are the only
 levers.** One team submitted a demo URL that 404'd and scored 3/10 on viability — which is trap 1
 above, and it is why #5 is spine. Deterministic calculators won; zero repos ran agent loops.
+
+---
+
+# POST-SUBMISSION POLISH SPRINT — 2026-08-27 03:05 UTC onward
+
+Authorized by Dmytro after the event closed. **The submission is frozen at `78a230a` and nothing
+in this section reached it.** Vercel's daily deploy cap was spent at ~02:05, so `main` advanced
+and the live site stayed on the certified build. That gap is deliberate.
+
+## The rule that changed, and the one that did not
+
+**The commit freeze lifted. The deploy freeze did not.** They were always two rules; the quota cap
+collapsed them into one and nobody noticed until polish was authorized.
+
+Because `main` could not reach a judge, landing on it was zero-risk — but **whatever sits on `main`
+when the cap resets deploys unattended.** So Principle I binds harder now, not less:
+`typecheck && test && build` green **on the pushed SHA**, not the working tree. There is no CI
+(token lacks `workflow` scope). It went red once anyway — `0e43b92 fix: main does not build`.
+
+## Board outcome
+
+```
+closed  #26 #34 #40 #42 #43 #48 #49 #50 #51 #52 #53 #54 #55 #56
+open    #57  code verified at cb53351, acceptance unmet — awaiting an independent
+             diff-then-verdict on the Savings band
+```
+
+## Decisions in force
+
+- `App.tsx` is nobody's surface. It is the composition root; changes come through Praetor as their
+  own issue. #52 was one authorized line.
+- Every agent works in its own worktree off `origin/main`. Six agents shared one checkout earlier
+  in the event and staged over each other.
+- **Commit-subject convention:** while an issue has an open acceptance gate, write `#N` or `for #N`.
+  Never `fix #N` / `close #N` / `resolve #N` — GitHub closes on those keywords, and `85a082d`
+  (a one-character docs change) closed #57 while its verdict was outstanding.
+  **A gate a commit subject can close is not a gate.**
+- **An author does not give the verdict on their own fix.** Neither does someone who has already
+  judged that element — a second look is contaminated by the first. Route to a fresh eye.
+- **Before any before/after visual verdict, diff the pixels. Zero changed → there is no verdict.**
+  Pollen gave a verdict on a branch that was byte-identical between the two builds.
+
+## The four questions every check answers
+
+```
+does it go red on the broken commit?     it discriminates
+what does it print on an empty one?      it is not vacuous     (an absence is true of a blank page)
+can it ever go green on a correct one?   it is not red-forever (a pixel census sees glyph edges)
+can the observer distinguish the states? the instrument — human or code — has resolution at all
+```
+
+Necessary, and **not sufficient**: two checks passed all of these while printing PASS on a screen
+with no river, because "no bad ones found" is vacuously true on an empty set.
+
+## What separates an instrument that survives from one that gets retracted
+
+Pollen's taxonomy, in its final form after two refinements — the first version said *no selector*,
+which was too clean, because every survivor selected something.
+
+```
+FAILED    the selector's correctness could not be checked from the output
+          colour match (caught signboards) · coin fingerprint (matched sprite not wrapper) ·
+          ancestor hit-test (matched the whole header) · vacuous set · rgba() regex vs oklab()
+
+SURVIVED  the selector was cancelled by comparison, or printed alongside the result
+          whole-crop pixel diff (common-mode contamination cancels across two states —
+            housing and food read 0 changed pixels from boxes full of signboard) ·
+          run-length row scan (the evidence IS the output: grass[76] ink[4] slate[160] …) ·
+          coordinate crop (confounder named, its x given, put out of frame) ·
+          URL-as-argument harness · gradient tile rendered alone on a magenta backdrop
+```
+
+Honey's tile is strongest: **it has no confounder to cancel or print.** One declaration, blank
+backdrop, nothing else in frame. Immune by construction rather than by care.
+
+**THE LIMIT, and it is the sharper half.** None of this touches measuring the wrong quantity.
+Praetor's `geometry.ts` derivation (a tributary runs 66–92% of its length over land) prints its own
+reasoning, needs nothing cancelled, and was still about the *path* when the question was about the
+*rim*. Contamination has an instrument to blame. Wrong-quantity has only *what was the question* —
+ask that first.
+
+**Prefer one immune instrument to an immune one plus a careful one.** Fizz withdrew a *passing*
+stop parser on that reasoning: two instruments for one class, one of them unverifiable from its own
+output, is how they drift — and that parse had already been wrong once in the same function.
+
+## Traps
+
+1. `River.tsx` carried three false causal claims in one night — a restore that had been removed, a
+   widening that was a no-op below width 5, a hue-based name on a width-driven mechanism. All three
+   closed in the file that carried them. **Doc rot reaches code comments.**
+2. A fixed pixel inset saturates against a floor. `Math.max(1, width - inset)` made 4 and 2
+   identical at width 2. The fix was to skip the layer, not to widen the inset.
+3. A tributary's rim is `ink | rim | ink` — it touches neither terrain. Any future adjacency
+   measurement will find zero contacts on a fully-rimmed branch. **That is geometry, not a bug.**
+4. `WEAK_RIM_DISTANCE` compares to water. Cosmetic — the rim contacts neither background, so the
+   right reference is an open question about perception across a keyline, with no instrument for it.
+5. The board is a claim. Praetor published #50 as closed in five consecutive summaries while it was
+   open. **A board error in the direction of *less work outstanding* is the one nobody checks.**
+   Verify against `gh issue list`, not against memory.
+
+## Next
+
+1. `#57` — independent diff-then-verdict on the Savings band, x 140-216, `99dca7a` → `cb53351`.
+2. When the deploy cap resets, score a build of `main` with `walk_demo.py` **before** deploying.
+   The deploy decision is Praetor's and happens after that score, not before.
+3. Configure per-agent git identities before the next event. Every commit here is
+   `Dima-Svemy <dima@svemy.com>`; the record can attribute a lane but never an author, and that
+   caused three misattributions tonight.
