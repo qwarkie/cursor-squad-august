@@ -163,8 +163,13 @@ def walk(url):
 
         # ---- 1. the empty field -------------------------------------------------
         print("1. empty field")
-        check("no river is drawn before any income", len(river_shapes(pg)) == 0,
-              f"{len(river_shapes(pg))} shapes")
+        # An absence is only meaningful if the page is alive. "0 river shapes" is
+        # also true of a blank screen, a crashed bundle and a 404, so every
+        # absence assertion in this file pairs with something that must be there.
+        alive = pg.get_by_role("button", name="Add Income").count() > 0
+        check("no river is drawn before any income", alive and len(river_shapes(pg)) == 0,
+              f"{len(river_shapes(pg))} shapes"
+              + ("" if alive else " — but the empty field did not render, so this proves nothing"))
         add_income = pg.get_by_role("button", name="Add Income")
         check("Add Income is present", add_income.count() > 0)
         if add_income.count():
@@ -239,25 +244,41 @@ def walk(url):
               'rgb(107, 122, 153)': 'slate', 'rgb(138, 79, 168)': 'plum',
               'rgb(47, 168, 138)': 'teal',
             }
-            const inSvg = new Set()
-            for (const el of document.querySelectorAll('svg *')) {
-              const cs = getComputedStyle(el)
-              for (const paint of [cs.stroke, cs.fill]) {
-                if (CATEGORY[paint]) inSvg.add(CATEGORY[paint])
+            const WATER = [43, 127, 212]
+            const num = s => (s.match(/-?\\d+(\\.\\d+)?/g) || []).map(Number)
+            const dist = rgb => {
+              const [r, g, b] = rgb
+              return Math.sqrt((r-WATER[0])**2 + (g-WATER[1])**2 + (b-WATER[2])**2)
+            }
+            // Scoped to the marked tributary groups, not the whole SVG: a
+            // category-coloured element anywhere else in the river layer would
+            // otherwise satisfy this while the branches stayed water on water.
+            const groups = [...document.querySelectorAll('[data-tributary]')]
+            const branches = groups.map(g => {
+              let rim = 0, body = 0, hue = null
+              for (const el of g.querySelectorAll('*')) {
+                const f = getComputedStyle(el).fill
+                const box = el.getBBox ? el.getBBox() : null
+                const area = box ? box.width * box.height : 0
+                if (CATEGORY[f]) { rim += area; hue = hue || CATEGORY[f] }
+                else if (f && f.startsWith('rgb')) {
+                  const d = dist(num(f))
+                  if (d < 60) body += area
+                }
               }
-            }
-            const inDom = new Set()
-            for (const el of document.querySelectorAll('*')) {
-              const bg = getComputedStyle(el).backgroundColor
-              if (CATEGORY[bg]) inDom.add(CATEGORY[bg])
-            }
-            return { svg: [...inSvg].sort(), dom: [...inDom].sort() }
+              const rgbOf = { brick:[192,57,43], wheat:[224,140,58], slate:[107,122,153],
+                              plum:[138,79,168], teal:[47,168,138] }
+              return { id: g.dataset.tributary, hue,
+                       distance: hue ? +dist(rgbOf[hue]).toFixed(1) : null,
+                       rimRatio: (rim + body) ? +(rim / (rim + body)).toFixed(3) : 0 }
+            })
+            return { count: groups.length, branches,
+                     hues: [...new Set(branches.map(b => b.hue).filter(Boolean))].sort() }
         }""")
-        detail = f"{len(colour['svg'])} in the river layer {colour['svg']}"
-        if not colour["svg"] and colour["dom"]:
-            detail += f" — but {len(colour['dom'])} on labels only {colour['dom']}, so the branches read as water on water"
         check("each tributary is distinguishable by its category colour in the river layer",
-              len(colour["svg"]) >= 5, detail)
+              colour["count"] > 0 and len(colour["hues"]) >= 5,
+              f"{len(colour['hues'])} hues across {colour['count']} marked tributaries {colour['hues']}"
+              if colour["count"] else "no [data-tributary] groups found — nothing was measured")
 
         # ---- 6. SC-007 determinism ----------------------------------------------
         print("\n6. two loads, identical geometry (SC-007 / FR-015)")
@@ -372,8 +393,10 @@ def walk(url):
             for _ in range(presses):
                 minus_h.first.click(); pg.wait_for_timeout(180)
             pg.wait_for_timeout(500)
+            recovered = body(pg)
             check("reducing the category clears the warning (US4 scenario 2)",
-                  "over budget" not in body(pg).lower())
+                  "$4,200" in recovered and "over budget" not in recovered.lower(),
+                  "" if "$4,200" in recovered else "the budget vanished — absence of the warning proves nothing")
             close = pg.get_by_role("button", name="Close")
             if close.count():
                 close.first.click(); pg.wait_for_timeout(400)
@@ -400,8 +423,11 @@ def walk(url):
         if check("a reset control exists", reset.count() > 0):
             reset.first.click()
             pg.wait_for_timeout(900)
+            back = pg.get_by_role("button", name="Add Income").count() > 0
             check("reset returns the empty field with no river left over",
-                  len(river_shapes(pg)) == 0, f"{len(river_shapes(pg))} shapes remain")
+                  back and len(river_shapes(pg)) == 0,
+                  f"{len(river_shapes(pg))} shapes remain"
+                  + ("" if back else " — and Add Income is gone, so this is a broken screen, not an empty field"))
             check("Add Income is offered again",
                   pg.get_by_role("button", name="Add Income").count() > 0)
 
