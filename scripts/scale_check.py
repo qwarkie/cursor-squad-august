@@ -128,6 +128,56 @@ def run(url, pg, n, savings_last=True):
           f"{len(below(m['sprites']))} sprites past the bottom, lowest "
           f"{max(below(m['sprites']), default=0)} art-px over")
     check(tag, "no signboard is drawn below the world", not below(m["boards"]))
+    # Drawn is not the same as reachable. @Pollen found 66 art-pixels of a
+    # twelve-category month on the page and behind the pan clamp — the camera
+    # knew only about the world box, so anything the model drew below it could
+    # not be dragged to. `scale_check` measured whether the month FITS and was
+    # silent on whether a person can see it, which is a different question and
+    # the one a user actually has.
+    #
+    # Asserted for every size, not just the tall ones: at six categories and
+    # below the lowest row is already on screen and the drag is a no-op, so this
+    # costs nothing there and catches a clamp regression the moment one appears.
+    lowest = pg.evaluate("""() => {
+        const w = document.querySelector('[data-scale]')
+        const painted = [...w.querySelectorAll('span, div')]
+          .filter((e) => getComputedStyle(e).backgroundImage.startsWith('url('))
+        const areaOf = (e) => { const r = e.getBoundingClientRect(); return r.width * r.height }
+        let field = null
+        for (const e of painted) if (!field || areaOf(e) > areaOf(field)) field = e
+        const rows = [...painted.filter((e) => e !== field && !e.closest('[data-foliage]')),
+                      ...w.querySelectorAll('svg rect')]
+        let bottom = -1e9
+        for (const e of rows) { const r = e.getBoundingClientRect(); if (r.bottom > bottom) bottom = r.bottom }
+        return { bottom, onScreen: bottom <= innerHeight + 1 }
+    }""")
+    if not lowest["onScreen"]:
+        for _ in range(12):
+            pg.mouse.move(195, 520)
+            pg.mouse.down()
+            for i in range(1, 9):
+                pg.mouse.move(195, 520 - 45 * i)
+            pg.mouse.up()
+            pg.wait_for_timeout(70)
+        reached = pg.evaluate("""() => {
+            const w = document.querySelector('[data-scale]')
+            const painted = [...w.querySelectorAll('span, div')]
+              .filter((e) => getComputedStyle(e).backgroundImage.startsWith('url('))
+            const areaOf = (e) => { const r = e.getBoundingClientRect(); return r.width * r.height }
+            let field = null
+            for (const e of painted) if (!field || areaOf(e) > areaOf(field)) field = e
+            const rows = [...painted.filter((e) => e !== field && !e.closest('[data-foliage]')),
+                          ...w.querySelectorAll('svg rect')]
+            let bottom = -1e9
+            for (const e of rows) { const r = e.getBoundingClientRect(); if (r.bottom > bottom) bottom = r.bottom }
+            return bottom <= innerHeight + 1
+        }""")
+        check(tag, "everything drawn can be reached by panning", reached,
+              "the bottom of the month is behind the clamp" if not reached
+              else "off screen at rest, reachable by dragging")
+    else:
+        check(tag, "everything drawn can be reached by panning", True, "on screen at rest")
+
     if m["tally"]:
         t = m["tally"][0]
         lowest = max((r["bottom"] for r in m["water"]), default=0)
