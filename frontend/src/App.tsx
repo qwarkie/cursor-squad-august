@@ -121,8 +121,11 @@ export default function App() {
       <TradeOff change={lastChange} />
 
       <main className="flex flex-1 flex-col items-center gap-4 py-4">
-        <World model={model} overlay={(scale) => <Settlements model={model} scale={scale} />}>
-          <River model={model} budget={budget} onSelectTributary={select} />
+        <World
+          model={model}
+          overlay={(scale) => <Settlements model={model} budget={budget} scale={scale} />}
+        >
+          <River model={model} onSelectTributary={select} />
         </World>
 
         {/* Clearance for whichever bar is fixed over the bottom of the page —

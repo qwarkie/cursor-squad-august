@@ -48,6 +48,21 @@ body {
   }
 }
 
+/* Crests travelling downstream. The dash pattern is measured in art-pixels
+   (the SVG viewBox is the art grid), and `steps()` advances it exactly one
+   art-pixel per frame — a smooth sub-pixel slide is the one thing that would
+   make the water read as vector rather than pixel art. Travelling exactly one
+   dash period per cycle is what makes the loop seamless, so the distance is
+   read from --flow-period rather than repeated as a literal. */
+@keyframes river-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: calc(var(--flow-period) * -1);
+  }
+}
+
 /* Coins riding an SVG path (offset-path) is how money "flows" through the
    world without a canvas or a physics loop. */
 @keyframes pixel-flow {

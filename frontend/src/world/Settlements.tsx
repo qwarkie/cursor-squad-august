@@ -4,6 +4,7 @@ import { trunkX } from './path'
 import { tributaryEnd } from './geometry'
 import { PAL } from './palette'
 import { CRACK, HOUSE, RESERVOIR, RESIDENT, SPRING, WARNING } from './objects'
+import type { Budget, PaletteKey } from '../types'
 
 /** HOUSE is 9 x 9 art-pixels (art-bible.md §4); three to a rank keeps the village clear of the trunk. */
 const HOUSE_ART_W = 9
@@ -11,6 +12,8 @@ const HOUSE_GAP = 2
 
 type Props = {
   model: RiverModel
+  /** Labels and colours for the signboards — the world knows amounts, only the budget knows names. */
+  budget: Budget
   scale: number
 }
 
@@ -20,7 +23,7 @@ type Props = {
  * both are DOM sprites positioned in CSS pixels over the SVG, the same
  * overlay World.tsx already carries for this reason (art-bible.md §1).
  */
-export function Settlements({ model, scale }: Props) {
+export function Settlements({ model, budget, scale }: Props) {
   const hasFlow = model.state !== 'empty'
 
   return (
@@ -40,6 +43,9 @@ export function Settlements({ model, scale }: Props) {
         const left = x * scale
         const top = y * scale
 
+        const category = budget.categories.find((c) => c.id === trib.categoryId)
+        const rankWidth = 3 * HOUSE_ART_W * scale + 2 * HOUSE_GAP
+
         if (trib.reservoir) {
           return (
             <div
@@ -47,6 +53,9 @@ export function Settlements({ model, scale }: Props) {
               className="absolute -translate-x-1/2 -translate-y-1/2"
               style={{ left, top }}
             >
+              {category && (
+                <Signboard label={category.label} color={category.color} scale={scale} width={rankWidth} />
+              )}
               <PixelSprite art={RESERVOIR} palette={PAL} scale={scale} fps={3} alt="Savings reservoir" />
             </div>
           )
@@ -63,9 +72,11 @@ export function Settlements({ model, scale }: Props) {
          */
         const houses = Math.max(0, Math.floor(trib.settlements) || 0)
         const residents = Math.max(0, Math.floor(trib.residents) || 0)
-        const rankWidth = 3 * HOUSE_ART_W * scale + 2 * HOUSE_GAP
         return (
           <div key={trib.categoryId} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left, top }}>
+            {category && (
+              <Signboard label={category.label} color={category.color} scale={scale} width={rankWidth} />
+            )}
             <div
               className="flex flex-wrap items-end justify-center"
               style={{ gap: HOUSE_GAP, width: rankWidth }}
@@ -104,6 +115,74 @@ export function Settlements({ model, scale }: Props) {
       {model.state === 'overspent' && <OverspendMark model={model} scale={scale} />}
     </>
   )
+}
+
+/**
+ * The one coloured thing in the world.
+ *
+ * The tributaries used to carry the category colour and it read as six
+ * painted bars laid across the map rather than as water (River.tsx). The
+ * colour has to live somewhere — without it nothing tells Housing from Food
+ * once every branch is blue — so it moves here, onto a signboard over the
+ * village it names. Same information, and it now says the category's name
+ * outright instead of asking the reader to match a hue against the list.
+ */
+function Signboard({
+  label,
+  color,
+  scale,
+  width,
+}: {
+  label: string
+  color: PaletteKey
+  scale: number
+  width: number
+}) {
+  const fill = PAL[color] ?? 'var(--color-water)'
+  const border = Math.max(1, Math.round(scale / 2))
+  const inner = width - 2 * border - 2 * scale
+
+  /**
+   * Press Start 2P advances exactly one em per glyph, so `width / length` is
+   * the largest size that still sits over its own village. Without this a
+   * long name ("Entertainment") runs off the edge of a world that clips its
+   * overflow, and the board loses its last letters.
+   */
+  const fontSize = Math.max(4, Math.min(scale * 2, Math.floor(inner / Math.max(1, label.length))))
+
+  return (
+    <div
+      className="absolute bottom-full left-1/2 -translate-x-1/2 whitespace-nowrap"
+      style={{
+        background: fill,
+        color: brightness(fill) > 0.6 ? PAL.k! : PAL.p!,
+        border: `${border}px solid ${PAL.k}`,
+        padding: `${border}px ${scale}px`,
+        marginBottom: scale,
+        fontFamily: 'var(--font-pixel)',
+        fontSize,
+        lineHeight: 1,
+      }}
+    >
+      {label}
+    </div>
+  )
+}
+
+/**
+ * Perceived brightness of a `#rrggbb`, 0–1, for picking the lettering.
+ * Neither text colour works on all six category colours — paper on gold and
+ * ink on brick are each unreadable — so the choice is made per board rather
+ * than fixed. 0.6 is the threshold that splits the palette correctly: gold
+ * and wheat take ink, the other four take paper.
+ */
+function brightness(hex: string): number {
+  const n = Number.parseInt(hex.slice(1), 16)
+  if (!Number.isFinite(n)) return 0
+  const r = (n >> 16) & 255
+  const g = (n >> 8) & 255
+  const b = n & 255
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255
 }
 
 function OverspendMark({ model, scale }: { model: RiverModel; scale: number }) {
