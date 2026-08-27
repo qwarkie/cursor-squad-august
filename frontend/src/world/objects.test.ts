@@ -128,6 +128,28 @@ describe('the object inventory', () => {
   })
 })
 
+/**
+ * A sprite that stands on the field must not be made of the field.
+ *
+ * `TREE` and `BUSH` were first authored with `grass` canopies — the exact
+ * value `GrassField` paints underneath them — so the only thing separating a
+ * tree from the ground was its own keyline, and it rendered as a hoop on a
+ * stick. Every check in this file passed: correct size, correct frame count,
+ * palette characters only. **Size-correct and palette-legal is not visible.**
+ */
+describe('foliage stands out from the ground it stands on', () => {
+  const FIELD = 'g' // palette.ts: grass — the green field itself
+
+  it.each([
+    ['TREE', TREE[0]],
+    ['BUSH', BUSH],
+  ])('%s is not mostly the field colour', (_name, frame) => {
+    const chars = frame.join('').split('').filter((c) => c !== '.')
+    const field = chars.filter((c) => c === FIELD).length
+    expect(field / chars.length).toBeLessThan(0.25)
+  })
+})
+
 describe('characters outside the art bible', () => {
   it('throw rather than rendering transparent', () => {
     expect(() => rasterize(['xx', 'xx'], ART_BIBLE_PAL)).toThrow(/not in the palette/)

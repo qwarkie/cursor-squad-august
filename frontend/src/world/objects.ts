@@ -270,28 +270,36 @@ export const ARCADE: readonly Art[] = [
  * strobe rather than as wind (the reasoning GrassField.tsx records for its own
  * rate), so the canopies move and the undergrowth does not.
  */
-export const BUSH: Art = ['.kkk.', 'kegek', 'khggk', '.kkk.']
+export const BUSH: Art = ['.kkk.', 'kehek', 'keeek', '.kkk.']
 
-/** 7 x 9, 2 frames. Bank decoration; the canopy rustles (T028). */
+/**
+ * 7 x 9, 2 frames. Bank decoration; the canopy rustles (T028).
+ *
+ * The canopy body is `grassDark`, not `grass`, and that is the whole point.
+ * As first authored it was `grass` — byte-identical to the field it stands on
+ * — so the only thing separating a tree from the ground was its own keyline
+ * and it read as a hoop on a stick rather than as a mass of leaves. A sprite
+ * that stands on a surface must not be made of that surface.
+ */
 export const TREE: readonly Art[] = [
   [
     '..kkk..',
-    '.kgggk.',
-    'kggeggk',
-    'kgggggk',
-    'kggeggk',
-    '.kgggk.',
+    '.kheek.',
+    'kheeeek',
+    'kheeeek',
+    'kheeeek',
+    '.keeek.',
     '..kdk..',
     '..kdk..',
     '..kkk..',
   ],
   [
     '..kkk..',
-    '.kgggk.',
-    'kgeggek',
-    'kgggggk',
-    'kgggggk',
-    '.kgggk.',
+    '.keehk.',
+    'keeeehk',
+    'keeeehk',
+    'keeeehk',
+    '.keeek.',
     '..kdk..',
     '..kdk..',
     '..kkk..',
