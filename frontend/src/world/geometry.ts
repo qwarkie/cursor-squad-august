@@ -81,6 +81,31 @@ export function trunkWidthAt(model: TrunkGeometry | undefined, y: number): numbe
  * worse than one standing a little closer to the water. At the extremes of
  * the meander the clamp shortens the stream rather than cutting the village.
  */
+/**
+ * Where the WATER stops — the village's near edge, not its centre.
+ *
+ * `tributaryEnd` has always returned the village's anchor, and every layer
+ * that draws water drew to it. That put the last `VILLAGE_HALF_W` of every
+ * branch underneath the settlement: more than half of it, showing through the
+ * gaps between buildings with a house sitting squarely on the end of it.
+ *
+ * §4 asks for the opposite — *preserve a small amount of visible water between
+ * the main river and the settlement*, and *avoid placing a building directly
+ * over the river centreline*. There is no room to move the village instead:
+ * the largest one is already clamped against `WORLD_W`, with its outer edge at
+ * 95.5 of 96. So the water stops where the town starts, and the POND is drawn
+ * there as the shore it arrives at.
+ */
+export function tributaryWaterEnd(
+  atY: number,
+  side: 'left' | 'right',
+  trunkWidth = 0,
+): { x: number; y: number } {
+  const end = tributaryEnd(atY, side, trunkWidth)
+  const dir = side === 'right' ? 1 : -1
+  return { x: end.x - dir * VILLAGE_HALF_W, y: end.y }
+}
+
 export function tributaryEnd(
   atY: number,
   side: 'left' | 'right',

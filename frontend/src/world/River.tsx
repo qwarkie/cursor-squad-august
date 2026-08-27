@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from 'react'
 
 import { riverPath, trunkX, WORLD_W } from './path'
-import { tributaryEnd, trunkWidthAt } from './geometry'
+import { tributaryWaterEnd, trunkWidthAt } from './geometry'
 import { branchCurve, branchPath, branchSpans, colorDistance, halfWidthAt, poolRows, type Span } from './water'
 import { PAL } from './palette'
 import type { RiverModel, Segment } from '../engine'
@@ -202,7 +202,7 @@ export function River({ model, budget, onSelectTributary }: Props) {
         if (trib.width <= 0) return null
 
         const trunkW = trunkWidthAt(model, trib.atY)
-        const end = tributaryEnd(trib.atY, trib.side, trunkW)
+        const end = tributaryWaterEnd(trib.atY, trib.side, trunkW)
         const dir: 1 | -1 = trib.side === 'right' ? 1 : -1
 
         // Start two art-pixels inside the bank rather than on the centre

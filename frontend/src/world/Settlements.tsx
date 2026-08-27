@@ -4,9 +4,9 @@ import { PixelSprite, type Art } from '../pixel'
 import { SPRING_Y, type RiverModel } from '../engine'
 import { trunkX } from './path'
 import { WORLD_H } from './World'
-import { RANK_ART_W, tributaryEnd, trunkWidthAt } from './geometry'
+import { RANK_ART_W, tributaryEnd, tributaryWaterEnd, trunkWidthAt } from './geometry'
 import { PAL } from './palette'
-import { CRACK, RESERVOIR, RESIDENT, SPRING, WARNING, WORLD_FPS } from './objects'
+import { CRACK, POND, RESERVOIR, RESIDENT, SPRING, WARNING, WORLD_FPS } from './objects'
 import { iconArt, iconPlural } from './icons'
 import { hamlet } from './hamlet'
 import type { Budget, PaletteKey } from '../types'
@@ -110,9 +110,14 @@ export function Settlements({ model, budget, scale, onSelect, onEditIncome }: Pr
 
       {model.tributaries.map((trib) => {
         if (trib.width <= 0) return null
-        const { x, y } = tributaryEnd(trib.atY, trib.side, trunkWidthAt(model, trib.atY))
+        const trunkW = trunkWidthAt(model, trib.atY)
+        const { x, y } = tributaryEnd(trib.atY, trib.side, trunkW)
         const left = x * scale
         const top = y * scale
+        // The shore the branch arrives at. Drawn from the settlement's frame
+        // rather than the river's so the two cannot disagree about where the
+        // water stops — one call, one answer.
+        const shore = tributaryWaterEnd(trib.atY, trib.side, trunkW)
 
         const category = budget.categories.find((c) => c.id === trib.categoryId)
         const rankWidth = RANK_ART_W * scale + 2 * HOUSE_GAP
@@ -170,7 +175,19 @@ export function Settlements({ model, budget, scale, onSelect, onEditIncome }: Pr
         if (houses > 0) labelled.set(firstOf('building') ?? '', `${noun}, ${houses}`)
         if (residents > 0) labelled.set(firstOf('resident') ?? '', `Residents, ${residents}`)
         return (
-          <div key={trib.categoryId} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left, top }}>
+          <div key={trib.categoryId} className="absolute">
+            <span
+              data-settlement="pond"
+              aria-hidden="true"
+              className="absolute -translate-x-1/2 -translate-y-1/2 block"
+              style={{ left: shore.x * scale, top: shore.y * scale }}
+            >
+              <PixelSprite art={POND} palette={PAL} scale={scale} fps={WORLD_FPS} alt="" />
+            </span>
+            <div
+              className="absolute -translate-x-1/2 -translate-y-1/2"
+              style={{ left, top }}
+            >
             {category && (
               <Signboard label={category.label} color={category.color} scale={scale} width={rankWidth} side={trib.side} />
             )}
@@ -200,6 +217,7 @@ export function Settlements({ model, budget, scale, onSelect, onEditIncome }: Pr
               ))}
             </div>
             </Touchable>
+            </div>
           </div>
         )
       })}
