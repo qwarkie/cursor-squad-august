@@ -54,6 +54,18 @@ body {
    make the water read as vector rather than pixel art. Travelling exactly one
    dash period per cycle is what makes the loop seamless, so the distance is
    read from --flow-period rather than repeated as a literal. */
+/* A pool's surface streaks shuffle by one art-pixel, so still water is never
+   a dead disc. One pixel is deliberate: anything larger reads as a current,
+   and the pool is where the river stops moving. */
+@keyframes water-shimmer {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(1px);
+  }
+}
+
 @keyframes river-flow {
   from {
     stroke-dashoffset: 0;

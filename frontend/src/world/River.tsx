@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react'
 
 import { riverPath, trunkX } from './path'
 import { tributaryEnd, trunkWidthAt } from './geometry'
-import { branchSpans, type Span } from './water'
+import { branchSpans, halfWidthAt, poolRows, type Span } from './water'
 import type { RiverModel } from '../engine'
 
 type Props = {
@@ -77,9 +77,24 @@ function branchFlow(dir: 1 | -1): CSSProperties {
  */
 export function River({ model, onSelectTributary }: Props) {
   const last = model.segments[model.segments.length - 1]
+  const first = model.segments[0]
 
   return (
     <g>
+      {/* The spring. Income has to arrive somewhere rather than simply
+          beginning: with no pool the trunk starts at a flat cap in open
+          grass, which reads as the drawing being cut off, not as a source. */}
+      {first && model.state !== 'empty' && first.width > 0 && (
+        <Pool
+          cx={trunkX(first.fromY)}
+          cy={first.fromY}
+          {...poolSize(first.width, 10, 18, 0.42)}
+          fill="var(--color-water)"
+          rim="var(--color-water-deep)"
+          shimmer
+        />
+      )}
+
       {model.segments.map((seg, i) => {
         const d = riverPath({ segments: [{ fromY: seg.fromY, toY: seg.toY }] })
         if (!d) return null
@@ -192,29 +207,24 @@ export function River({ model, onSelectTributary }: Props) {
         )
       })}
 
+      {/* What reaches the bottom, drawn as somewhere the river arrives. A
+          smooth <ellipse> among the staircases was the one soft-edged shape
+          in a hard-edged world — art-bible.md §1 calls that a rendering bug. */}
       {last && model.state === 'surplus' && (
-        <ellipse
-          cx={trunkX(last.toY)}
-          cy={last.toY + 2}
-          rx={Math.max(6, last.width)}
-          ry={4}
-          fill="var(--color-water-lit)"
-          opacity={0.85}
-          shapeRendering="crispEdges"
+        <MouthPool
+          y={last.toY}
+          {...poolSize(last.width, 13, 26, 0.55)}
+          fill="var(--color-water)"
+          rim="var(--color-water-deep)"
+          shimmer
         />
       )}
 
       {last && model.state === 'balanced' && (
-        <ellipse
-          cx={trunkX(last.toY)}
-          cy={last.toY + 2}
-          rx={6}
-          ry={3}
-          fill="none"
-          stroke="var(--color-sand)"
-          strokeWidth={1}
-          shapeRendering="crispEdges"
-        />
+        // Every dollar allocated, so nothing reaches the mouth: the same
+        // basin, dry. Still a basin and never the cracked bed — the seeded
+        // month opens here and must not read as a warning (FR-012).
+        <MouthPool y={last.toY} rx={11} ry={5} fill="var(--color-sand)" rim="var(--color-ink)" />
       )}
     </g>
   )
@@ -246,4 +256,70 @@ function Rects({
       ))}
     </>
   )
+}
+
+/** A one-art-pixel shuffle of the surface streaks, so a pool is never a dead disc. */
+const SHIMMER: CSSProperties = { animation: 'water-shimmer 2s steps(2, jump-none) infinite' }
+
+/**
+ * Radii for a pool, in art-pixels.
+ *
+ * A pool has to be visibly wider than the water feeding it, or it reads as
+ * the river's blunt end rather than as somewhere the river arrives. Hence the
+ * `+ 8` and the floor: even a two-pixel trickle opens into something. The
+ * ceiling keeps a full-width river's mouth inside the 96 x 128 world.
+ */
+function poolSize(width: number, min: number, max: number, flatten: number) {
+  const rx = Math.min(max, Math.max(min, Math.round(Math.max(0, width)) + 8))
+  return { rx, ry: Math.max(4, Math.round(rx * flatten)) }
+}
+
+/** Surface streaks, measured against the same curve that draws the pool's edge. */
+function streaks(rx: number, ry: number): Span[] {
+  const bodyRx = Math.max(1, rx - 3)
+  const bodyRy = Math.max(1, ry - 2)
+  const rows: [number, number, number][] = [
+    [-Math.round(ry * 0.35), 1.1, -0.25],
+    [Math.round(ry * 0.1), 1.4, 0.15],
+    [Math.round(ry * 0.55), 0.8, -0.3],
+  ]
+
+  return rows
+    .map(([dy, span, shift]) => {
+      const half = halfWidthAt(bodyRx, bodyRy, dy)
+      const w = Math.round(half * span)
+      return { x: Math.round(half * shift) - Math.floor(w / 2), y: dy, w, h: 1 }
+    })
+    .filter((s) => s.w >= 2)
+}
+
+type PoolProps = {
+  cx: number
+  cy: number
+  rx: number
+  ry: number
+  fill: string
+  rim: string
+  shimmer?: boolean
+}
+
+/** Ink keyline, then rim, then body — the three-layer read every sprite has. */
+function Pool({ cx, cy, rx, ry, fill, rim, shimmer }: PoolProps) {
+  return (
+    <g transform={`translate(${cx} ${cy})`}>
+      <Rects spans={poolRows(rx + 1, ry + 1)} fill="var(--color-ink)" />
+      <Rects spans={poolRows(rx, ry)} fill={rim} />
+      <Rects spans={poolRows(rx - 2, ry - 1)} fill={fill} />
+      {shimmer && (
+        <g style={SHIMMER}>
+          <Rects spans={streaks(rx, ry)} fill="var(--color-water-lit)" />
+        </g>
+      )}
+    </g>
+  )
+}
+
+/** Sits just below the last row of trunk, so the water runs into it. */
+function MouthPool({ y, ...pool }: Omit<PoolProps, 'cx' | 'cy'> & { y: number }) {
+  return <Pool cx={trunkX(y)} cy={y + Math.round(pool.ry / 3)} {...pool} />
 }
