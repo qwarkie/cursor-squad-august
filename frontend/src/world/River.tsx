@@ -201,7 +201,7 @@ export function River({ model, budget, onSelectTributary }: Props) {
         // the rest clear it by 115+ (WEAK_RIM_DISTANCE splits the two
         // groups).
         //
-        // #55 — a weak-rim branch never keeps a water core, at any width.
+        // #57 — a weak-rim branch never keeps a water core, at any width.
         // #54's fix (skip the body when there's no room) only removed the
         // diluting water pixel on branches narrow enough to hit the floor —
         // Fizz measured Savings (teal, width 8) keeping a 4-art-px water
