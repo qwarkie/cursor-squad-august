@@ -159,26 +159,51 @@ def run(url, w, h):
 
         check("the world pans", True, f"x moved {moved_x}, y moved {moved_y}")
 
-        print("\n2. clamped — no blank gutters at the extremes")
+        print("\n2. clamped — the frame stays full of field")
+        # RETIRED: "no gutter at any edge". @Pollen said before building that
+        # `frame = stage` would make that false BY DESIGN — the meadow fills the
+        # frame and the world floats inside it — and it went red on their first
+        # correct landing, exactly as predicted. Retiring it rather than arguing
+        # with it. The two questions that survive the change are below: is there
+        # always field under the frame, and can you drag the river away and lose
+        # it?
         for name, dx, dy in (("left", DRAG * 3, 0), ("right", -DRAG * 3, 0),
-                             ("top", 0, DRAG * 3), ("bottom", 0, -DRAG * 3)):
+                             ("up", 0, DRAG * 3), ("down", 0, -DRAG * 3)):
             drag(pg, box, dx, dy)
-            b = world_box(pg)
-            if name in ("left", "right") and not moved_x:
-                continue
-            if name in ("top", "bottom") and not moved_y:
-                continue
-            if name == "left":
-                ok, d = b["x"] <= b["fx"], f"world left {b['x']} vs frame {b['fx']}"
-            elif name == "right":
-                ok, d = b["x"] + b["w"] >= b["fx"] + b["fw"], \
-                    f"world right {b['x'] + b['w']} vs frame {b['fx'] + b['fw']}"
-            elif name == "top":
-                ok, d = b["y"] <= b["fy"], f"world top {b['y']} vs frame {b['fy']}"
-            else:
-                ok, d = b["y"] + b["h"] >= b["fy"] + b["fh"], \
-                    f"world bottom {b['y'] + b['h']} vs frame {b['fy'] + b['fh']}"
-            check(f"no gutter at the {name} edge", ok, d)
+            r = pg.evaluate("""() => {
+                const w = document.querySelector('[data-scale]')
+                let fEl = null, f = null
+                for (let n = w.parentElement; n && n !== document.body; n = n.parentElement) {
+                  const o = getComputedStyle(n).overflow
+                  if (o && o !== 'visible') { fEl = n; f = n.getBoundingClientRect(); break }
+                }
+                if (!f) f = { left: 0, top: 0, right: innerWidth, bottom: innerHeight }
+                const l = Math.max(f.left, 0), t = Math.max(f.top, 0)
+                const rr = Math.min(f.right, innerWidth), b = Math.min(f.bottom, innerHeight)
+                // The FRAME's background, not the world's: the field colour moved
+                // onto the frame when it went full-bleed, so reading it off
+                // `[data-scale]` returned transparent and called painted meadow
+                // a gutter. Read from whichever element actually paints it.
+                const grass = fEl ? getComputedStyle(fEl).backgroundColor : ''
+                const wb = w.getBoundingClientRect()
+                const visible = Math.max(0, Math.min(wb.right, rr) - Math.max(wb.left, l)) *
+                                Math.max(0, Math.min(wb.bottom, b) - Math.max(wb.top, t))
+                return { grass, worldBg: getComputedStyle(w).backgroundColor,
+                         visible: Math.round(visible),
+                         area: Math.round((rr - l) * (b - t)) }
+            }""")
+            # Sampling points was the wrong instrument for this and I went
+            # three rounds with it: `elementsFromPoint` skips `pointer-events:
+            # none`, which is exactly what the world overlay is, so field under
+            # opaque chrome is invisible to hit-testing however the question is
+            # phrased. The property is structural anyway — the FRAME's own
+            # background is the field colour, so a gutter cannot show night
+            # whatever the clamp does. That is one stable fact instead of
+            # twenty-five brittle samples.
+            check(f"dragged hard {name}: the frame itself is painted field",
+                  bool(r["grass"]) and r["grass"] != "rgba(0, 0, 0, 0)", r["grass"])
+            check(f"dragged hard {name}: the world is still in the frame",
+                  r["visible"] > 0, f"{r['visible']}px of {r['area']}px visible")
             pg.reload(wait_until="networkidle")
             demo = pg.get_by_role("button", name="Load demo budget")
             if demo.count():
@@ -192,9 +217,14 @@ def run(url, w, h):
         # read as blocked-on-someone-else when it was a wrong selector, and a
         # wrong selector that names another team's issue as the cause is worse
         # than a plain failure.
-        target = pg.locator("[data-scale] [data-world-touch]")
+        # A "Select ..." target, not simply the first one. @Pollen caught this:
+        # target[0] is the spring, and the spring opens the income sheet — it
+        # never selects a category. An arbitration probe asking "did a category
+        # get selected" therefore calls a working spring inert, and reports a
+        # verdict that is right for a reason that is not the stated one.
+        target = pg.locator("[data-scale] [data-world-touch^='Select']")
         if target.count() == 0:
-            note("no [data-world-touch] targets in the world.")
+            note("no [data-world-touch^='Select'] targets in the world.")
             note("Settlements.tsx's Touchable is `if (!onPress) return children`,")
             note("so the marker cannot exist until App.tsx passes onSelect — and")
             note("at App.tsx:177 it still renders <Settlements model budget scale />.")
@@ -212,7 +242,29 @@ def run(url, w, h):
         def selected():
             return pg.locator("main ul li button[aria-pressed=true]").count()
 
-        t = target.first.bounding_box()
+        # The first REACHABLE Select target, not simply the first. At 1440 the
+        # first is Housing, and Housing is under the rail — arbitrating over a
+        # covered target measures the cover, not the arbitration.
+        idx = pg.evaluate("""() => {
+            const all = [...document.querySelectorAll("[data-scale] [data-world-touch^='Select']")]
+            for (let i = 0; i < all.length; i++) {
+              const r = all[i].getBoundingClientRect()
+              const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2)
+              if (x < 0 || x >= innerWidth || y < 0 || y >= innerHeight) continue
+              const hit = document.elementFromPoint(x, y)
+              if (hit && (hit === all[i] || all[i].contains(hit))) return i
+            }
+            return -1
+        }""")
+        if idx < 0:
+            note("every Select target is either off-screen or covered — at 1440")
+            note("Housing sits under the rail. Arbitrating over a covered target")
+            note("measures the cover, not the arbitration.")
+            unreachable.append("arbitration — needs one reachable Select target")
+            return
+        target = target.nth(idx)
+        note(f"arbitrating over target {idx}: {target.get_attribute('data-world-touch')}")
+        t = target.bounding_box()
         pg.mouse.click(t["x"] + t["width"] / 2, t["y"] + t["height"] / 2)
         pg.wait_for_timeout(300)
         if selected() == 0:
@@ -228,7 +280,7 @@ def run(url, w, h):
             demo.first.click()
         pg.wait_for_timeout(350)
 
-        t = target.first.bounding_box()
+        t = target.bounding_box()
         cx, cy = t["x"] + t["width"] / 2, t["y"] + t["height"] / 2
         before = selected()
 
@@ -246,7 +298,7 @@ def run(url, w, h):
         if demo.count():
             demo.first.click()
         pg.wait_for_timeout(350)
-        t = target.first.bounding_box()
+        t = target.bounding_box()
         cx, cy = t["x"] + t["width"] / 2, t["y"] + t["height"] / 2
         pg.mouse.move(cx, cy)
         pg.mouse.down()

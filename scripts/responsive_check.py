@@ -157,7 +157,8 @@ def audit(pg, label):
             while (bottom + 1 < innerHeight && hits(bottom + 1)) bottom += 1
             tappable = bottom - top + 1
           }
-          const name = (el.getAttribute('aria-label') || el.textContent || el.tagName).trim()
+          const name = (el.getAttribute('aria-label') || el.getAttribute('data-world-touch')
+                        || el.textContent || el.tagName).trim()
           // Two different failures, and `Math.max` used to merge them into one
           // that could not fail: a control painted over reports tappable 0, and
           // the rect height rescued it. @Honey's rail covered all three zoom
@@ -199,17 +200,33 @@ def audit(pg, label):
           const cy = Math.round(r.top + r.height / 2)
           if (cx < 0 || cx >= innerWidth || cy < 0 || cy >= innerHeight) return null
           const hit = document.elementFromPoint(cx, cy)
-          return { ok: !!hit && (hit === el || el.contains(hit)),
-                   over: hit ? (hit.getAttribute('aria-label') || hit.tagName) : 'nothing' }
+          return { ok: !!hit && (hit === el || el.contains(hit)), node: hit,
+                   over: hit ? (hit.getAttribute('aria-label') ||
+                                hit.getAttribute('data-world-touch') || hit.tagName) : 'nothing' }
         }
         for (const el of document.querySelectorAll('button, [role=button], input')) {
-          if (el.closest('[data-scale]')) continue
           const r = el.getBoundingClientRect()
           if (r.width <= 0 || r.height <= 0) continue
           const first = reaches(el)
           if (!first || first.ok) continue          // off screen, or fine
-          const name = (el.getAttribute('aria-label') || el.textContent || el.tagName).trim()
-          el.scrollIntoView({ block: 'center' })
+          // World targets used to be skipped wholesale, which left the world's
+          // own controls with no occlusion gate at all — and that is where the
+          // rail landed on #66's Housing village. The right exclusion was
+          // "outside the viewport", which `reaches` already applies. What is
+          // still legitimate is the world overlapping itself, so only a cover
+          // from OUTSIDE the world counts against it.
+          if (el.closest('[data-scale]') && first.node && first.node.closest('[data-scale]')) continue
+          const name = (el.getAttribute('aria-label') || el.getAttribute('data-world-touch')
+                        || el.textContent || el.tagName).trim()
+          // Page scroll only — NEVER scrollIntoView. That scrolls the nearest
+          // scrollable ancestor, which for a world target is the world's own
+          // frame, and `scrollTo(0, y0)` restores the page but not that. The
+          // measurement then changed what it was measuring: after probing one
+          // covered village, all three zoom controls read COVERED on a build
+          // where a clean page says they are reachable. I nearly reported
+          // @Honey's just-fixed controls as broken again.
+          const want = scrollY + (r.top + r.height / 2) - innerHeight / 2
+          scrollTo(0, Math.max(0, want))
           const after = reaches(el)
           const entry = `${name.slice(0, 20)} <- ${first.over.slice(0, 14)}`
           if (after && after.ok) soft.push(entry)

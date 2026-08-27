@@ -54,6 +54,34 @@ def measure(url):
             br.close()
             raise SystemExit("no budget on screen — a baseline of an empty field is worthless")
         fp = geometry_fingerprint(pg)
+        # Split the sprite census, because two different promises got tangled
+        # in one number. Anything derived from the Budget must never move; the
+        # field around it is allowed — and now required — to grow.
+        kinds = pg.evaluate("""() => {
+            const world = document.querySelector('[data-scale]')
+            const all = [...world.querySelectorAll('span, div')]
+              .filter(e => getComputedStyle(e).backgroundImage.startsWith('url('))
+            const riding = (e) => {
+              for (let n = e; n && n !== document.body; n = n.parentElement) {
+                const op = getComputedStyle(n).offsetPath
+                if (op && op !== 'none') return true
+              }
+              return false
+            }
+            const still = all.filter((e) => !riding(e))
+            const box = world.getBoundingClientRect()
+            const rect = (e) => { const r = e.getBoundingClientRect()
+              return [Math.round(r.left - box.left), Math.round(r.top - box.top),
+                      Math.round(r.width), Math.round(r.height)].join(',') }
+            const area = (e) => { const r = e.getBoundingClientRect(); return r.width * r.height }
+            let grass = null
+            for (const e of still) if (!grass || area(e) > area(grass)) grass = e
+            const foliage = still.filter((e) => e.closest('[data-foliage]'))
+            const fixtures = still.filter((e) => e !== grass && !e.closest('[data-foliage]'))
+            return { fixtures: fixtures.map(rect).sort(),
+                     foliage: foliage.length,
+                     grass: grass ? rect(grass) : null }
+        }""")
         box = pg.evaluate("""() => {
             const el = document.querySelector('[data-scale]')
             if (!el) return null
@@ -64,8 +92,8 @@ def measure(url):
         br.close()
     if not box:
         raise SystemExit("no world box — refusing to record a baseline of nothing")
-    return {"shapes": fp["shapes"], "sprites": fp["sprites"], "scale": fp["scale"],
-            "box": box, "trunk": trunk}
+    return {"shapes": fp["shapes"], "scale": fp["scale"], "box": box, "trunk": trunk,
+            "fixtures": kinds["fixtures"], "foliage": kinds["foliage"], "grass": kinds["grass"]}
 
 
 def main():
@@ -80,8 +108,9 @@ def main():
     if capture:
         with open(REF, "w") as fh:
             json.dump(now, fh, indent=1, sort_keys=True)
-        print(f"captured {len(now['shapes'])} shapes, {len(now['sprites'])} sprites, "
-              f"scale x{now['scale']}, box {now['box']}, trunk {now['trunk']}")
+        print(f"captured {len(now['shapes'])} shapes, {len(now['fixtures'])} budget-derived "
+              f"sprites, {now['foliage']} foliage, scale x{now['scale']}, box {now['box']}, "
+              f"trunk {now['trunk']}")
         print(f"-> {REF}")
         return
 
@@ -91,8 +120,16 @@ def main():
     with open(REF) as fh:
         ref = json.load(fh)
 
+    # `foliage` and `grass` are recorded and printed, never compared. The field
+    # extent is a product decision that changed tonight and will change again;
+    # pinning it would make this instrument argue with @Dmytro rather than
+    # protect the river.
+    print(f"  ....  field: {now['foliage']} foliage sprites, grass window {now['grass']}")
+    if now["foliage"] != ref.get("foliage") or now["grass"] != ref.get("grass"):
+        print(f"  ....  was:   {ref.get('foliage')} foliage, grass window {ref.get('grass')}")
+
     bad = []
-    for key in ("scale", "box", "trunk", "shapes", "sprites"):
+    for key in ("scale", "box", "trunk", "shapes", "fixtures"):
         if now[key] != ref[key]:
             bad.append(key)
             if key in ("scale", "box", "trunk"):
