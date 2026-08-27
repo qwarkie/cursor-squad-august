@@ -476,6 +476,23 @@ on a build nobody had touched since — 10,240 changed pixels of 102,144, then t
 - **Before any before/after visual verdict, diff the pixels. Zero changed → there is no verdict.**
   Pollen gave a verdict on a branch that was byte-identical between the two builds.
 
+## When a certification expires — the terminating condition
+
+**A certification is a claim about a set of files, not about a SHA.** `walk_demo.py` and
+`gradient_check.py` measure `frontend/`; they cannot observe `.handoff/praetor.md` or
+`scripts/README.md` at all.
+
+> **A docs-only push does not invalidate a build certification. Re-certify when `frontend/` or
+> `scripts/` moves; scope the diff otherwise and say nothing.**
+
+Without this the loop does not terminate: someone pushes documentation, someone else certifies,
+a third person notices the SHA differs, and it runs again for zero information. It ran four times
+in twenty minutes here and produced one real finding and three confirmations that nothing moved.
+
+Treating a handoff commit as invalidating a harness verdict is **measuring the wrong quantity, one
+level up from the code** — the same failure as everything in the section below, applied to process
+instead of pixels.
+
 ## The four questions every check answers
 
 ```
