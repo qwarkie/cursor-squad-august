@@ -311,9 +311,19 @@ def trunk_widths(pg):
 def geometry_fingerprint(pg):
     """Everything that must be identical across two loads of one budget (SC-007)."""
     return pg.evaluate("""() => {
-        const shapes = [...document.querySelectorAll('svg path, svg line, svg ellipse')]
+        // `svg rect` included since @Glass found the gap and @Praetor ruled on
+        // it. The pixel-water bands ARE the river — every trunk segment, every
+        // tributary, both pools are rects — and this selector excluded them
+        // while `paints()` twenty lines up in this same file included them. So
+        // SC-007's two-load determinism did not cover the water at all: a
+        // non-deterministic river body passed it, and the reference built on it
+        // was cited all night as proof the river had not moved. The claim was
+        // stronger than the instrument.
+        const shapes = [...document.querySelectorAll('svg path, svg line, svg ellipse, svg rect')]
           .map(el => el.tagName + '|' + (el.getAttribute('d') || '') + '|' +
                [el.getAttribute('x1'),el.getAttribute('y1'),el.getAttribute('x2'),el.getAttribute('y2')].join(',') +
+               '|' + [el.getAttribute('x'),el.getAttribute('y'),
+                      el.getAttribute('width'),el.getAttribute('height')].join(',') +
                '|' + (el.getAttribute('stroke-width') || ''))
         const world = document.querySelector('[data-scale]')
         const box = world ? world.getBoundingClientRect() : null
