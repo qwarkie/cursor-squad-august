@@ -3,10 +3,23 @@ import type { CSSProperties } from 'react'
 import { riverPath, trunkX } from './path'
 import { tributaryEnd, trunkWidthAt } from './geometry'
 import { branchSpans, halfWidthAt, poolRows, type Span } from './water'
+import { PAL } from './palette'
 import type { RiverModel } from '../engine'
+import type { Budget } from '../types'
 
 type Props = {
   model: RiverModel
+  /**
+   * Category colours for the tributary rim (SC-002) — the world knows
+   * amounts, only the budget knows which colour a category picked.
+   *
+   * Optional so this file stays green without a composition-root change:
+   * the caller is App.tsx, which is nobody's surface on this board. Absent
+   * `budget`, a branch draws exactly as it did before this commit — water,
+   * no rim. Wiring it (`<River budget={budget} .../>`) is a one-line,
+   * Praetor-owned follow-up; see #48.
+   */
+  budget?: Budget
   /** T019 — every tributary is tappable regardless of its drawn width. */
   onSelectTributary?: (categoryId: string) => void
 }
@@ -33,11 +46,21 @@ const CRISP = { shapeRendering: 'crispEdges' as const, strokeLinecap: 'butt' as 
 /**
  * The crest that travels downstream, on the trunk and on every tributary
  * alike — one water sparkle regardless of category, so the flow itself
- * still reads as one river. The category's *stroke* colour is restored
- * below (SC-002: art-bible.md §2 puts it in three places — stroke, label,
- * bottom-sheet control — and the stroke is what makes a branch read as a
- * cut off the trunk rather than the same water continuing; the signboard
- * from Settlements.tsx is additive, not a replacement for it).
+ * still reads as one river. The category colour lives in a rim around each
+ * branch, below (SC-002: art-bible.md §2 puts it in three places — the
+ * tributary, the label, the bottom-sheet control; the signboard from
+ * Settlements.tsx is additive, not a replacement for it).
+ *
+ * A pixel-rasterised branch has no stroke left to carry the colour (21897e0
+ * moved tributaries off stroked paths for the mitre/notch reasons water.ts
+ * documents), so it is drawn as one more layer of `branchSpans` — the same
+ * ink-keyline-then-rim-then-body technique `Pool` below already uses.
+ * Measured luminance contrast against the trunk water puts every category
+ * colour *below* the water's own highlight (waterLit is 1.84:1, the
+ * weakest category colour is 1.05:1) — hue separates the branches, not
+ * lightness, so the ink layer is load-bearing insurance, not decoration:
+ * without it a branch can wash out on a dim screen or for a colour-blind
+ * viewer exactly where the colour is doing all the work.
  *
  * `prefers-reduced-motion` is honoured globally in index.css, so this needs
  * no media query of its own.
@@ -75,7 +98,7 @@ function branchFlow(dir: 1 | -1): CSSProperties {
  * never recompute it). T023 — the three terminal states live here too,
  * because they are drawn on the same curve as the trunk, not overlaid on it.
  */
-export function River({ model, onSelectTributary }: Props) {
+export function River({ model, budget, onSelectTributary }: Props) {
   const last = model.segments[model.segments.length - 1]
   const first = model.segments[0]
 
@@ -163,19 +186,31 @@ export function River({ model, onSelectTributary }: Props) {
           y: trib.atY,
         }
         const body = branchSpans(start, end, trib.width)
+        const category = budget?.categories.find((c) => c.id === trib.categoryId)
+        const rimColor = category ? PAL[category.color] : null
         const clip = `river-branch-${trib.categoryId}`
         return (
           <g key={trib.categoryId}>
             <clipPath id={clip}>
               <Rects spans={body} fill="none" />
             </clipPath>
-            {/* Water, not the category's colour. A tributary is the same
-                river continuing, and six saturated slabs radiating out of a
-                blue trunk read as bars laid over the map rather than as
-                water leaving it. The colour keeps its three places from
-                art-bible.md §2 — the signboard over the settlement, the list
-                swatch and the bottom-sheet control. */}
-            <Rects spans={body} fill="var(--color-water)" className="river-width" />
+            {/* Ink keyline, then the category's colour, then the water body
+                on top — three concentric branchSpans layers, same technique
+                as Pool's ink/rim/body below. Still the same river continuing
+                (the body stays water, not a saturated slab), but now with a
+                rim a stranger can tell apart from the trunk and from its
+                neighbours without reading the signboard. */}
+            {rimColor && (
+              <>
+                <Rects spans={branchSpans(start, end, trib.width + 2)} fill="var(--color-ink)" />
+                <Rects spans={branchSpans(start, end, trib.width)} fill={rimColor} />
+              </>
+            )}
+            <Rects
+              spans={branchSpans(start, end, rimColor ? Math.max(1, trib.width - 2) : trib.width)}
+              fill="var(--color-water)"
+              className="river-width"
+            />
             <g clipPath={`url(#${clip})`} opacity={0.55}>
               <g style={branchFlow(dir)}>
                 {/* Crest thickness tracks the branch the same way the trunk's
