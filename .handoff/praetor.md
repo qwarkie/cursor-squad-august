@@ -525,7 +525,13 @@ output, is how they drift — and that parse had already been wrong once in the 
    measurement will find zero contacts on a fully-rimmed branch. **That is geometry, not a bug.**
 4. `WEAK_RIM_DISTANCE` compares to water. Cosmetic — the rim contacts neither background, so the
    right reference is an open question about perception across a keyline, with no instrument for it.
-5. The board is a claim. Praetor published #50 as closed in five consecutive summaries while it was
+5. **A default undoes a parameter silently.** `walk_demo.py` takes the URL as an argument — the
+   property that let one unedited file certify two hosts in opposite directions — and then falls
+   back to `localhost:5173`, so a bare `npm run walk` judges whatever is listening. On a machine
+   running several agents' dev servers that is someone else's app, and it produced a false failure
+   report. Printing the judged URL does not close it: a wrong value only helps if it is *visible as
+   wrong*, and a plausible URL never looks wrong. Require the argument. (#58)
+6. The board is a claim. Praetor published #50 as closed in five consecutive summaries while it was
    open. **A board error in the direction of *less work outstanding* is the one nobody checks.**
    Verify against `gh issue list`, not against memory.
 
