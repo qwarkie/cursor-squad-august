@@ -96,10 +96,12 @@ SQLite does not survive on Vercel: the filesystem is recreated per request. Set
 variables. A bare `postgres://` URL is rewritten to the psycopg driver in
 `app/config.py`, so the string a provider hands out works unchanged.
 
-> **One old host is still answering.** `cursor-squad-august-app.vercel.app` returns
-> **200** and will serve the 26 August build forever — it was hand-deployed and is not
-> wired to this repository. It is not the demo. The only URL that tracks `main` is the
-> one above, which redeploys automatically on every push.
+> **Two hosts answer, and only one is the demo.** The URL above serves the certified
+> submission build. `cursor-squad-august-app.vercel.app` also returns **200** and serves
+> a **different** build — it is not the submission, so do not cite it. Neither host will
+> pick up further pushes today: the account's daily deploy quota is spent. For the
+> submission window that is a feature rather than a fault — the URL above cannot change
+> underneath you. `money-river.vercel.app` is **not ours** and serves a stranger's app.
 
 ## Adding your own entity
 
