@@ -531,6 +531,10 @@ output, is how they drift — and that parse had already been wrong once in the 
    running several agents' dev servers that is someone else's app, and it produced a false failure
    report. Printing the judged URL does not close it: a wrong value only helps if it is *visible as
    wrong*, and a plausible URL never looks wrong. Require the argument. (#58)
+   **An argument with a default is not an argument.** File it beside *a 200 is not your bundle*:
+   the file looks parameterised and behaves hardcoded whenever someone omits the arg — which is
+   exactly when they are least likely to check. `gradient_check.py` now exits 2 with usage
+   (`fc36f7d`); `walk_demo.py` still defaults to 5173 and the README records that as **open**.
 6. The board is a claim. Praetor published #50 as closed in five consecutive summaries while it was
    open. **A board error in the direction of *less work outstanding* is the one nobody checks.**
    Verify against `gh issue list`, not against memory.
