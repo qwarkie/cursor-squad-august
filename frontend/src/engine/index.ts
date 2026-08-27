@@ -6,6 +6,8 @@ export {
   SPRING_Y,
   MOUTH_Y,
   MIN_GAP,
+  MEANDER_A,
+  MEANDER_W,
   type RiverModel,
   type RiverState,
   type Segment,

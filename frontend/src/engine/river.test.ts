@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
-import { budgetToRiver, TRUNK_MAX } from './river'
+import { budgetToRiver, TRUNK_MAX, MEANDER_A, MEANDER_W } from './river'
 import { SEEDED_BUDGET, EMPTY_BUDGET } from '../fixtures/budget'
 import type { Budget } from '../types'
 
@@ -113,6 +113,13 @@ describe('budgetToRiver: integer output', () => {
         expect(Number.isInteger(trib.width)).toBe(true)
       }
     }
+  })
+})
+
+describe('meander constants (data-model.md §The maths)', () => {
+  it('match the spec values consumed by world/path.ts xOffset', () => {
+    expect(MEANDER_A).toBe(6)
+    expect(MEANDER_W).toBe(20)
   })
 })
 

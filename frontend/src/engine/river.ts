@@ -6,6 +6,9 @@ export const MIN_WIDTH = 2
 export const SPRING_Y = 16
 export const MOUTH_Y = 104
 export const MIN_GAP = 14
+/** How far the trunk wanders off centre, and the wavelength of that wander — consumed by world/path.ts's xOffset. */
+export const MEANDER_A = 6
+export const MEANDER_W = 20
 
 export type RiverState = 'empty' | 'surplus' | 'balanced' | 'overspent'
 
