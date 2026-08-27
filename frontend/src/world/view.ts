@@ -7,11 +7,16 @@
  * pixels and every sprite in the world goes soft, so every function here
  * floors rather than fits exactly, and accepts the leftover.
  *
- * World size stays a constant (`WORLD_W` x `WORLD_H` art units). Growing it
- * with the viewport would make river geometry a function of the browser
- * window, and FR-015/SC-007 require it to be a pure function of the Budget.
- * The viewport changes how much of the world you can see at once, never how
- * much world there is.
+ * Two domains, and keeping them apart is the other job here:
+ *
+ *   the river, its settlements and its coins   96 x 128 art units, f(Budget)
+ *   the meadow around them                     fills the frame, f(cell)
+ *
+ * `WORLD_W` and `WORLD_H` are constants because FR-015/SC-007 require river
+ * geometry to be a pure function of the Budget, not of the browser window.
+ * The field has no such obligation — it is a hash of the cell coordinate, so
+ * it can extend as far as there is frame to fill and still be identical on
+ * every reload. A bigger screen shows more *field*, never more river.
  */
 
 export type Box = { w: number; h: number }
@@ -25,6 +30,12 @@ export const MAX_SCALE = 24
 export const MAX_ZOOM_IN = 8
 /** Movement, in CSS px, that turns a press into a drag rather than a tap. */
 export const DRAG_SLOP = 5
+/**
+ * How far past the world's edge you may drag, in art units — the width of the
+ * meadow border. Enough that there is somewhere to go, not so much that the
+ * river can be lost off the side of the screen.
+ */
+export const PAN_MARGIN = 16
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi)
 
@@ -40,7 +51,7 @@ export function fitScale(stageW: number, worldW: number): number {
   return clamp(Math.floor(stageW / worldW), MIN_SCALE, MAX_SCALE)
 }
 
-/** Largest integer scale that shows the whole world at once — the "fit all" view. */
+/** Largest integer scale that shows the whole world at once — the "fit" view. */
 export function containScale(stage: Box, world: Box): number {
   return clamp(
     Math.floor(Math.min(stage.w / world.w, stage.h / world.h)),
@@ -50,24 +61,57 @@ export function containScale(stage: Box, world: Box): number {
 }
 
 /**
- * The window onto the world. Never larger than the world itself, so a gutter
- * of background can never open up inside the frame, and never larger than the
- * space available, so the world is a window rather than a page section.
+ * The window onto the world: all of the space it was given, always.
+ *
+ * It used to be `min(world, stage)`, shrink-wrapped so no gutter could open
+ * inside it. That was right while the world was the only thing drawn, and it
+ * is what made zooming out a *shrink* — the world got smaller inside a frame
+ * that shrank with it, and everything around it went back to being page.
+ * Filling the stage means what surrounds the world is field, not night.
  */
-export function frameOf(worldPx: Box, stage: Box): Box {
-  return { w: Math.min(worldPx.w, stage.w), h: Math.min(worldPx.h, stage.h) }
+export function frameOf(_worldPx: Box, stage: Box): Box {
+  return { w: stage.w, h: stage.h }
 }
 
 /**
- * Pan offsets are negative or zero: the world hangs off the top-left of its
- * frame and is dragged back. Clamping to `min(0, frame - world)` means an axis
- * with nothing to spare pins at 0 rather than drifting into empty space.
+ * How far the world may be dragged on one axis, and which way it settles when
+ * there is nothing to choose.
+ *
+ * `anchor` is the difference between the two axes: across, a river down the
+ * middle of the frame is the picture; down, the river starts at the spring and
+ * reading it means starting there. Top-anchoring is also what keeps the
+ * certified 390x844 box at [3, 110, 384, 512] while the frame around it grows.
  */
-export function clampPan(pan: Pan, worldPx: Box, frame: Box): Pan {
-  return {
-    x: clamp(pan.x, Math.min(0, frame.w - worldPx.w), 0),
-    y: clamp(pan.y, Math.min(0, frame.h - worldPx.h), 0),
+export function panRange(
+  world: number,
+  frame: number,
+  scale: number,
+  anchor: 'centre' | 'start',
+): { lo: number; hi: number; locked: boolean } {
+  const m = PAN_MARGIN * scale
+  const hi = m
+  const lo = frame - m - world
+  if (lo > hi) {
+    const at = anchor === 'centre' ? Math.round((frame - world) / 2) : 0
+    return { lo: at, hi: at, locked: true }
   }
+  return { lo, hi, locked: false }
+}
+
+export function clampPan(pan: Pan, worldPx: Box, frame: Box, scale: number): Pan {
+  const x = panRange(worldPx.w, frame.w, scale, 'centre')
+  const y = panRange(worldPx.h, frame.h, scale, 'start')
+  return { x: clamp(pan.x, x.lo, x.hi), y: clamp(pan.y, y.lo, y.hi) }
+}
+
+/** Where the world sits before anyone drags it. */
+export function restingPan(worldPx: Box, frame: Box, scale: number): Pan {
+  return clampPan(
+    { x: Math.round((frame.w - worldPx.w) / 2), y: 0 },
+    worldPx,
+    frame,
+    scale,
+  )
 }
 
 export type View = {
@@ -79,7 +123,7 @@ export type View = {
   /** Zoom bounds, already resolved against this stage. */
   minScale: number
   maxScale: number
-  /** True on an axis the world overflows — the only axis worth dragging. */
+  /** True on an axis with room to drag. */
   pannable: { x: boolean; y: boolean }
 }
 
@@ -87,14 +131,16 @@ export type View = {
  * One call, so scale and box can never disagree.
  *
  * `request` is an absolute scale, or `null` for "follow the width". Storing
- * the request absolutely rather than as an offset means a window resize
- * cannot silently walk someone's chosen zoom up or down — it can only clamp
- * it, and clamping is visible.
+ * the request absolutely rather than as an offset means a window resize cannot
+ * silently walk someone's chosen zoom up or down — it can only clamp it, and
+ * clamping is visible.
  */
 export function resolveView(stage: Box, world: Box, request: number | null): View {
   const fit = fitScale(stage.w, world.w)
-  const minScale = Math.min(fit, containScale(stage, world))
   const maxScale = Math.min(MAX_SCALE, fit + MAX_ZOOM_IN)
+  // Zooming out below fit is the point, not an edge case: it is how a phone
+  // gets to see a big world. The floor is the art's own legibility limit.
+  const minScale = Math.min(MIN_SCALE, fit)
   const scale = clamp(request ?? fit, minScale, maxScale)
   const worldPx = { w: world.w * scale, h: world.h * scale }
   const frame = frameOf(worldPx, stage)
@@ -105,7 +151,10 @@ export function resolveView(stage: Box, world: Box, request: number | null): Vie
     frame,
     minScale,
     maxScale,
-    pannable: { x: worldPx.w > frame.w, y: worldPx.h > frame.h },
+    pannable: {
+      x: !panRange(worldPx.w, frame.w, scale, 'centre').locked,
+      y: !panRange(worldPx.h, frame.h, scale, 'start').locked,
+    },
   }
 }
 
@@ -125,14 +174,39 @@ export function panAfterZoom(pan: Pan, frame: Box, from: number, to: number): Pa
 /**
  * Fit is a toggle, not a one-way door.
  *
- * A 96x128 portrait world genuinely cannot fill a landscape frame while
- * staying fully visible, so "show me the whole month" always lands well below
- * the opening scale — at 1920 it lands on 576x768, which is byte for byte the
- * static frame this whole feature exists to remove. Stepping back by +1 makes
- * that a ten-press journey with nothing labelled "back". So the same button
- * returns you to the view you opened on.
+ * A 96x128 portrait world cannot fill a landscape frame while staying fully
+ * visible, so "show me the whole month" always lands well below the opening
+ * scale. Stepping back at +1 a press made that a ten-press journey with
+ * nothing labelled "back", so the same button returns you.
  */
 export function fitToggleTarget(view: View, stage: Box, world: Box): number {
   const contain = containScale(stage, world)
   return view.scale <= contain ? view.fit : contain
+}
+
+/**
+ * The rectangle the field must cover, in art units relative to the world's own
+ * origin — negative at the top-left, because the meadow starts before the
+ * world does.
+ *
+ * Derived from the pan *bounds* rather than the current offset, so it is
+ * constant for a given scale and frame: the field is generated once per zoom
+ * level instead of once per pointer move, and no unpainted edge can be dragged
+ * into view.
+ */
+export function fieldBounds(view: View): { x0: number; y0: number; w: number; h: number } {
+  const { scale, worldPx, frame } = view
+  const rx = panRange(worldPx.w, frame.w, scale, 'centre')
+  const ry = panRange(worldPx.h, frame.h, scale, 'start')
+  // The frame's own edges, in art units, at the two extremes of each axis.
+  // Taken from the range rather than assuming the spare space is shared evenly
+  // — down, it is not: the world anchors to the top and all of it is below.
+  const x0 = Math.floor(-rx.hi / scale)
+  const y0 = Math.floor(-ry.hi / scale)
+  return {
+    x0,
+    y0,
+    w: Math.ceil((-rx.lo + frame.w) / scale) - x0,
+    h: Math.ceil((-ry.lo + frame.h) / scale) - y0,
+  }
 }

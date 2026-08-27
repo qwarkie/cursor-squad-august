@@ -6,6 +6,7 @@ import {
   fitToggleTarget,
   panAfterZoom,
   resolveView,
+  restingPan,
   DRAG_SLOP,
   type Box,
   type Pan,
@@ -64,6 +65,9 @@ export function useWorldView(worldW: number, worldH: number) {
   }))
   const [request, setRequest] = useState<number | null>(null)
   const [pan, setPan] = useState<Pan>({ x: 0, y: 0 })
+  /** Set once the world has been dragged or zoomed, so a resize can re-settle
+      an untouched view without yanking one someone has positioned. */
+  const touched = useRef(false)
   const [dragging, setDragging] = useState(false)
 
   const world = useMemo<Box>(() => ({ w: worldW, h: worldH }), [worldW, worldH])
@@ -96,7 +100,9 @@ export function useWorldView(worldW: number, worldH: number) {
   // rather than leave a gutter open at the edge.
   useEffect(() => {
     setPan((p) => {
-      const next = clampPan(p, view.worldPx, view.frame)
+      const next = touched.current
+        ? clampPan(p, view.worldPx, view.frame, view.scale)
+        : restingPan(view.worldPx, view.frame, view.scale)
       return next.x === p.x && next.y === p.y ? p : next
     })
     // `view` is memoised, so this settles in one pass: an unchanged clamp
@@ -108,12 +114,14 @@ export function useWorldView(worldW: number, worldH: number) {
     (target: number) => {
       const next = resolveView(stage, world, target)
       if (next.scale === view.scale) return
+      touched.current = true
       setRequest(next.scale)
       setPan(
         clampPan(
           panAfterZoom(pan, view.frame, view.scale, next.scale),
           next.worldPx,
           next.frame,
+          next.scale,
         ),
       )
     },
@@ -194,11 +202,13 @@ export function useWorldView(worldW: number, worldH: number) {
       e.currentTarget.setPointerCapture(e.pointerId)
       setDragging(true)
     }
+    touched.current = true
     setPan(
       clampPan(
         { x: d.origin.x + dx, y: d.origin.y + dy },
         view.worldPx,
         view.frame,
+        view.scale,
       ),
     )
   }

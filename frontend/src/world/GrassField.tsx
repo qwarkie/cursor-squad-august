@@ -3,6 +3,9 @@ import { grassField } from './grass'
 import { PAL } from './palette'
 
 type Props = {
+  /** Top-left of the window, in absolute art units. Negative outside the core. */
+  x0: number
+  y0: number
   width: number
   height: number
   /** CSS pixels per art pixel — the world's integer scale, nothing else. */
@@ -23,10 +26,10 @@ const WIND_FPS = 2.5
  * no timers, no React re-renders, and it stops dead under
  * `prefers-reduced-motion` with the rest of the world.
  */
-export function GrassField({ width, height, scale }: Props) {
+export function GrassField({ x0, y0, width, height, scale }: Props) {
   return (
     <PixelSprite
-      art={grassField(0, 0, width, height)}
+      art={grassField(x0, y0, width, height)}
       palette={PAL}
       scale={scale}
       fps={WIND_FPS}

@@ -1,11 +1,16 @@
 import { PixelSprite } from '../pixel'
 import { BUSH, TREE, WORLD_FPS } from './objects'
 import { PAL } from './palette'
-import { grove, type GroveInput } from './grove'
+import { grove, type GroveInput, type GroveRegion } from './grove'
 
 type Props = {
   model: GroveInput
-  worldH: number
+  /**
+   * The window to plant, in absolute art units — usually larger than the
+   * river's own 96 x 128 core, because the meadow does not stop where the
+   * budget does.
+   */
+  region: GroveRegion
   /** CSS pixels per art pixel. */
   scale: number
 }
@@ -23,10 +28,10 @@ type Props = {
  * label on the SVG (art-bible.md §3), and a screen reader announcing thirty
  * trees would bury it.
  */
-export function Foliage({ model, worldH, scale }: Props) {
+export function Foliage({ model, region, scale }: Props) {
   return (
     <>
-      {grove(model, worldH).map((spot) => (
+      {grove(model, region).map((spot) => (
         // `data-foliage` names the thing rather than where it currently sits.
         // Without it a check has to identify a tree by its size or its
         // coordinates — both facts that already live in objects.ts and

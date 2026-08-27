@@ -3,13 +3,16 @@ import { describe, expect, it } from 'vitest'
 import {
   clampPan,
   containScale,
+  fieldBounds,
   fitScale,
   fitToggleTarget,
   frameOf,
   panAfterZoom,
   resolveView,
+  restingPan,
   MAX_SCALE,
   MIN_SCALE,
+  PAN_MARGIN,
 } from './view'
 
 const WORLD = { w: 96, h: 128 }
@@ -77,48 +80,107 @@ describe('containScale', () => {
 
 describe('clampPan', () => {
   const world = { w: 1440, h: 1920 }
-  const frame = { w: 1440, h: 648 }
+  const frame = { w: 1440, h: 900 }
+  const scale = 15
+  const m = PAN_MARGIN * scale
 
-  it('pins an axis with nothing to spare at zero', () => {
-    expect(clampPan({ x: -200, y: 0 }, world, frame).x).toBe(0)
-    expect(clampPan({ x: 200, y: 0 }, world, frame).x).toBe(0)
-  })
-
-  it('never opens a gutter at either edge of an axis that overflows', () => {
-    expect(clampPan({ x: 0, y: 500 }, world, frame).y).toBe(0)
-    expect(clampPan({ x: 0, y: -99999 }, world, frame).y).toBe(frame.h - world.h)
+  it('lets you drag a margin of meadow into view, and no further', () => {
+    expect(clampPan({ x: 0, y: 9999 }, world, frame, scale).y).toBe(m)
+    expect(clampPan({ x: 0, y: -9999 }, world, frame, scale).y).toBe(frame.h - m - world.h)
   })
 
   it('leaves an offset inside the range alone', () => {
-    expect(clampPan({ x: 0, y: -400 }, world, frame)).toEqual({ x: 0, y: -400 })
+    expect(clampPan({ x: 0, y: -400 }, world, frame, scale)).toEqual({ x: 0, y: -400 })
   })
 
-  it('pins both axes when the world fits its frame exactly', () => {
-    const fitted = { w: 384, h: 512 }
-    expect(clampPan({ x: -50, y: -50 }, fitted, fitted)).toEqual({ x: 0, y: 0 })
+  it('locks an axis where the world plus both margins already fits', () => {
+    const small = { w: 288, h: 384 }
+    const wide = { w: 1440, h: 900 }
+    // Across it settles centred; down it settles at the top, where the spring is.
+    expect(clampPan({ x: -500, y: -500 }, small, wide, 3)).toEqual({
+      x: Math.round((wide.w - small.w) / 2),
+      y: 0,
+    })
+  })
+})
+
+describe('restingPan', () => {
+  it('keeps the certified 390x844 world box where it was pinned', () => {
+    // frame is now the whole stage, not shrink-wrapped to the world — the box
+    // must still land at x=3, y=0 relative to it, or baseline_390 moves.
+    const view = resolveView({ w: 390, h: 718 }, WORLD, null)
+    expect(view.worldPx).toEqual({ w: 384, h: 512 })
+    expect(restingPan(view.worldPx, view.frame, view.scale)).toEqual({ x: 3, y: 0 })
+  })
+
+  it('starts at the spring, not the middle, when there is room below', () => {
+    const view = resolveView({ w: 960, h: 774 }, WORLD, null)
+    expect(restingPan(view.worldPx, view.frame, view.scale).y).toBe(0)
   })
 })
 
 describe('frameOf', () => {
-  it('is never larger than the world, so no gutter can open inside it', () => {
-    const f = frameOf({ w: 384, h: 512 }, { w: 1440, h: 900 })
-    expect(f).toEqual({ w: 384, h: 512 })
+  it('fills the stage even when the world is smaller — that space is field', () => {
+    expect(frameOf({ w: 384, h: 512 }, { w: 1440, h: 900 })).toEqual({ w: 1440, h: 900 })
   })
 
-  it('is never larger than the stage, so the world stays a window', () => {
-    const f = frameOf({ w: 1440, h: 1920 }, { w: 1440, h: 648 })
-    expect(f).toEqual({ w: 1440, h: 648 })
+  it('fills the stage when the world is larger — that overflow is the drag', () => {
+    expect(frameOf({ w: 1440, h: 1920 }, { w: 1440, h: 648 })).toEqual({ w: 1440, h: 648 })
+  })
+})
+
+describe('fieldBounds', () => {
+  it('always covers the frame, however far out you zoom', () => {
+    for (const request of [null, 3, 4, 6, 10, 15, 20]) {
+      const view = resolveView({ w: 1440, h: 900 }, WORLD, request)
+      const b = fieldBounds(view)
+      expect(b.w * view.scale).toBeGreaterThanOrEqual(view.frame.w)
+      expect(b.h * view.scale).toBeGreaterThanOrEqual(view.frame.h)
+    }
+  })
+
+  it('always covers the world itself, at every scale', () => {
+    for (const request of [null, 3, 4, 6, 10, 15, 20]) {
+      const b = fieldBounds(resolveView({ w: 1440, h: 900 }, WORLD, request))
+      expect(b.x0).toBeLessThanOrEqual(0)
+      expect(b.y0).toBeLessThanOrEqual(0)
+      expect(b.x0 + b.w).toBeGreaterThanOrEqual(WORLD.w)
+      expect(b.y0 + b.h).toBeGreaterThanOrEqual(WORLD.h)
+    }
+  })
+
+  it('leaves a margin to drag into on an axis that can be dragged', () => {
+    const b = fieldBounds(resolveView({ w: 1440, h: 900 }, WORLD, null))
+    expect(b.x0).toBeLessThanOrEqual(-PAN_MARGIN)
+    expect(b.y0).toBeLessThanOrEqual(-PAN_MARGIN)
+  })
+
+  it('covers every reachable pan, so no unpainted edge can be dragged in', () => {
+    const view = resolveView({ w: 1440, h: 900 }, WORLD, 3)
+    const b = fieldBounds(view)
+    for (const corner of [
+      { x: -99999, y: -99999 },
+      { x: 99999, y: 99999 },
+    ]) {
+      const p = clampPan(corner, view.worldPx, view.frame, view.scale)
+      // The frame's own edges, expressed in art units relative to the world.
+      expect(-p.x / view.scale).toBeGreaterThanOrEqual(b.x0)
+      expect((-p.x + view.frame.w) / view.scale).toBeLessThanOrEqual(b.x0 + b.w)
+      expect(-p.y / view.scale).toBeGreaterThanOrEqual(b.y0)
+      expect((-p.y + view.frame.h) / view.scale).toBeLessThanOrEqual(b.y0 + b.h)
+    }
   })
 })
 
 describe('resolveView', () => {
   /** The certified viewport. scripts/baseline_390.py pins box [3, 110, 384, 512]. */
   it('leaves 390x844 exactly where it was: x4, 384x512, nothing to drag', () => {
-    const view = resolveView({ w: 390, h: 608 }, WORLD, null)
+    const view = resolveView({ w: 390, h: 718 }, WORLD, null)
     expect(view.scale).toBe(4)
     expect(view.worldPx).toEqual({ w: 384, h: 512 })
-    expect(view.frame).toEqual({ w: 384, h: 512 })
-    expect(view.pannable).toEqual({ x: false, y: false })
+    expect(view.frame).toEqual({ w: 390, h: 718 })
+    // Down is locked, so the page keeps its scroll under a finger on a phone.
+    expect(view.pannable.y).toBe(false)
   })
 
   it('gives a desktop a world taller than its window — something to drag', () => {
@@ -126,21 +188,25 @@ describe('resolveView', () => {
     expect(view.scale).toBe(15)
     expect(view.worldPx).toEqual({ w: 1440, h: 1920 })
     expect(view.frame).toEqual({ w: 1440, h: 648 })
-    expect(view.pannable).toEqual({ x: false, y: true })
+    expect(view.pannable.y).toBe(true)
   })
 
   it('clamps a request rather than honouring it, in both directions', () => {
     const stage = { w: 1440, h: 648 }
     expect(resolveView(stage, WORLD, 999).scale).toBe(resolveView(stage, WORLD, null).maxScale)
-    expect(resolveView(stage, WORLD, -999).scale).toBe(resolveView(stage, WORLD, null).minScale)
+    expect(resolveView(stage, WORLD, -999).scale).toBe(MIN_SCALE)
   })
 
   it('can always be zoomed back out to the whole world', () => {
     const stage = { w: 1440, h: 648 }
-    expect(resolveView(stage, WORLD, containScale(stage, WORLD)).pannable).toEqual({
-      x: false,
-      y: false,
-    })
+    const fitted = resolveView(stage, WORLD, containScale(stage, WORLD))
+    expect(fitted.worldPx.w).toBeLessThanOrEqual(fitted.frame.w)
+    expect(fitted.worldPx.h).toBeLessThanOrEqual(fitted.frame.h)
+  })
+
+  it('lets a phone zoom out below fit — that is how a phone sees a big world', () => {
+    const phone = resolveView({ w: 390, h: 718 }, WORLD, null)
+    expect(phone.minScale).toBeLessThan(phone.scale)
   })
 
   it('is deterministic — the same stage resolves the same view', () => {
@@ -185,9 +251,9 @@ describe('fitToggleTarget', () => {
 
   it('shows the whole month from a zoomed-in view, not just from the opening one', () => {
     const zoomed = resolveView(stage, WORLD, 20)
-    const target = fitToggleTarget(zoomed, stage, WORLD)
-    const after = resolveView(stage, WORLD, target)
-    expect(after.pannable).toEqual({ x: false, y: false })
+    const after = resolveView(stage, WORLD, fitToggleTarget(zoomed, stage, WORLD))
+    expect(after.worldPx.w).toBeLessThanOrEqual(after.frame.w)
+    expect(after.worldPx.h).toBeLessThanOrEqual(after.frame.h)
   })
 
   it('round-trips: fitted -> opened -> fitted', () => {

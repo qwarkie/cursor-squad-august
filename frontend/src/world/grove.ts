@@ -134,6 +134,18 @@ const mod = (n: number, m: number): number => ((n % m) + m) % m
  * `World.tsx` and therefore of React — it runs in Node, which is the whole
  * reason the placement is testable at all.
  */
+/**
+ * A stable value per lattice cell. Same cell, same number, on every load and
+ * at every window size — which is what lets the jitter below be irregular
+ * without being random: `Math.random` would re-place the whole meadow on
+ * every render and break FR-015, and a hash of the cell cannot.
+ */
+function cellHash(row: number, k: number): number {
+  let h = Math.imul(row, 0x9e3779b1) ^ Math.imul(k, 0x85ebca6b)
+  h = Math.imul(h ^ (h >>> 15), 0x2545f491)
+  return (h ^ (h >>> 13)) >>> 0
+}
+
 export function grove(model: GroveInput, region: GroveRegion | number): GroveSpot[] {
   // `grove(model, worldH)` still means the river's own world, so the callers
   // that only ever wanted that do not have to say it twice.
@@ -149,20 +161,28 @@ export function grove(model: GroveInput, region: GroveRegion | number): GroveSpo
   const lastRow = Math.ceil((y0 + rh) / STEP_Y) + 1
 
   for (let row = firstRow; row <= lastRow; row++) {
-    const y = STEP_Y * (row + 1)
-    if (y < y0 || y >= y0 + rh) continue
-
     const base = mod(row, 2) === 0 ? 4 : 4 + ROW_STAGGER
-    const firstK = Math.floor((x0 - base) / STEP_X)
-    const lastK = Math.ceil((x0 + rw - base) / STEP_X)
+    const firstK = Math.floor((x0 - base) / STEP_X) - 1
+    const lastK = Math.ceil((x0 + rw - base) / STEP_X) + 1
 
     for (let k = firstK; k <= lastK; k++) {
-      const x = base + k * STEP_X
+      // A stagger alone was enough while the field held thirteen trees. Filling
+      // a 1920px screen it reads as wallpaper: identical trees on a perfect
+      // grid, which is the same "graph paper" failure the stagger was added to
+      // avoid, one order of magnitude further out. Jitter and clearings are a
+      // function of the cell, so the meadow stays byte-identical across loads
+      // and seamless across window sizes — a tree does not move when the
+      // window that revealed it grows.
+      const noise = cellHash(row, k)
+      if (noise % 5 === 0) continue // clearings, so it is a meadow not an orchard
+      const x = base + k * STEP_X + ((noise >>> 4) % 7) - 3
+      const y = STEP_Y * (row + 1) + ((noise >>> 8) % 5) - 2
       if (x < x0 || x >= x0 + rw) continue
+      if (y < y0 || y >= y0 + rh) continue
 
-      // Alternating kind is a function of the cell, not of what got accepted
-      // before it, so rejecting one spot never shifts the species of another.
-      const kind: Foliage = mod(row + Math.floor(x / STEP_X), 3) === 0 ? 'bush' : 'tree'
+      // Kind is a function of the cell, not of what got accepted before it, so
+      // rejecting one spot never shifts the species of another.
+      const kind: Foliage = mod(row + k, 3) === 0 ? 'bush' : 'tree'
       const { w, h } = SIZE[kind]
 
       // Inset from the river's own world edge, absolutely. A spot fully

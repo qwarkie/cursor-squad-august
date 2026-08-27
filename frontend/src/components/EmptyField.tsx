@@ -76,7 +76,7 @@ export function EmptyField({
       {/* Decoration, so it is out of the accessibility tree and cannot take a
           tap away from the two buttons. */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        <GrassField width={FIELD_W} height={FIELD_H} scale={FIELD_SCALE} />
+        <GrassField x0={0} y0={0} width={FIELD_W} height={FIELD_H} scale={FIELD_SCALE} />
       </div>
 
       <header className="relative flex flex-col items-center gap-3 text-center">

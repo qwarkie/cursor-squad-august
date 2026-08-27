@@ -4,6 +4,7 @@ import type { RiverModel } from '../engine'
 import { GrassField } from './GrassField'
 import { Foliage } from './Foliage'
 import { WORLD_H, WORLD_W } from './path'
+import { fieldBounds } from './view'
 import { useWorldView } from './useWorldView'
 
 /**
@@ -69,6 +70,10 @@ export function World({ model, children, overlay }: Props) {
   const { scale, worldPx, frame } = view
   const width = worldPx.w
   const height = worldPx.h
+  // The meadow is not the world: it fills the frame at every scale and every
+  // pan, so zooming out reveals field rather than page. Constant per zoom
+  // level, so the grass is generated once and not once per pointer move.
+  const field = fieldBounds(view)
 
   return (
     <div ref={stageRef} className="w-full">
@@ -79,10 +84,11 @@ export function World({ model, children, overlay }: Props) {
           width: frame.w,
           height: frame.h,
           backgroundColor: 'var(--color-grass)',
-          // Only claim the touch gesture on an axis there is somewhere to go.
-          // A world that fits its frame must let the page scroll under the
-          // finger, or the list below it becomes unreachable on a phone.
-          touchAction: pannable ? 'none' : 'auto',
+          // Claim only the axis there is somewhere to go on. A world that can
+          // slide sideways but not down leaves `pan-y` to the page, so the
+          // list below it stays reachable with a finger on a phone — taking
+          // the whole gesture would strand it.
+          touchAction: view.pannable.y ? 'none' : view.pannable.x ? 'pan-y' : 'auto',
           cursor: pannable ? (dragging ? 'grabbing' : 'grab') : 'default',
         }}
         {...handlers}
@@ -100,19 +106,38 @@ export function World({ model, children, overlay }: Props) {
           data-scale={scale}
         >
           {/* Generated field, not a fill: grass.ts scatters blades, shadow specks
-              and lit patches from a hash of the cell coordinates, so it is
-              identical on every load (FR-015) and costs one data URL rather than
-              several hundred rects. backgroundColor above stays as the fallback. */}
-          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-            <GrassField width={WORLD_W} height={WORLD_H} scale={scale} />
+              and lit patches from a hash of the *absolute* cell coordinate, so
+              it is identical on every load (FR-015), seamless when the window
+              grows, and costs one data URL rather than several hundred rects.
+              It hangs outside the world box on every side — that is the point:
+              the field has no edge, the budget does. */}
+          <div
+            className="pointer-events-none absolute"
+            aria-hidden="true"
+            style={{
+              left: field.x0 * scale,
+              top: field.y0 * scale,
+              width: field.w * scale,
+              height: field.h * scale,
+            }}
+          >
+            <GrassField
+              x0={field.x0}
+              y0={field.y0}
+              width={field.w}
+              height={field.h}
+              scale={scale}
+            />
           </div>
 
           {/* Foliage sits under the SVG on purpose. grove.ts keeps it clear of the
               water by construction, and drawing it below the river means that if a
               keep-out is ever wrong the water covers the tree rather than the tree
-              covering the water — the river always wins. */}
+              covering the water — the river always wins. Spots come back in
+              absolute art units, so they place against the world's own origin
+              and need no wrapper of their own. */}
           <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-            <Foliage model={model} worldH={WORLD_H} scale={scale} />
+            <Foliage model={model} region={field} scale={scale} />
           </div>
 
           <svg
@@ -135,10 +160,18 @@ export function World({ model, children, overlay }: Props) {
 
         {/* Outside the world layer on purpose: everything inside `[data-scale]`
             is fingerprinted as world geometry by scripts/walk_demo.py, and a
-            control is not scenery. */}
+            control is not scenery.
+
+            Bottom-right only from `lg`, where the layout reserves that corner.
+            Below it the action bar is fixed across the bottom and an open sheet
+            rises over it, and both painted straight over these: on screen, 44px,
+            `cursor: pointer`, and unreachable at 390 and 768 — measured with
+            `elementFromPoint`, which is the only thing that can see it. The top
+            of the frame is clear at every width because the header is outside
+            it. */}
         <div
           data-world-control=""
-          className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-2"
+          className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2 lg:top-auto lg:bottom-0 lg:items-end"
         >
           {pannable ? (
             <span
