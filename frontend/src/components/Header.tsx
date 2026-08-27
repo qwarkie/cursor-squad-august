@@ -1,5 +1,5 @@
 import type { Budget } from '../types'
-import { formatMoney } from './money'
+import { formatMoney, formatMonth, savingsRate } from './money'
 import { terminalState, type TerminalState } from './validate'
 
 /**
@@ -31,25 +31,33 @@ export interface HeaderProps {
 
 export function Header({ budget, remaining }: HeaderProps) {
   const state = terminalState(budget.income, remaining)
+  const month = formatMonth(budget.updatedAt)
+  const rate = savingsRate(budget.income, budget.categories)
   return (
     <header
-      className="flex w-full items-baseline justify-between gap-3 px-4 py-3"
+      className="flex w-full flex-col gap-1 px-4 py-3"
       style={{ background: NIGHT, color: PAPER, borderBottom: `3px solid ${INK}` }}
     >
-      <div className="flex flex-col gap-1">
-        <span className="font-pixel text-[8px] opacity-80">Income</span>
-        <span className="font-pixel text-[12px]" style={{ color: GOLD }}>
-          {formatMoney(budget.income)}
-        </span>
+      <div className="flex w-full items-baseline justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <span className="font-pixel text-[8px] opacity-80">Income</span>
+          <span className="font-pixel text-[12px]" style={{ color: GOLD }}>
+            {formatMoney(budget.income)}
+          </span>
+        </div>
+        {month && <span className="font-pixel text-[8px] opacity-80">{month}</span>}
+        <div className="flex flex-col items-end gap-1 text-right">
+          <span className="font-pixel text-[8px] opacity-80">{LABEL[state]}</span>
+          <span
+            className="font-pixel text-[16px]"
+            style={{ color: state === 'overspent' ? ALERT : WATER_LIT }}
+          >
+            {formatMoney(remaining)}
+          </span>
+        </div>
       </div>
-      <div className="flex flex-col items-end gap-1 text-right">
-        <span className="font-pixel text-[8px] opacity-80">{LABEL[state]}</span>
-        <span
-          className="font-pixel text-[16px]"
-          style={{ color: state === 'overspent' ? ALERT : WATER_LIT }}
-        >
-          {formatMoney(remaining)}
-        </span>
+      <div className="font-pixel text-[8px] opacity-80">
+        {rate === null ? '—' : `${rate}% saved`}
       </div>
     </header>
   )
