@@ -359,6 +359,47 @@ def walk(url):
         check("it shows 3 residents", any("Residents, 3" in l for l in labels))
         check("savings ends in a reservoir", any("reservoir" in l.lower() for l in labels))
 
+        # ---- 4b. the open field is planted ---------------------------------------
+        #
+        # Found by `data-foliage`, not by sprite size. A tree is 7x9 and a bush 5x4,
+        # but those numbers already live in objects.ts — writing them here would be
+        # the same fact in two places, which is the defect this repo hit five ways in
+        # one night. Size is also the mechanism: redraw TREE one pixel wider and a
+        # size-based check goes red on correct art, exactly as the `svg line` stroke
+        # assertion did through three refactors.
+        #
+        # Kinds are counted separately on Praetor's point: a total would stay green
+        # if every tree vanished and only bushes remained — the shape of the guard
+        # that went red on one of the two sprites it was written for.
+        print("\n4b. the open field is planted (#59)")
+        flora = pg.evaluate("""() => {
+            const world = document.querySelector('[data-scale]')
+            if (!world) return { world: false }
+            const nodes = [...world.querySelectorAll('[data-foliage]')]
+            const kinds = {}
+            for (const el of nodes) {
+              const k = el.getAttribute('data-foliage') || '?'
+              kinds[k] = (kinds[k] || 0) + 1
+            }
+            const sprites = [...world.querySelectorAll('span,div')]
+              .filter(e => getComputedStyle(e).backgroundImage.startsWith('url('))
+            return { world: true, total: nodes.length, kinds, sprites: sprites.length }
+        }""")
+
+        if not flora.get("world"):
+            check("the open field carries foliage", False, "no world box — nothing was measured")
+        elif flora["sprites"] == 0:
+            # Zero foliage on a screen with zero sprites says nothing about foliage.
+            check("the open field carries foliage", False,
+                  "the world rendered no sprites at all — nothing was measured")
+        else:
+            kinds = flora["kinds"]
+            detail = f"{flora['total']} nodes across {len(kinds)} kinds {kinds}"
+            check("the open field carries foliage", flora["total"] > 0, detail)
+            check("every kind of foliage that renders, renders at least one",
+                  len(kinds) >= 2 and all(n >= 1 for n in kinds.values()),
+                  detail if len(kinds) >= 2 else f"only {len(kinds)} kind present {kinds}")
+
         # ---- 5. pixel art is not smoothed ---------------------------------------
         print("\n5. the river must not be smooth (art-bible §1, non-negotiable #2)")
         # Both of these are "no bad ones found" checks, so both pass on an empty
