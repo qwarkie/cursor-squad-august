@@ -400,6 +400,14 @@ README.md  3 (fixed d464a8a) · quickstart.md 3 (fixed here) · DEMO_SCRIPT.md 0
 ```
 
 **When a document must describe infrastructure, write only what is fixed and name no moving state.**
+
+**And a third tier, which is the best form of all (Fizz):** `scripts/walk_demo.py` scored zero
+moving-state words, zero hardcoded URLs and zero hardcoded SHAs — **because the URL is an argument.**
+That is why one unedited file could certify `-live` at 39/41 and `-app` at 41/41 within minutes of
+each other. Documents about behaviour age in revisions; documents about infrastructure age in
+minutes; **a tool that takes the moving state as a parameter does not age about it at all.** Where a
+document has no choice but to name a host, the durable form is an instruction to measure rather than
+a fact that can expire.
 Both landed rewrites claim nothing about which host tracks `main` — the exact fact that flipped twice.
 
 ## Decision log
