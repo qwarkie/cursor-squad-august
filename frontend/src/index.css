@@ -95,6 +95,41 @@ body {
   transition: stroke-width 300ms ease-out;
 }
 
+/* Bottom sheets rise into place rather than appearing (art-bible.md §5,
+   250ms ease-out). CSS keyframes rather than the `motion` library: this is a
+   transform on one element, it runs on the compositor, and it keeps the DOM
+   layer free of a runtime the demo path does not otherwise need — the same
+   reasoning that made `motion` cut candidate #2.
+
+   Not exempted from reduced motion below, unlike .river-width. A sheet's
+   *presence* is the meaning; its travel is not. Collapsed to 0.01ms the sheet
+   is simply there, which is correct. */
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.sheet-in {
+  animation: sheet-in 250ms ease-out both;
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.backdrop-in {
+  animation: backdrop-in 250ms ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

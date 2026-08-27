@@ -55,11 +55,11 @@ export function CategorySheet({ onSubmit, onCancel }: CategorySheetProps) {
         type="button"
         aria-label="Close"
         onClick={onCancel}
-        className="absolute inset-0 cursor-pointer bg-black/50"
+        className="backdrop-in absolute inset-0 cursor-pointer bg-black/50"
       />
       <form
         onSubmit={submit}
-        className="relative w-full max-w-md px-4 pb-6 pt-5"
+        className="sheet-in relative w-full max-w-md px-4 pb-6 pt-5"
         style={{ background: HEX.night, borderTop: `3px solid ${HEX.ink}`, color: HEX.paper }}
       >
         <label htmlFor="cat-label" className="font-pixel text-[10px] leading-relaxed">

@@ -2,6 +2,7 @@ import type { RiverState } from '../engine'
 import type { Budget } from '../types'
 import { formatMonth, formatMoney, savingsRate } from './money'
 import { HEX } from './palette'
+import { useCountUp } from './useCountUp'
 
 /**
  * The exact figures, always on screen.
@@ -38,6 +39,12 @@ export interface HeaderProps {
 }
 
 export function Header({ budget, remaining, state, onEditIncome }: HeaderProps) {
+  // Both figures count up over 200ms so they settle before the river finishes
+  // re-sizing at 300ms (art-bible §5). The state word and the colour switch
+  // immediately — only the digits are in motion, so `over budget` never lags
+  // behind a figure that has already gone negative.
+  const shownIncome = useCountUp(budget.income)
+  const shownRemaining = useCountUp(remaining)
   const month = formatMonth(budget.updatedAt)
   const rate = savingsRate(budget.income, budget.categories)
   return (
@@ -72,7 +79,7 @@ export function Header({ budget, remaining, state, onEditIncome }: HeaderProps) 
             className="underline decoration-dotted underline-offset-4"
             style={{ color: HEX.gold }}
           >
-            {formatMoney(budget.income)}
+            {formatMoney(shownIncome)}
           </span>
         </button>
         {month && <span className="whitespace-nowrap opacity-70">{month}</span>}
@@ -86,7 +93,7 @@ export function Header({ budget, remaining, state, onEditIncome }: HeaderProps) 
           className="font-pixel text-[16px] leading-none"
           style={{ color: state === 'overspent' ? HEX.alert : HEX.waterLit }}
         >
-          {formatMoney(remaining)}
+          {formatMoney(shownRemaining)}
         </span>
         <span className="font-pixel text-[8px] leading-none opacity-80">{LABEL[state]}</span>
       </div>
