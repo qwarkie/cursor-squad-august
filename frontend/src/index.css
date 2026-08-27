@@ -96,3 +96,16 @@ body {
     transition-duration: 150ms !important;
   }
 }
+
+/* A tributary's crest, sliding out along its own branch. The dashes are
+   rectangles (world/water.ts), so the column moves bodily instead of a
+   stroke's dash offset moving under it. --flow-dir is +1 on the right bank
+   and -1 on the left, so both run away from the river. */
+@keyframes branch-flow {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(var(--flow-period) * var(--flow-dir)));
+  }
+}

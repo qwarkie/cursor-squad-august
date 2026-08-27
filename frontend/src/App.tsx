@@ -129,7 +129,7 @@ export default function App() {
           model={model}
           overlay={(scale) => <Settlements model={model} budget={budget} scale={scale} />}
         >
-          <River model={model} budget={budget} onSelectTributary={select} />
+          <River model={model} onSelectTributary={select} />
         </World>
 
         {/* Clearance for whichever bar is fixed over the bottom of the page —
