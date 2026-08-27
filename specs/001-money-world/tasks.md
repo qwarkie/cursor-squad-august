@@ -8,6 +8,8 @@
 
 **Organization**: Tasks are grouped by user story. Each task names a file. Classification `spine` unless marked `optional`.
 
+**Progress**: T001–T035 done. T036 stretch left open.
+
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: Can run in parallel (different files, no incomplete dependency)
@@ -17,10 +19,10 @@
 
 **Purpose**: Test runner and shared seed constants. No user-facing Money World yet.
 
-- [ ] T001 Add `pytest` and `httpx` to `[dependency-groups] dev` in `backend/pyproject.toml` and run `uv sync` in `backend/`
-- [ ] T002 [P] Create seed constants in `backend/app/seed/budget.py` matching `data-model.md`
-- [ ] T003 [P] Create matching constants in `frontend/src/fixtures/budget.ts`
-- [ ] T004 [P] Add `Budget` / `CategoryKey` / `BudgetResponse` types in `frontend/src/types.ts`
+- [x] T001 Add `pytest` and `httpx` to `[dependency-groups] dev` in `backend/pyproject.toml` and run `uv sync` in `backend/`
+- [x] T002 [P] Create seed constants in `backend/app/seed/budget.py` matching `data-model.md`
+- [x] T003 [P] Create matching constants in `frontend/src/fixtures/budget.ts`
+- [x] T004 [P] Add `Budget` / `CategoryKey` / `BudgetResponse` types in `frontend/src/types.ts`
 
 **Checkpoint**: Seed numbers exist in two files and are identical. Items app still runs.
 
@@ -32,13 +34,13 @@
 
 **⚠️ CRITICAL**: Do not start UI stories until T005–T011 pass.
 
-- [ ] T005 Create `Budget` and `BudgetCategory` in `backend/app/models/budget.py`
-- [ ] T006 Import the budget model in `backend/alembic/env.py` next to the items import
-- [ ] T007 Create Alembic revision after `69fd0530e630` for `budgets` and `budget_categories` under `backend/alembic/versions/`
-- [ ] T008 Add Pydantic schemas in `backend/app/schemas/budget.py` matching `contracts/openapi.yaml`
-- [ ] T009 Implement `derive_totals`, `ensure_seed`, `update_category`, `reset_budget` in `backend/app/services/budget.py`
-- [ ] T010 Write failing-then-passing unit tests in `backend/tests/test_budget_service.py` for seed totals (`remaining == 0`), isolated update, reset, and `overspent`
-- [ ] T011 Implement `adjust`, `reset`, `units`, `impactLine`, and derive helpers in `frontend/src/engine/budget.ts` plus tests in `frontend/src/engine/budget.test.ts` (seed remaining 0, Food −100 → remaining 100, units 13→11, no silent savings change)
+- [x] T005 Create `Budget` and `BudgetCategory` in `backend/app/models/budget.py`
+- [x] T006 Import the budget model in `backend/alembic/env.py` next to the items import
+- [x] T007 Create Alembic revision after `69fd0530e630` for `budgets` and `budget_categories` under `backend/alembic/versions/`
+- [x] T008 Add Pydantic schemas in `backend/app/schemas/budget.py` matching `contracts/openapi.yaml`
+- [x] T009 Implement `derive_totals`, `ensure_seed`, `update_category`, `reset_budget` in `backend/app/services/budget.py`
+- [x] T010 Write failing-then-passing unit tests in `backend/tests/test_budget_service.py` for seed totals (`remaining == 0`), isolated update, reset, and `overspent`
+- [x] T011 Implement `adjust`, `reset`, `units`, `impactLine`, and derive helpers in `frontend/src/engine/budget.ts` plus tests in `frontend/src/engine/budget.test.ts` (seed remaining 0, Food −100 → remaining 100, units 13→11, no silent savings change)
 
 **Checkpoint**: `cd backend && uv run pytest` and `npm run test` cover formulas. No budget HTTP routes yet.
 
@@ -52,14 +54,14 @@
 
 ### Tests for User Story 1
 
-- [ ] T012 [P] [US1] Add `GET /api/budget` seed-on-read cases in `backend/tests/test_budget_api.py`
+- [x] T012 [P] [US1] Add `GET /api/budget` seed-on-read cases in `backend/tests/test_budget_api.py`
 
 ### Implementation for User Story 1
 
-- [ ] T013 [US1] Add `GET /api/budget` in `backend/app/routers/budget.py` and include the router in `backend/app/main.py`
-- [ ] T014 [US1] Add `getBudget()` in `frontend/src/api/client.ts`
-- [ ] T015 [P] [US1] Create `frontend/src/ui/Header.tsx` (title, month, remaining, savings %)
-- [ ] T016 [US1] Rewrite `frontend/src/App.tsx` to load `GET /api/budget`, show loading, render Header + five text district buttons; do not render `ItemForm` / `ItemList`
+- [x] T013 [US1] Add `GET /api/budget` in `backend/app/routers/budget.py` and include the router in `backend/app/main.py`
+- [x] T014 [US1] Add `getBudget()` in `frontend/src/api/client.ts`
+- [x] T015 [P] [US1] Create `frontend/src/ui/Header.tsx` (title, month, remaining, savings %)
+- [x] T016 [US1] Rewrite `frontend/src/App.tsx` to load `GET /api/budget`, show loading, render Header + five text district buttons; do not render `ItemForm` / `ItemList`
 
 **Checkpoint**: Live GET path shows correct seed. Items UI is gone from `/`.
 
@@ -73,14 +75,14 @@
 
 ### Tests for User Story 2
 
-- [ ] T017 [P] [US2] Add PATCH success, 422 negative, and 404 unknown-key cases in `backend/tests/test_budget_api.py`
+- [x] T017 [P] [US2] Add PATCH success, 422 negative, and 404 unknown-key cases in `backend/tests/test_budget_api.py`
 
 ### Implementation for User Story 2
 
-- [ ] T018 [US2] Add `PATCH /api/budget/categories/{category_key}` in `backend/app/routers/budget.py`
-- [ ] T019 [US2] Add `updateCategory(key, amount)` in `frontend/src/api/client.ts`
-- [ ] T020 [P] [US2] Create `frontend/src/ui/Controls.tsx` (selected label, amount, ± ≥44px, impact line, disabled `−` at 0)
-- [ ] T021 [US2] Wire selection and live PATCH in `frontend/src/App.tsx`; on failure set `role="alert"` and keep prior budget
+- [x] T018 [US2] Add `PATCH /api/budget/categories/{category_key}` in `backend/app/routers/budget.py`
+- [x] T019 [US2] Add `updateCategory(key, amount)` in `frontend/src/api/client.ts`
+- [x] T020 [P] [US2] Create `frontend/src/ui/Controls.tsx` (selected label, amount, ± ≥44px, impact line, disabled `−` at 0)
+- [x] T021 [US2] Wire selection and live PATCH in `frontend/src/App.tsx`; on failure set `role="alert"` and keep prior budget
 
 **Checkpoint**: Vertical slice works without pixel art.
 
@@ -92,9 +94,9 @@
 
 **Independent Test**: Food 650 → `data-units="13"`; after −$50 → `"12"`.
 
-- [ ] T022 [P] [US3] Create `frontend/src/ui/District.tsx` (`<button>`, labels, `data-units`, min 44×44)
-- [ ] T023 [US3] Create `frontend/src/ui/World.tsx` composing five districts and export from `frontend/src/ui/index.ts`
-- [ ] T024 [US3] Render `World` from `frontend/src/App.tsx` in place of the US1 text buttons
+- [x] T022 [P] [US3] Create `frontend/src/ui/District.tsx` (`<button>`, labels, `data-units`, min 44×44)
+- [x] T023 [US3] Create `frontend/src/ui/World.tsx` composing five districts and export from `frontend/src/ui/index.ts`
+- [x] T024 [US3] Render `World` from `frontend/src/App.tsx` in place of the US1 text buttons
 
 **Checkpoint**: A $50 change updates a DOM attribute on the chosen district.
 
@@ -106,8 +108,8 @@
 
 **Independent Test**: PATCH Food to 700 → `overspent: true` and UI shows `Overspent` plus `data-overspent="true"`.
 
-- [ ] T025 [US4] Assert overspend in `backend/tests/test_budget_api.py` when Food is 700
-- [ ] T026 [US4] Pass `overspent` into `frontend/src/ui/World.tsx` and `frontend/src/ui/Header.tsx`; show the `Overspent` text only when true
+- [x] T025 [US4] Assert overspend in `backend/tests/test_budget_api.py` when Food is 700
+- [x] T026 [US4] Pass `overspent` into `frontend/src/ui/World.tsx` and `frontend/src/ui/Header.tsx`; show the `Overspent` text only when true
 
 **Checkpoint**: One `+` from seed produces the warning; reducing back to seed clears it.
 
@@ -119,9 +121,9 @@
 
 **Independent Test**: Mutate, `POST /api/budget/reset`, GET equals seed. UI Reset + reload matches.
 
-- [ ] T027 [P] [US5] Add reset cases in `backend/tests/test_budget_api.py`
-- [ ] T028 [US5] Add `POST /api/budget/reset` in `backend/app/routers/budget.py`
-- [ ] T029 [US5] Add `resetBudget()` in `frontend/src/api/client.ts` and a Reset control in `frontend/src/ui/Controls.tsx` wired from `frontend/src/App.tsx` with write-error alerting
+- [x] T027 [P] [US5] Add reset cases in `backend/tests/test_budget_api.py`
+- [x] T028 [US5] Add `POST /api/budget/reset` in `backend/app/routers/budget.py`
+- [x] T029 [US5] Add `resetBudget()` in `frontend/src/api/client.ts` and a Reset control in `frontend/src/ui/Controls.tsx` wired from `frontend/src/App.tsx` with write-error alerting
 
 **Checkpoint**: Demo is repeatable.
 
@@ -133,8 +135,8 @@
 
 **Independent Test**: `npm run dev:web` only. Seed still appears. Banner visible. Live reload after API start shows server data.
 
-- [ ] T030 [US6] Add timeout/fallback/empty-retry branches in `frontend/src/App.tsx` using `frontend/src/fixtures/budget.ts` and `frontend/src/engine/budget.ts`
-- [ ] T031 [US6] Keep write alerts only for live-mode failures; offline writes must not require network
+- [x] T030 [US6] Add timeout/fallback/empty-retry branches in `frontend/src/App.tsx` using `frontend/src/fixtures/budget.ts` and `frontend/src/engine/budget.ts`
+- [x] T031 [US6] Keep write alerts only for live-mode failures; offline writes must not require network
 
 **Checkpoint**: Principle II holds. Backend routes still exist and are used in live mode.
 
@@ -144,10 +146,10 @@
 
 **Purpose**: Viewport chrome. Do not rewrite README to claim the feature is shipped until a human delivery pass.
 
-- [ ] T032 Add navy chrome, pixel edges, overspend pulse, and 390px centered frame in `frontend/src/index.css` and `frontend/src/App.tsx`
-- [ ] T033 Set `<title>Money World</title>` in `frontend/index.html`
-- [ ] T034 Confirm 390×844: no horizontal scroll; `−`/`+`/Reset/districts ≥ 44×44
-- [ ] T035 Run `quickstart.md` curl sequence and the 60-second demo path; record pass/fail in the implementation notes (not by editing README)
+- [x] T032 Add navy chrome, pixel edges, overspend pulse, and 390px centered frame in `frontend/src/index.css` and `frontend/src/App.tsx`
+- [x] T033 Set `<title>Money World</title>` in `frontend/index.html`
+- [x] T034 Confirm 390×844: no horizontal scroll; `−`/`+`/Reset/districts ≥ 44×44
+- [x] T035 Run `quickstart.md` curl sequence and the 60-second demo path; record pass/fail in the implementation notes (not by editing README)
 - [ ] T036 [optional] Stretch only: `POST /api/scenario` — do not start unless US1–US6 pass
 
 ---
@@ -221,3 +223,21 @@ Integrate on `App.tsx` last to avoid merge fights (Principle VI).
 - Do not edit `.specify/memory/constitution.md` except via the v1.2.0 PR
 - Do not delete items models or `/api/items`
 - Preserve `docs/money-world-hackathon-brief.md`
+
+---
+
+## Verification log (2026-08-26)
+
+T001–T035 are implemented in the repo. T036 is not.
+
+Live curl against `http://127.0.0.1:8000`:
+
+- `GET /api/health` → 200
+- `GET /api/budget` → seed, remaining 0
+- `PATCH food 550` → remaining 100, housing 1500
+- `PATCH food -1` → 422
+- `PATCH flights` → 404
+- `PATCH food 700` → overspent true
+- `POST /api/budget/reset` → seed restored
+
+Browser demo: http://127.0.0.1:5173/
