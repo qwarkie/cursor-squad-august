@@ -73,8 +73,10 @@ not read a sentence about the hash.
 
 Warnings, written about what is fixed rather than about what is deploying:
 
-> **`https://cursor-squad-august-app.vercel.app` also returns 200 and serves a different build.** It is not the submission; do not cite it. Neither host will pick up further pushes today — the account's daily deploy quota is spent. That is deliberate for the submission window, not a fault.
+> **`https://cursor-squad-august-app.vercel.app` also returns 200 and serves a different build.** It is not the submission; do not cite it.
 >
-> **`https://money-river.vercel.app` is not ours.** It resolves to an unrelated app. It is the URL somebody will guess from the project name.
+> **Vercel counts the build quota per project, not per account.** A failing deploy check on one host says nothing about any other, and this repo has several projects attached. Four people once read *"nothing is deploying"* off a single host's failures while another project shipped a newer build unattended — and the host they had written off deployed again an hour later on its own. Never infer an account's state from one project's.
+>
+> **`https://money-river.vercel.app` is not ours** — it resolves to an unrelated app. But `https://money-river-dpmailspace-9489s-projects.vercel.app` **is** ours. One project name, two hosts, and the short one is what somebody guesses. Conflating them nearly got the only working deployment disconnected. A project name is not a host; measure before citing either.
 >
 > **A green build still is not a live demo.** Open the URL and walk the path on it. Auto-deploy proves the bundle shipped, not that the product works.
