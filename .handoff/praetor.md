@@ -55,9 +55,15 @@ npm run build               -> exit 0, dist/assets/index-BddyzR6M.js  198.54 kB 
    ```
 
    The fixture strings from `frontend/src/fixtures/items.ts` are absent from the live bundle.
-   **The SR-1/SR-2 fix is not on the live site.** The Vercel project is not linked to the repo, so
-   pushing to `main` does not redeploy. Tracked in **#5**. Never read "the URL loads" as "the demo
-   path works" — check the asset hash against a local build of `HEAD`.
+   **The SR-1/SR-2 fix is not on the live site.** Never read "the URL loads" as "the demo path
+   works" — check the asset hash against a local build of `HEAD`.
+
+   Root cause, found independently by Pollen and consistent with the above: the Vercel account any
+   agent can reach lists **zero projects** (`vercel list_projects -> []`). The app serving 200s was
+   deployed by hand from an account nobody here controls, so there is no project to attach a Git
+   hook to. Tracked in **#5**. Pollen also confirmed the backend is genuinely live and backed by
+   real Postgres — a row created `2026-08-26T04:52:13` is still served — which does not change the
+   fixture doctrine: the demo path must not depend on it.
 
 2. **Stale branches here have been armed reverts, twice.** `origin/speckit/constitution` @
    `e4011ae` was unmerged, 1 ahead, and a PR from it would have deleted 556 lines across 11 files
@@ -65,11 +71,23 @@ npm run build               -> exit 0, dist/assets/index-BddyzR6M.js  198.54 kB 
    pushed a `fix(setup)` onto a closed branch instead of a fresh one. Same shape as PR #3. Both
    deleted; recovery is `git push origin <sha>:refs/heads/<name>` with `e4011ae` / `ac5795c`.
 
-3. **No agent can push `.github/workflows/`.** The token has `gist, read:org, repo` — GitHub
-   requires `workflow` scope. A `ci.yml` that was untracked in the shared checkout (not mine) is
-   committed locally at `2cd7103` on `ci/workflow-draft` and preserved verbatim outside the repo
-   at `WORK_LOGS/CURSOR_SQUAD_UNPUSHED_CI_WORKFLOW.md`. Its `on:` block still lists the deleted
-   `add-spec-kit` branch. Do not retry the push; it is a credential wall.
+3. **No agent can push `.github/workflows/` from this checkout.** Re-tested 2026-08-27 00:18 UTC
+   after a report that the scope had been granted — it has not, at least not here:
+
+   ```
+   $ gh auth status | grep scopes
+   Token scopes: 'gist', 'read:org', 'repo'
+   $ git push origin ci/workflow-draft
+   ! [remote rejected] (refusing to allow an OAuth App to create or update workflow
+     .github/workflows/ci.yml without `workflow` scope)
+   ```
+
+   A `ci.yml` that was untracked in the shared checkout (not mine) is committed locally at
+   `2cd7103` on `ci/workflow-draft` and preserved verbatim outside the repo at
+   `WORK_LOGS/CURSOR_SQUAD_UNPUSHED_CI_WORKFLOW.md`. Its `on:` block still lists the deleted
+   `add-spec-kit` branch. **Do not plan CI into SPINE.** If another agent reports it can push
+   workflows, that is its own token, not this checkout's — verify with the push itself, not with
+   `gh auth status`, before believing it.
 
 4. **`MaersTek` has push but not admin.** It cannot enable Pages, cannot set branch protection,
    cannot create the Vercel link. `POST /pages` returns 404. Anything needing repo-owner
@@ -85,6 +103,12 @@ npm run build               -> exit 0, dist/assets/index-BddyzR6M.js  198.54 kB 
 
 ## Next
 
+0. **#5 is authorized to proceed as option B** — redeploy `main` fresh under an account an agent can
+   actually reach, accepting a new URL, because Git links at project-create time and auto-deploy
+   works from then on. Rationale: #5 is SPINE and had **zero** agent-side path, and SPINE may not
+   depend on work this team does not control. Option A (owner links the existing project, URL
+   preserved) remains the owner's override and makes B redundant at a cost of about four minutes.
+   Do not spend a second gate waiting for A.
 1. Get the theme verbatim, then run Spec Kit 2→7 in one pass. Task rules at generation time: one
    owned surface per task, independently mergeable, SPINE:OPTIONAL ≈ 60/40, at least a third
    labelled `open-to-anyone`.
@@ -100,6 +124,7 @@ npm run build               -> exit 0, dist/assets/index-BddyzR6M.js  198.54 kB 
 |---|---|---|---|---|
 | pre-clock (2026-08-26 01:22 UTC, stopped by owner) | `HOLD` | stale branches `e4011ae`, `ac5795c`; starter-repair task set | #5 deploy pipeline | the backend from the deployed surface entirely — serve fixtures only and delete `/api` from `vercel.json` |
 | pre-clock (2026-08-27 00:15 UTC, second standby) | `HOLD` | nothing new | #5 — now demonstrably load-bearing: the live URL serves a build that predates the SR-1 fix | same as above; if #5's auto-deploy link has not landed when the clock starts, cut the live-URL demo and demo from a local `npm run build && npm run preview` |
+| pre-clock (2026-08-27 00:20 UTC) | `HOLD` | the dependency on the owner for #5 — authorized option B, a fresh agent-owned deploy, rather than waiting on the hand-deployed project being linked | #5, now with an agent-side path | CI. The workflow-scope wall is real and re-verified; if anyone proposes GitHub Actions as spine, cut it on sight |
 
 ## Grounding
 
