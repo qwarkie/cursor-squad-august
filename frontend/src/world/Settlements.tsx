@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { PixelSprite } from '../pixel'
+import { PixelSprite, type Art } from '../pixel'
 import { SPRING_Y, type RiverModel } from '../engine'
 import { trunkX } from './path'
 import { WORLD_H } from './World'
@@ -8,6 +8,7 @@ import { RANK_ART_W, tributaryEnd, trunkWidthAt } from './geometry'
 import { PAL } from './palette'
 import { CRACK, RESERVOIR, RESIDENT, SPRING, WARNING, WORLD_FPS } from './objects'
 import { iconArt, iconPlural } from './icons'
+import { hamlet } from './hamlet'
 import type { Budget, PaletteKey } from '../types'
 
 /**
@@ -142,8 +143,10 @@ export function Settlements({ model, budget, scale, onSelect, onEditIncome }: Pr
          * exactly like $650 of Food — the largest expense stopped looking
          * largest and the metaphor flattened.
          *
-         * Six houses in one row would be 54 art-px wide and run into the trunk,
-         * so they wrap into ranks of three. HOUSE is 9 art-px (art-bible.md §4).
+         * Where they stand is `hamlet.ts`. It used to be a `flex flex-wrap` of
+         * fixed width, which is to say the browser decided: three to a row, one
+         * uniform gap, every roofline on the same line, and every village the
+         * same shape as every other one. There was no arrangement to vary.
          */
         const houses = Math.max(0, Math.floor(trib.settlements) || 0)
         const residents = Math.max(0, Math.floor(trib.residents) || 0)
@@ -151,6 +154,21 @@ export function Settlements({ model, budget, scale, onSelect, onEditIncome }: Pr
         // icons existed. `iconArt` is total, so an unknown name draws too.
         const art = iconArt(category?.icon)
         const noun = iconPlural(category?.icon)
+        const village = hamlet({
+          id: trib.categoryId,
+          buildings: houses,
+          residents,
+          building: artSize(art),
+          resident: artSize(RESIDENT),
+          maxWidth: RANK_ART_W,
+        })
+        // One alt per kind, on the first sprite of each: six buildings
+        // announcing themselves individually would bury the world's own label.
+        const labelled = new Map<string, string>()
+        const firstOf = (kind: 'building' | 'resident') =>
+          village.spots.find((s) => s.kind === kind)?.key
+        if (houses > 0) labelled.set(firstOf('building') ?? '', `${noun}, ${houses}`)
+        if (residents > 0) labelled.set(firstOf('resident') ?? '', `Residents, ${residents}`)
         return (
           <div key={trib.categoryId} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left, top }}>
             {category && (
@@ -161,38 +179,27 @@ export function Settlements({ model, budget, scale, onSelect, onEditIncome }: Pr
               label={category ? `Select ${category.label}` : 'Select category'}
             >
             <div
-              className="flex flex-wrap items-end justify-center"
-              style={{ gap: HOUSE_GAP, width: rankWidth }}
+              className="relative"
+              style={{ width: village.w * scale, height: village.h * scale }}
             >
-              {Array.from({ length: houses }, (_, i) => (
-                <PixelSprite
-                  key={i}
-                  art={art}
-                  palette={PAL}
-                  scale={scale}
-                  fps={WORLD_FPS}
-                  alt={i === 0 ? `${noun}, ${houses}` : ''}
-                />
+              {village.spots.map((spot) => (
+                  <span
+                    key={spot.key}
+                    data-settlement={spot.kind}
+                    className="absolute block"
+                    style={{ left: spot.x * scale, top: spot.y * scale }}
+                  >
+                    <PixelSprite
+                      art={spot.kind === 'building' ? art : RESIDENT}
+                      palette={PAL}
+                      scale={scale}
+                      fps={WORLD_FPS}
+                      alt={labelled.get(spot.key) ?? ''}
+                    />
+                  </span>
               ))}
             </div>
             </Touchable>
-            {residents > 0 && (
-              <div
-                className="flex justify-center"
-                style={{ gap: HOUSE_GAP, marginTop: scale }}
-              >
-                {Array.from({ length: residents }, (_, i) => (
-                  <PixelSprite
-                    key={i}
-                    art={RESIDENT}
-                    palette={PAL}
-                    scale={scale}
-                    fps={WORLD_FPS}
-                    alt={i === 0 ? `Residents, ${residents}` : ''}
-                  />
-                ))}
-              </div>
-            )}
           </div>
         )
       })}
@@ -202,6 +209,15 @@ export function Settlements({ model, budget, scale, onSelect, onEditIncome }: Pr
       {model.state === 'overspent' && <OverspendMark model={model} scale={scale} />}
     </>
   )
+}
+
+/**
+ * One art frame's size in art-pixels. `hamlet.ts` lays out boxes and must stay
+ * free of the sprite format, so the measuring happens here.
+ */
+function artSize(art: Art | readonly Art[]): { w: number; h: number } {
+  const frame = (Array.isArray(art[0]) ? (art as readonly Art[])[0] : art) as Art
+  return { w: frame[0]?.length ?? 0, h: frame.length }
 }
 
 /**
