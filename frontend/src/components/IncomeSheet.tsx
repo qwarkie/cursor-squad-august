@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 
+import { HEX } from './palette'
 import { validateIncome } from './validate'
 
 /**
@@ -11,12 +12,6 @@ import { validateIncome } from './validate'
  * keep its own invariants, and a clamp is silent. A judge who types `-5` and
  * watches a river appear at `$0` has been told nothing.
  */
-const INK = '#1b2a4a'
-const NIGHT = '#101a33'
-const PAPER = '#f4efe4'
-const GOLD = '#ffd94a'
-const ALERT = '#e0453f'
-
 export interface IncomeSheetProps {
   /** Pre-fills the field when editing an existing income. */
   initial?: number
@@ -50,7 +45,7 @@ export function IncomeSheet({ initial, onSubmit, onCancel }: IncomeSheetProps) {
       <form
         onSubmit={submit}
         className="relative w-full max-w-md px-4 pb-6 pt-5"
-        style={{ background: NIGHT, borderTop: `3px solid ${INK}`, color: PAPER }}
+        style={{ background: HEX.night, borderTop: `3px solid ${HEX.ink}`, color: HEX.paper }}
       >
         <label htmlFor="income" className="font-pixel text-[10px] leading-relaxed">
           Monthly income
@@ -70,7 +65,7 @@ export function IncomeSheet({ initial, onSubmit, onCancel }: IncomeSheetProps) {
           aria-invalid={error !== null}
           aria-describedby={error ? 'income-error' : undefined}
           className="mt-3 min-h-[56px] w-full px-4 font-pixel text-[14px]"
-          style={{ background: PAPER, color: INK, border: `3px solid ${INK}` }}
+          style={{ background: HEX.paper, color: HEX.ink, border: `3px solid ${HEX.ink}` }}
         />
 
         {error && (
@@ -78,7 +73,7 @@ export function IncomeSheet({ initial, onSubmit, onCancel }: IncomeSheetProps) {
             id="income-error"
             role="alert"
             className="mt-3 text-sm leading-snug"
-            style={{ color: ALERT }}
+            style={{ color: HEX.alert }}
           >
             {error}
           </p>
@@ -89,14 +84,14 @@ export function IncomeSheet({ initial, onSubmit, onCancel }: IncomeSheetProps) {
             type="button"
             onClick={onCancel}
             className="min-h-[48px] flex-1 cursor-pointer font-pixel text-[10px] leading-none"
-            style={{ background: 'transparent', color: PAPER, border: `3px solid ${PAPER}` }}
+            style={{ background: 'transparent', color: HEX.paper, border: `3px solid ${HEX.paper}` }}
           >
             Cancel
           </button>
           <button
             type="submit"
             className="min-h-[48px] flex-[2] cursor-pointer font-pixel text-[10px] leading-none"
-            style={{ background: GOLD, color: INK, border: `3px solid ${INK}` }}
+            style={{ background: HEX.gold, color: HEX.ink, border: `3px solid ${HEX.ink}` }}
           >
             Start the river
           </button>

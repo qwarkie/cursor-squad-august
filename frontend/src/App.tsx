@@ -1,124 +1,225 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 
-import { api } from './api/client'
-import { ItemForm } from './components/ItemForm'
-import { ItemList } from './components/ItemList'
-import { applyCreate, applyDelete, applyToggle } from './engine'
-import { FIXTURE_ITEMS } from './fixtures/items'
-import type { Item, ItemCreate } from './types'
+import { BottomSheet } from './components/BottomSheet'
+import { CategorySheet } from './components/CategorySheet'
+import { EmptyField } from './components/EmptyField'
+import { Header } from './components/Header'
+import { IncomeSheet } from './components/IncomeSheet'
+import { formatMoney } from './components/money'
+import { HEX, hexForCategory } from './components/palette'
+import { TradeOff } from './components/TradeOff'
+import { budgetToRiver } from './engine'
+import { useBudget } from './store/budget'
+import { World } from './world/World'
 
 /**
- * Two modes, one UI.
+ * T026 — page composition.
  *
- * `live`    — the API answered; reads and writes go to the server.
- * `offline` — the API did not answer; the list renders from checked-in
- *             fixtures and writes are applied locally, so the demo path still
- *             runs end to end with no network (Constitution, Principle II).
+ * One screen, one budget. `Budget` is the only state; the world and every
+ * figure on it are derived by `budgetToRiver` on each render, so there is no
+ * second copy to keep in sync and no save step to forget (FR-010).
  *
- * Every write reports its own failure. A mutation that fails silently survives
- * to the demo, where a judge clicks the button and nothing happens.
+ * Which sheet is open is local state rather than store state on purpose: it is
+ * not part of the budget, and persisting it would restore a half-open form on
+ * reload.
  */
-type Mode = 'live' | 'offline'
+type OpenSheet = 'none' | 'income' | 'category'
+
+/**
+ * The trade-off sentence reports the whole adjustment, not the last tap.
+ *
+ * Spec US3 scenario 2: two presses of `−` on Food $650 must read
+ * `Food −$100 → Remaining +$100`, not `−$50` twice. `id` is what makes that
+ * possible — consecutive changes to the same category accumulate, and a change
+ * to a different one starts over.
+ */
+type Change = { id: string; label: string; delta: number }
 
 export default function App() {
-  const [items, setItems] = useState<Item[]>([])
-  const [mode, setMode] = useState<Mode>('live')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const budget = useBudget((s) => s.budget)
+  const selectedId = useBudget((s) => s.selectedId)
+  const storageError = useBudget((s) => s.storageError)
+  const setIncome = useBudget((s) => s.setIncome)
+  const addCategory = useBudget((s) => s.addCategory)
+  const setCategoryAmount = useBudget((s) => s.setCategoryAmount)
+  const removeCategory = useBudget((s) => s.removeCategory)
+  const select = useBudget((s) => s.select)
+  const loadDemo = useBudget((s) => s.loadDemo)
+  const reset = useBudget((s) => s.reset)
+  const dismissStorageError = useBudget((s) => s.dismissStorageError)
 
-  const refresh = useCallback(async () => {
-    try {
-      setItems(await api.listItems())
-      setMode('live')
-      setError(null)
-    } catch {
-      // No error banner here: falling back is the designed behaviour, not a
-      // failure. The mode notice tells the user what they are looking at.
-      setItems(FIXTURE_ITEMS)
-      setMode('offline')
-      setError(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const [sheet, setSheet] = useState<OpenSheet>('none')
+  const [lastChange, setLastChange] = useState<Change | null>(null)
 
-  useEffect(() => {
-    void refresh()
-  }, [refresh])
+  const model = budgetToRiver(budget)
+  const selected = budget.categories.find((c) => c.id === selectedId) ?? null
 
-  /** Rejects on failure so ItemForm can keep the user's text and show why. */
-  async function handleCreate(payload: ItemCreate) {
-    if (mode === 'offline') {
-      setItems((current) => applyCreate(current, payload, new Date().toISOString()))
-      return
-    }
-    await api.createItem(payload)
-    await refresh()
+  if (model.state === 'empty' && budget.categories.length === 0) {
+    return (
+      <>
+        <EmptyField
+          onAddIncome={() => setSheet('income')}
+          onLoadDemo={() => {
+            loadDemo()
+            setLastChange(null)
+          }}
+        />
+        {sheet === 'income' && (
+          <IncomeSheet
+            onSubmit={(income) => {
+              setIncome(income)
+              setSheet('none')
+            }}
+            onCancel={() => setSheet('none')}
+          />
+        )}
+      </>
+    )
   }
 
-  async function handleToggle(item: Item) {
-    if (mode === 'offline') {
-      setItems((current) => applyToggle(current, item.id))
-      return
-    }
-    try {
-      await api.updateItem(item.id, { is_done: !item.is_done })
-      await refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update that item')
-    }
-  }
-
-  async function handleDelete(item: Item) {
-    if (mode === 'offline') {
-      setItems((current) => applyDelete(current, item.id))
-      return
-    }
-    try {
-      await api.deleteItem(item.id)
-      await refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not delete that item')
-    }
+  const changeAmount = (id: string, label: string, next: number, previous: number) => {
+    setCategoryAmount(id, next)
+    setLastChange((prior) => ({
+      id,
+      label,
+      delta: (prior?.id === id ? prior.delta : 0) + (next - previous),
+    }))
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-4 py-12">
-      <header>
-        <h1 className="text-2xl font-semibold text-slate-900">cursor-squad-august</h1>
-        <p className="mt-1 text-sm text-slate-500">Cursor Squad Hackathon Workspace</p>
-      </header>
+    <div
+      className="flex min-h-dvh w-full flex-col overflow-x-hidden"
+      style={{ background: HEX.night, color: HEX.paper }}
+    >
+      <Header budget={budget} remaining={model.remaining} state={model.state} />
 
-      <ItemForm onSubmit={handleCreate} />
-
-      {/* handleToggle and handleDelete never reject — they report their own
-          failures — so passing them to void-returning props drops nothing. */}
-      {loading ? (
-        <p className="text-sm text-slate-400">Loading…</p>
-      ) : (
-        <>
-          {mode === 'offline' && (
-            <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              Offline — showing sample data. Changes stay in this browser.
-            </p>
-          )}
-
-          {error && (
-            <p
-              role="alert"
-              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-            >
-              {error}
-            </p>
-          )}
-
-          <ItemList
-            items={items}
-            onToggle={(item) => void handleToggle(item)}
-            onDelete={(item) => void handleDelete(item)}
-          />
-        </>
+      {storageError && (
+        <p
+          role="alert"
+          className="flex items-start justify-between gap-3 px-4 py-2 text-sm leading-snug"
+          style={{ background: HEX.alert, color: HEX.paper }}
+        >
+          <span>{storageError}</span>
+          <button
+            type="button"
+            onClick={dismissStorageError}
+            aria-label="Dismiss"
+            className="shrink-0 cursor-pointer font-pixel text-[10px]"
+          >
+            ×
+          </button>
+        </p>
       )}
-    </main>
+
+      <TradeOff change={lastChange} />
+
+      <main className="flex flex-1 flex-col items-center gap-4 py-4">
+        {/* The river and its sprites mount inside the world shell.
+            world/River.tsx (T011, T015) goes here as `<River model={model} />`
+            — one line, no other change to this file. */}
+        <World model={model} />
+
+        <ul className="w-full max-w-md px-4" style={{ paddingBottom: selected ? 260 : 96 }}>
+          {budget.categories.map((category) => (
+            <li key={category.id}>
+              <button
+                type="button"
+                onClick={() => select(category.id)}
+                aria-pressed={selectedId === category.id}
+                className="flex min-h-[48px] w-full cursor-pointer items-center justify-between gap-3 border-b px-1 text-left"
+                style={{ borderColor: HEX.ink }}
+              >
+                <span className="flex min-w-0 items-center gap-3">
+                  <span
+                    aria-hidden
+                    className="size-4 shrink-0"
+                    style={{
+                      background: hexForCategory(category.color),
+                      border: `2px solid ${HEX.ink}`,
+                    }}
+                  />
+                  <span className="truncate font-pixel text-[10px]">{category.label}</span>
+                  {category.kind === 'savings' && (
+                    <span className="shrink-0 text-xs opacity-70">held</span>
+                  )}
+                </span>
+                <span className="shrink-0 font-pixel text-[10px]">
+                  {formatMoney(category.amount)}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </main>
+
+      {!selected && (
+        <div
+          className="fixed inset-x-0 bottom-0 z-10 flex gap-3 px-4 pb-5 pt-3"
+          style={{ background: HEX.night, borderTop: `3px solid ${HEX.ink}` }}
+        >
+          <button
+            type="button"
+            onClick={() => setSheet('category')}
+            className="min-h-[52px] flex-[2] cursor-pointer font-pixel text-[10px] leading-none"
+            style={{ background: HEX.gold, color: HEX.ink, border: `3px solid ${HEX.ink}` }}
+          >
+            Add category
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              // Confirmed, because reset throws the whole month away and the
+              // button sits next to one a judge will be tapping repeatedly.
+              if (window.confirm('Clear this budget and return to the empty field?')) {
+                reset()
+                setLastChange(null)
+                setSheet('none')
+              }
+            }}
+            className="min-h-[52px] flex-1 cursor-pointer font-pixel text-[10px] leading-none"
+            style={{ background: 'transparent', color: HEX.paper, border: `3px solid ${HEX.paper}` }}
+          >
+            Reset
+          </button>
+        </div>
+      )}
+
+      {selected && (
+        <BottomSheet
+          category={selected}
+          sliderMax={selected.amount + Math.max(model.remaining, 0)}
+          onChange={(amount) => changeAmount(selected.id, selected.label, amount, selected.amount)}
+          onRemove={() => {
+            removeCategory(selected.id)
+            setLastChange({ id: selected.id, label: selected.label, delta: -selected.amount })
+          }}
+          onClose={() => select(null)}
+        />
+      )}
+
+      {sheet === 'income' && (
+        <IncomeSheet
+          initial={budget.income}
+          onSubmit={(income) => {
+            setIncome(income)
+            setSheet('none')
+          }}
+          onCancel={() => setSheet('none')}
+        />
+      )}
+
+      {sheet === 'category' && (
+        <CategorySheet
+          onSubmit={(input) => {
+            addCategory(input)
+            // A brand-new category has no id until the store derives one, and
+            // the sentence is about the amount arriving, not about an edit.
+            setLastChange({ id: '', label: input.label, delta: input.amount })
+            setSheet('none')
+          }}
+          onCancel={() => setSheet('none')}
+        />
+      )}
+    </div>
   )
 }

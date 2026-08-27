@@ -18,18 +18,13 @@ export function validateIncome(raw: string): { income: number } | { error: strin
   return { income: Math.round(value) }
 }
 
-export type TerminalState = 'empty' | 'surplus' | 'balanced' | 'overspent'
-
-/**
- * The chrome-side mirror of `RiverModel.state`.
- *
- * The engine (T004) owns the real one and the world draws from it. This exists
- * so the header can render before the engine lands; point it at the model
- * instead once `budgetToRiver` is on main, rather than keeping two.
- */
-export function terminalState(income: number, remaining: number): TerminalState {
-  if (income === 0) return 'empty'
-  if (remaining > 0) return 'surplus'
-  if (remaining === 0) return 'balanced'
-  return 'overspent'
+/** Category amounts differ from income: `0` is legal — it closes the tributary. */
+export function validateAmount(raw: string): { amount: number } | { error: string } {
+  const text = raw.trim().replace(/[$,\s]/g, '')
+  if (text === '') return { error: 'Enter an amount — 0 is fine, it just closes the tributary.' }
+  if (!/^-?\d+(\.\d+)?$/.test(text)) return { error: 'Numbers only — try 1500.' }
+  const value = Number(text)
+  if (!Number.isFinite(value)) return { error: 'Numbers only — try 1500.' }
+  if (value < 0) return { error: 'An amount cannot be negative.' }
+  return { amount: Math.round(value) }
 }
