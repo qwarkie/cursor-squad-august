@@ -217,23 +217,14 @@ export function coinPlan(model: RiverModel | undefined): CoinPlan {
   const cycle = round3(Math.max(...routes.map((route) => route.duration)))
   if (!(cycle > 0)) return EMPTY
 
-  // Each coin claims the middle of its own share of its route's departures;
-  // sorting those claims interleaves the routes by construction, and ties
-  // break on route order so the result is the same on every load.
-  const slots: { route: number; at: number }[] = []
-  routes.forEach((route, index) => {
-    for (let i = 0; i < route.coins; i += 1) {
-      slots.push({ route: index, at: (i + 0.5) / route.coins })
-    }
-  })
-  slots.sort((a, b) => a.at - b.at || a.route - b.route)
+  const order = departureOrder(routes.map((route) => route.coins))
 
-  const coins = slots.map((slot, i) => {
-    const phase = i / slots.length
-    const travelled = (phase * cycle) / routes[slot.route].duration
+  const coins = order.map((route, i) => {
+    const phase = i / order.length
+    const travelled = (phase * cycle) / routes[route].duration
     return {
-      key: `${routes[slot.route].id}:${i}`,
-      route: slot.route,
+      key: `${routes[route].id}:${i}`,
+      route,
       delay: round3(-phase * cycle),
       offset: round3(Math.min(1, travelled) * 100),
     }
@@ -262,4 +253,46 @@ export function routeKeyframes(name: string, route: CoinRoute, cycle: number): s
     `  100% { offset-distance: 100%; opacity: 0; }`,
     `}`,
   ].join('\n')
+}
+
+/**
+ * Which route each departure belongs to — the order coins leave the spring in.
+ *
+ * Departures are already evenly spaced in time; what this decides is how they
+ * are *shared out*, and that is what a reader actually sees. Coins are only
+ * spaced evenly on a stretch if the routes that leave before it are spread
+ * through the sequence: group a branch's coins together and the stretch below
+ * its junction gets one long hole where they used to be, then a queue. Both
+ * were visible on the trunk.
+ *
+ * Note that random assignment is the wrong tool here, and would make it worse
+ * — a Poisson stream is *defined* by its clumps and gaps. What is wanted is
+ * the opposite of random: the most even interleaving there is. So each route
+ * accrues a claim of `coins / total` per departure and the largest outstanding
+ * claim takes it — the standard smooth-scheduling round, which for two equal
+ * routes gives a strict alternation and never lets any route fall more than
+ * one departure behind its share.
+ *
+ * Deterministic, and it has to be: SC-007 requires two loads of one budget to
+ * be identical, so there is no clock and no random source anywhere in here.
+ */
+export function departureOrder(counts: readonly number[]): number[] {
+  const total = counts.reduce((sum, n) => sum + Math.max(0, n), 0)
+  if (total <= 0) return []
+
+  const claim = counts.map(() => 0)
+  const order: number[] = []
+
+  for (let i = 0; i < total; i += 1) {
+    let best = -1
+    for (let r = 0; r < counts.length; r += 1) {
+      if (counts[r] <= 0) continue
+      claim[r] += counts[r] / total
+      if (best === -1 || claim[r] > claim[best]) best = r
+    }
+    claim[best] -= 1
+    order.push(best)
+  }
+
+  return order
 }
