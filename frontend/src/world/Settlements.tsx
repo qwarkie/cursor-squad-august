@@ -125,7 +125,7 @@ export function Settlements({ model, budget, scale, onSelect, onEditIncome }: Pr
               style={{ left, top }}
             >
               {category && (
-                <Signboard label={category.label} color={category.color} scale={scale} width={rankWidth} />
+                <Signboard label={category.label} color={category.color} scale={scale} width={rankWidth} side={trib.side} />
               )}
               <Touchable
                 onPress={onSelect && (() => onSelect(trib.categoryId))}
@@ -172,7 +172,7 @@ export function Settlements({ model, budget, scale, onSelect, onEditIncome }: Pr
         return (
           <div key={trib.categoryId} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left, top }}>
             {category && (
-              <Signboard label={category.label} color={category.color} scale={scale} width={rankWidth} />
+              <Signboard label={category.label} color={category.color} scale={scale} width={rankWidth} side={trib.side} />
             )}
             <Touchable
               onPress={onSelect && (() => onSelect(trib.categoryId))}
@@ -235,11 +235,14 @@ function Signboard({
   color,
   scale,
   width,
+  side,
 }: {
   label: string
   color: PaletteKey
   scale: number
   width: number
+  /** Which bank the village stands on — its tributary arrives from the other one. */
+  side: 'left' | 'right'
 }) {
   const fill = PAL[color] ?? 'var(--color-water)'
   const border = Math.max(1, Math.round(scale / 2))
@@ -255,8 +258,15 @@ function Signboard({
 
   return (
     <div
-      className="absolute bottom-full left-1/2 -translate-x-1/2 whitespace-nowrap"
+      className="absolute bottom-full left-1/2 whitespace-nowrap"
       style={{
+        // Anchored away from the river rather than centred on the village.
+        // Centred, the board sits exactly where its own tributary arrives —
+        // measured at 390x844, four of six labels overlapped something, and
+        // Entertainment's board had six rects of its own water under it.
+        // The branch always comes from the trunk, so the far edge is the one
+        // side of a village that nothing else is using.
+        transform: `translateX(${side === 'right' ? '-30%' : '-70%'})`,
         background: fill,
         color: brightness(fill) > 0.6 ? PAL.k! : PAL.p!,
         border: `${border}px solid ${PAL.k}`,
