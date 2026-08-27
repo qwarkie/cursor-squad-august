@@ -92,7 +92,14 @@ export function River({ model, onSelectTributary }: Props) {
 
         return (
           <g key={`seg-${i}`}>
-            <path d={d} fill="none" stroke="var(--color-water)" strokeWidth={seg.width} {...CRISP} />
+            <path
+              d={d}
+              fill="none"
+              stroke="var(--color-water)"
+              strokeWidth={seg.width}
+              className="river-width"
+              {...CRISP}
+            />
             <path
               d={d}
               fill="none"
@@ -123,6 +130,7 @@ export function River({ model, onSelectTributary }: Props) {
               y2={y2}
               stroke="var(--color-water)"
               strokeWidth={trib.width}
+              className="river-width"
               {...CRISP}
             />
             <line

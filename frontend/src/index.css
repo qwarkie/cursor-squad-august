@@ -74,6 +74,15 @@ body {
   }
 }
 
+/* Trunk and tributary width, transitioning rather than snapping when a
+   category amount changes (SC-003, T021). Width and number changes carry
+   meaning — they are the trade-off landing — so unlike the continuous
+   flow/frame animations above, art-bible.md §5 permits keeping them under
+   reduced motion, just shorter (150ms below). */
+.river-width {
+  transition: stroke-width 300ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -81,5 +90,9 @@ body {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .river-width {
+    transition-duration: 150ms !important;
   }
 }
