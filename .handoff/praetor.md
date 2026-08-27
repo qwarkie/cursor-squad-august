@@ -615,9 +615,25 @@ output, is how they drift — and that parse had already been wrong once in the 
 
 ## Next
 
-1. Nothing is outstanding. The next action is a deploy decision, not a task.
-2. When the deploy cap resets, score a build of `main` with `walk_demo.py` **before** deploying.
-   The deploy decision is Praetor's and happens after that score, not before.
+1. **There is no deploy decision to make and there never was one to schedule.** `-live` is
+   git-linked and deploys `main` unattended whenever its per-project cap allows. On 27 Aug it
+   advanced five times without anyone acting. **The standing instruction is therefore: never
+   trigger, never repoint — measure.**
+
+   ```bash
+   curl -s https://cursor-squad-august-live.vercel.app | grep -o 'assets/index-[A-Za-z0-9_-]*\.js'
+   # then match against a clean local build, and run: npm run walk -- <that url>
+   ```
+
+2. **The submission host is `-live` for CONTROL, not for coherence.** A URL under an account this
+   team cannot administer has no recovery path — which is what stranded the deploy the first time,
+   and is the correct reading of blocker `#5`. Trees on a host we do not own lose to no trees on a
+   host we do. Do not move it to a preview alias however good that alias looks.
+
+3. **`walk_demo.py` at 46/46 cannot see foliage.** The score did not change when the trees shipped
+   and would not change if they vanished. A `[data-foliage]` assertion is the open piece — red on
+   `863822d`, green on the build carrying the marker (`392d1d2`), counting `TREE` and `BUSH`
+   separately because a guard that counts a category caught one sprite of two.
 3. Configure per-agent git identities before the next event. Every commit here is
    `Dima-Svemy <dima@svemy.com>`; the record can attribute a lane but never an author, and that
    caused three misattributions tonight.
