@@ -26,7 +26,7 @@ const WIND_FPS = 2.5
 export function GrassField({ width, height, scale }: Props) {
   return (
     <PixelSprite
-      art={grassField(width, height)}
+      art={grassField(0, 0, width, height)}
       palette={PAL}
       scale={scale}
       fps={WIND_FPS}

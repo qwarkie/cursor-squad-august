@@ -59,15 +59,40 @@ type Blade = { x: number; y: number; phase: number }
  * is worth. A blade with no room simply stands still, which is what a blade
  * tucked against something does anyway.
  */
-function build(width: number, height: number): string[][] {
-  const base = Array.from({ length: height }, () => Array.from({ length: width }, () => 'g'))
+function build(x0: number, y0: number, width: number, height: number): string[][] {
+  // Generated a margin wider than asked for, then cropped back.
+  //
+  // Without it the field is NOT seamless, and I measured exactly how it fails:
+  // a blade at the last column has no neighbour, so `free` is undefined, so its
+  // tip is suppressed — and the same blade in a wider window sways normally.
+  // Seven cells of a 96x128 field, all in columns 94-95. Invisible standing
+  // still; on a pan it is grass popping along the seam, which is the "trees
+  // jump when the rect grows" failure @Pollen warned about, in the meadow.
+  //
+  // CELL covers it with room to spare: a motif originates within its own cell
+  // and reaches at most one pixel past its anchor, and a tip sways at most one
+  // more.
+  const M = CELL
+  const bx = x0 - M
+  const by = y0 - M
+  const bw = width + M * 2
+  const bh = height + M * 2
+
+  const base = Array.from({ length: bh }, () => Array.from({ length: bw }, () => 'g'))
   const blades: Blade[] = []
 
-  const cols = Math.ceil(width / CELL)
-  const rows = Math.ceil(height / CELL)
+  // Cell indices are ABSOLUTE. A cell's motif is `hash(cx, cy)` and nothing
+  // else, so cell (40, 90) grows the same blade whether it falls inside the
+  // requested window or outside it. That is what makes the meadow endless
+  // rather than merely large: a different window does not redraw the field, it
+  // reveals a different part of the same one.
+  const cx0 = Math.floor(bx / CELL)
+  const cy0 = Math.floor(by / CELL)
+  const cx1 = Math.ceil((bx + bw) / CELL)
+  const cy1 = Math.ceil((by + bh) / CELL)
 
-  for (let cy = 0; cy < rows; cy++) {
-    for (let cx = 0; cx < cols; cx++) {
+  for (let cy = cy0; cy < cy1; cy++) {
+    for (let cx = cx0; cx < cx1; cx++) {
       // Coarse noise over 3x3 blocks of cells, so the field grows in patches
       // with bare ground between them. Filling every cell at one rate is what
       // makes procedural texture read as static rather than as a meadow.
@@ -75,8 +100,9 @@ function build(width: number, height: number): string[][] {
       if (unit(cx, cy, 1) > density) continue
 
       const motif = unit(cx, cy, 5)
-      const x = cx * CELL + Math.floor(unit(cx, cy, 2) * CELL)
-      const y = cy * CELL + Math.floor(unit(cx, cy, 3) * CELL)
+      // Placed from the absolute cell, then shifted into the generated buffer.
+      const x = cx * CELL + Math.floor(unit(cx, cy, 2) * CELL) - bx
+      const y = cy * CELL + Math.floor(unit(cx, cy, 3) * CELL) - by
 
       if (motif < 0.16) {
         // Shadow speck — the ground showing through, and the reason the field
@@ -108,21 +134,37 @@ function build(width: number, height: number): string[][] {
     })
   }
 
-  return frames.map((f) => f.map((row) => row.join('')))
+  // Crop the margin away. Everything inside the window was generated with all
+  // of its neighbours present, so two overlapping windows agree exactly.
+  return frames.map((f) =>
+    f.slice(M, M + height).map((row) => row.slice(M, M + width).join('')),
+  )
 }
 
 const cache = new Map<string, string[][]>()
 
 /**
- * The field, as `GRASS_FRAMES` frames of `pixel/` art. Memoised because the
- * world size never changes at runtime, and rebuilding 4 x 96 x 128 characters
- * on every resize tick would be pure waste.
+ * A window onto the meadow, as `GRASS_FRAMES` frames of `pixel/` art.
+ *
+ * `x0` / `y0` are absolute art-pixel coordinates and may be negative — the
+ * field has no origin and no edge. The contract that makes it a field rather
+ * than a crop, agreed with @Pollen before either half was written:
+ *
+ *     grassField(0, 0, 96, 128) === the matching sub-rectangle of
+ *     grassField(-96, -64, 288, 256)
+ *
+ * asserted in grass.test.ts. If it ever fails, foliage and blades will appear
+ * to jump when the visible rectangle grows, and it will look like a bug in the
+ * panning rather than in here.
+ *
+ * Memoised on the whole window: a resize tick landing on the same rectangle
+ * costs nothing.
  */
-export function grassField(width: number, height: number): string[][] {
-  const key = `${width}x${height}`
+export function grassField(x0: number, y0: number, width: number, height: number): string[][] {
+  const key = `${x0},${y0},${width}x${height}`
   const hit = cache.get(key)
   if (hit) return hit
-  const built = build(width, height)
+  const built = build(x0, y0, width, height)
   cache.set(key, built)
   return built
 }

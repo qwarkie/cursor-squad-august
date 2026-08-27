@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import type { RiverModel } from '../engine'
 import { GrassField } from './GrassField'
 import { Foliage } from './Foliage'
-import { WORLD_W } from './path'
+import { WORLD_H, WORLD_W } from './path'
 import { useWorldView } from './useWorldView'
 
 /**
@@ -19,8 +19,7 @@ import { useWorldView } from './useWorldView'
  * a pure function of the Budget. A bigger screen shows more of the world, not
  * more world.
  */
-export { WORLD_W }
-export const WORLD_H = 128
+export { WORLD_H, WORLD_W }
 
 type Props = {
   model: RiverModel

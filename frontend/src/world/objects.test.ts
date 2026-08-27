@@ -165,7 +165,7 @@ describe('foliage stands out from the ground it stands on', () => {
    */
   const dominantFieldChar = (): string => {
     const tally = new Map<string, number>()
-    for (const row of grassField(WORLD_W, WORLD_H)[0]) {
+    for (const row of grassField(0, 0, WORLD_W, WORLD_H)[0]) {
       for (const ch of row) tally.set(ch, (tally.get(ch) ?? 0) + 1)
     }
     return [...tally.entries()].sort((a, b) => b[1] - a[1])[0][0]

@@ -2,11 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import { budgetToRiver } from '../engine'
 import { SEEDED_BUDGET } from '../fixtures/budget'
-import { trunkX, WORLD_W } from './path'
+import { trunkX, WORLD_H, WORLD_W } from './path'
 import { trunkWidthAt, tributaryEnd, RANK_ART_W } from './geometry'
 import { grove, type GroveInput } from './grove'
 
-const WORLD_H = 128
 const SIZE = { tree: { w: 7, h: 9 }, bush: { w: 5, h: 4 } } as const
 
 const seeded = (): GroveInput => {
@@ -80,5 +79,44 @@ describe('grove', () => {
     const full = grove(seeded(), WORLD_H).length
     expect(full).toBeLessThan(bare)
     expect(full).toBeGreaterThan(0)
+  })
+})
+
+describe('the lattice has no edge', () => {
+  const key = (s: { x: number; y: number; kind: string }) => `${s.x},${s.y},${s.kind}`
+
+  /**
+   * The counterpart to grass.ts's seam test, and the same contract: a window
+   * is a view onto one unbounded lattice. If a tree already on screen moves or
+   * changes species when the window grows, panning will look broken and the
+   * cause will not be in the panning.
+   */
+  it('a window agrees with the same region of a larger window', () => {
+    const m = seeded()
+    const small = grove(m, { x0: 0, y0: 0, w: WORLD_W, h: WORLD_H })
+    const big = grove(m, { x0: -96, y0: -64, w: 288, h: 256 })
+    const inBig = new Set(
+      big.filter((s) => s.x >= 0 && s.x < WORLD_W && s.y >= 0 && s.y < WORLD_H).map(key),
+    )
+    for (const spot of small) expect(inBig.has(key(spot))).toBe(true)
+  })
+
+  it('the region form and the plain height agree on the river’s own world', () => {
+    const m = seeded()
+    expect(grove(m, { x0: 0, y0: 0, w: WORLD_W, h: WORLD_H })).toEqual(grove(m, WORLD_H))
+  })
+
+  it('plants the open meadow beyond the river, where nothing needs clearing', () => {
+    const m = seeded()
+    const west = grove(m, { x0: -120, y0: 0, w: 120, h: WORLD_H })
+    expect(west.length).toBeGreaterThan(10)
+    for (const spot of west) expect(spot.x).toBeLessThan(0)
+  })
+
+  it('is deterministic at negative coordinates too', () => {
+    const m = seeded()
+    expect(grove(m, { x0: -200, y0: -200, w: 150, h: 150 })).toEqual(
+      grove(m, { x0: -200, y0: -200, w: 150, h: 150 }),
+    )
   })
 })

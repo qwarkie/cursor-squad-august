@@ -8,7 +8,7 @@ const H = 128
 
 describe('grassField', () => {
   it('emits frames of identical, exact world size', () => {
-    const frames = grassField(W, H)
+    const frames = grassField(0, 0, W, H)
     expect(frames).toHaveLength(GRASS_FRAMES)
     for (const rows of frames) {
       expect(rows).toHaveLength(H)
@@ -19,7 +19,7 @@ describe('grassField', () => {
   })
 
   it('draws only in the three grass colours the palette allows', () => {
-    const used = new Set(grassField(W, H).flat().join('').split(''))
+    const used = new Set(grassField(0, 0, W, H).flat().join('').split(''))
     expect([...used].sort()).toEqual(['e', 'g', 'h'])
     for (const ch of used) expect(PAL[ch as keyof typeof PAL]).toBeTruthy()
   })
@@ -28,12 +28,12 @@ describe('grassField', () => {
     // Unmemoised dimensions on both sides would compare two real builds; the
     // memo makes the second read free, so this asserts the contract callers
     // actually depend on — same size in, same field out.
-    expect(grassField(37, 53)).toEqual(grassField(37, 53))
-    expect(grassField(37, 53)).not.toEqual(grassField(53, 37))
+    expect(grassField(0, 0, 37, 53)).toEqual(grassField(0, 0, 37, 53))
+    expect(grassField(0, 0, 37, 53)).not.toEqual(grassField(0, 0, 53, 37))
   })
 
   it('moves blade tips and nothing else — the ground never sways', () => {
-    const [first, ...rest] = grassField(W, H)
+    const [first, ...rest] = grassField(0, 0, W, H)
     let moved = 0
     for (const frame of rest) {
       for (let y = 0; y < H; y++) {
@@ -49,5 +49,42 @@ describe('grassField', () => {
       }
     }
     expect(moved).toBeGreaterThan(0)
+  })
+})
+
+describe('the meadow has no edge', () => {
+  /**
+   * @Pollen's contract, agreed before either half was written: a window is a
+   * view onto one unbounded field, not a field sized to the window. If this
+   * fails, blades appear to jump when the visible rectangle grows and it reads
+   * as a bug in the panning rather than in here.
+   */
+  it('a window agrees with the same region of a larger window', () => {
+    const small = grassField(0, 0, 96, 128)
+    const big = grassField(-96, -64, 288, 256)
+
+    let differing = 0
+    for (let frame = 0; frame < small.length; frame += 1) {
+      for (let row = 0; row < 128; row += 1) {
+        // (0,0) of the small window sits at (96,64) inside the big one.
+        const inBig = big[frame][row + 64].slice(96, 96 + 96)
+        if (inBig !== small[frame][row]) differing += 1
+      }
+    }
+    expect(differing).toBe(0)
+  })
+
+  it('agrees at an origin that is not a multiple of the cell size', () => {
+    const a = grassField(7, 5, 48, 48)
+    const b = grassField(-41, -43, 192, 192)
+    for (let row = 0; row < 48; row += 1) {
+      expect(b[0][row + 48].slice(48, 48 + 48)).toBe(a[0][row])
+    }
+  })
+
+  it('reaches into negative coordinates rather than stopping at an origin', () => {
+    const nw = grassField(-96, -128, 96, 128)
+    const planted = nw[0].join('').split('').filter((c) => c !== 'g').length
+    expect(planted).toBeGreaterThan(100)
   })
 })

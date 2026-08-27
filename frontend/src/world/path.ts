@@ -28,6 +28,15 @@ export interface RiverGeometry {
 
 /** art-px, the world grid from art-bible.md §1. World.tsx re-exports it — one number, three consumers. */
 export const WORLD_W = 96
+
+/**
+ * Height lives here beside the width, and for the same reason the width does:
+ * `grove.ts` needs it to know where the river's own world ends, and grove must
+ * stay free of React so its placement is testable in Node. A second copy in
+ * World.tsx could drift and put the foliage inset on a different edge from the
+ * one the river is drawn against.
+ */
+export const WORLD_H = 128
 const CENTRE_X = WORLD_W / 2
 
 /**
