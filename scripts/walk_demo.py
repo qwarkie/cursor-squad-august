@@ -28,6 +28,86 @@ def check(name, ok, detail=""):
     return bool(ok)
 
 
+def paint_audit(pg):
+    """
+    Declared paint, not rendered pixels.
+
+    A pixel census cannot express the palette rule: text always anti-aliases, so
+    it reports hundreds of off-palette values on correct art — red forever, which
+    says as much about the product as a check that is green on nothing.
+
+    The two violations found tonight were both provable from CSS instead:
+
+        linear-gradient(a 0%, b 45%, c 100%)   interpolates between the stops
+        rgba(0, 0, 0, 0.5)                     composites toward a colour that is
+                                               not in the palette, so every pixel
+                                               behind it lands between values
+
+    Neither needs a screenshot, and neither can be confused by a glyph edge. The
+    palette is read from the app's own custom properties rather than transcribed,
+    so this cannot drift from `index.css`.
+
+    Only the alpha half is asserted. Deciding whether a gradient interpolates
+    needs its stop positions parsed across %, deg and clamped zero-stops, and the
+    first version of that rule was red on the dithered scrim — a correct build —
+    because a conic that forces hard edges with `0deg` stops does not declare two
+    positions per stop. Gradients are counted and printed so a person can look;
+    they are not failed on, because a check that is red on correct art says
+    nothing about the product. The gradient class needs a stop parser I trust.
+    """
+    return pg.evaluate("""() => {
+        const root = getComputedStyle(document.documentElement)
+        const palette = new Set()
+        for (const name of Array.from(root).filter(n => n.startsWith('--color-'))) {
+          const hex = root.getPropertyValue(name).trim()
+          const n = parseInt(hex.slice(1), 16)
+          if (!Number.isNaN(n)) palette.add(`${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`)
+        }
+
+        // Alpha has two spellings and only one of them is legacy. Tailwind v4
+        // compiles `bg-black/50` to `oklab(0 0 0 / 0.5)` — a modern colour
+        // function with slash-alpha — so a parser that only understands
+        // `rgba(r, g, b, a)` reads it as opaque and reports the scrim as clean.
+        const alphaOf = (paint) => {
+          if (!paint) return 1
+          const slash = /\\/\\s*([0-9.]+)(%?)\\s*\\)/.exec(paint)
+          if (slash) return parseFloat(slash[1]) / (slash[2] ? 100 : 1)
+          const legacy = /^rgba\\(([^)]+)\\)/.exec(paint)
+          if (legacy) {
+            const parts = legacy[1].split(',').map(v => parseFloat(v))
+            return parts.length > 3 ? parts[3] : 1
+          }
+          return 1
+        }
+
+        const alpha = [], soft = []
+        const els = [...document.querySelectorAll('*')]
+        for (const el of els) {
+          const cs = getComputedStyle(el)
+          const label = el.tagName.toLowerCase() +
+            (typeof el.className === 'string' && el.className ? '.' + el.className.split(' ')[0] : '')
+
+          for (const paint of [cs.backgroundColor, cs.fill, cs.stroke]) {
+            const a = alphaOf(paint)
+            // Fully transparent paints nothing; opaque is checked against the
+            // palette elsewhere. Partial alpha is the composite that lands
+            // between palette values, and it is the violation.
+            if (a > 0 && a < 1) alpha.push(`${label} ${paint}`)
+          }
+
+          const bg = cs.backgroundImage || ''
+          if (bg.includes('gradient')) {
+            // A stop declaring two positions is a hard band. A stop with one
+            // position (or none) interpolates toward its neighbour.
+            const stops = bg.slice(bg.indexOf('(') + 1).split(/,(?![^(]*\\))/)
+              .filter(t => /rgb|#|transparent/.test(t))
+            soft.push(`${label} ${bg.slice(0, 60)}`)
+          }
+        }
+        return { scanned: els.length, alpha, soft }
+    }""")
+
+
 def river_shapes(pg):
     """Every drawn river shape with the two things that decide how it reads."""
     return pg.evaluate("""() => [...document.querySelectorAll('svg path, svg line, svg ellipse, svg rect')]
@@ -178,6 +258,12 @@ def walk(url):
                   f"{box['width']:.0f}x{box['height']:.0f}" if box else "no box")
         check("Load demo budget is present", pg.get_by_text("Load demo budget").count() > 0)
 
+        paint = paint_audit(pg)
+        check("the opening frame declares no alpha-composited paint (art-bible §7)",
+              paint["scanned"] > 0 and not paint["alpha"],
+              f"scanned {paint['scanned']} elements · {len(paint['alpha'])} partial-alpha "
+              f"{paint['alpha'][:2]} · {len(paint['soft'])} gradients (reported, not asserted)")
+
         # ---- 2. the seeded month ------------------------------------------------
         print("\n2. seeded month (US5 scenario 1)")
         pg.get_by_text("Load demo budget").first.click()
@@ -190,6 +276,12 @@ def walk(url):
 
         shapes = river_shapes(pg)
         check("the river is drawn", len(shapes) > 0, f"{len(shapes)} shapes")
+
+        paint = paint_audit(pg)
+        check("the world declares no alpha-composited paint (art-bible §7)",
+              paint["scanned"] > 0 and not paint["alpha"],
+              f"scanned {paint['scanned']} elements · {len(paint['alpha'])} partial-alpha "
+              f"{paint['alpha'][:2]} · {len(paint['soft'])} gradients (reported, not asserted)")
 
         # ---- 3. the trunk narrows ------------------------------------------------
         print("\n3. the trunk narrows (US2 / FR-006)")
@@ -315,6 +407,11 @@ def walk(url):
                   hit and hit["tappable"] >= 44 and not hit["clipped"], detail)
             income_button.first.click()
             pg.wait_for_timeout(400)
+            sheet_paint = paint_audit(pg)
+            check("the income sheet declares no alpha-composited paint (art-bible §7)",
+                  sheet_paint["scanned"] > 0 and not sheet_paint["alpha"],
+                  f"{len(sheet_paint['alpha'])} partial-alpha {sheet_paint['alpha'][:2]} · "
+                  f"{len(sheet_paint['soft'])} gradients (reported, not asserted)")
             pg.fill("#income", "6000")
             pg.get_by_role("button", name=re.compile("Start the river|Save|Update")).first.click()
             pg.wait_for_timeout(900)
@@ -349,6 +446,11 @@ def walk(url):
                 minus.first.click(); pg.wait_for_timeout(250)
                 minus.first.click(); pg.wait_for_timeout(700)
                 text = body(pg)
+                sheet_paint = paint_audit(pg)
+                check("an open sheet declares no alpha-composited paint (art-bible §7)",
+                      sheet_paint["scanned"] > 0 and not sheet_paint["alpha"],
+                      f"{len(sheet_paint['alpha'])} partial-alpha {sheet_paint['alpha'][:2]} · "
+                      f"{len(sheet_paint['soft'])} gradients (reported, not asserted)")
                 check("two presses move the amount by $100", "$550" in text)
                 check("the trade-off sentence names category, delta and remaining",
                       "Food" in text and "\u2212$100" in text and "+$100" in text,
