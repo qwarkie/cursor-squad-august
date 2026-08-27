@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
 import { rasterize, type Art, type Palette } from '../pixel'
-import { COIN, CRACK, HOUSE, MARKET, RESERVOIR, RESIDENT, SPRING, WARNING } from './objects'
+import {
+  ARCADE,
+  CAR,
+  COIN,
+  CRACK,
+  HOUSE,
+  MARKET,
+  RESERVOIR,
+  RESIDENT,
+  SPRING,
+  TREE,
+  WARNING,
+} from './objects'
 
 /**
  * The art bible checked as code.
@@ -53,13 +65,16 @@ const INVENTORY: ReadonlyArray<{
   { name: 'RESERVOIR', art: RESERVOIR, width: 24, height: 16, frames: 2 },
   { name: 'CRACK', art: CRACK, width: 8, height: 8, frames: 1 },
   { name: 'WARNING', art: WARNING, width: 9, height: 9, frames: 2 },
+  { name: 'CAR', art: CAR, width: 8, height: 5, frames: 2 },
+  { name: 'ARCADE', art: ARCADE, width: 10, height: 10, frames: 2 },
+  { name: 'TREE', art: TREE, width: 7, height: 9, frames: 2 },
 ]
 
 const framesOf = (art: Art | readonly Art[]): readonly Art[] =>
   Array.isArray(art[0]) ? (art as readonly Art[]) : [art as Art]
 
 describe('the object inventory', () => {
-  it('holds every spine object the demo path needs', () => {
+  it('holds every object in art-bible.md §4 — the eight spine, then the three optional', () => {
     expect(INVENTORY.map((o) => o.name)).toEqual([
       'COIN',
       'HOUSE',
@@ -69,6 +84,9 @@ describe('the object inventory', () => {
       'RESERVOIR',
       'CRACK',
       'WARNING',
+      'CAR',
+      'ARCADE',
+      'TREE',
     ])
   })
 
