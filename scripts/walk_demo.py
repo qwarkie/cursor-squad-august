@@ -46,6 +46,14 @@ def marker_in_build(url):
 
     Returns True / False, or None when it cannot be determined — a dev server with
     no hashed bundle, or a fetch that failed. None never becomes a verdict.
+
+    All three branches have been exercised against real builds, not reasoned about:
+    False against 863822d and the deployed -live, None against a dev server, and
+    True against a build made specifically to produce it — the marker compiled in
+    with `grove()` stubbed to return no spots. That last state cannot occur in any
+    committed build, so Pollen constructed it after this branch was flagged as the
+    one that could only be tested at the function. Naming the untestable case is
+    what made someone else able to test it.
     """
     try:
         page = urllib.request.urlopen(url, timeout=15).read().decode("utf-8", "replace")

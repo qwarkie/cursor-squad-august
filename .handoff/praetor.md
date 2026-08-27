@@ -532,7 +532,15 @@ can it ever go green on a correct one?   it is not red-forever (a pixel census s
 can the observer distinguish the states? the instrument — human or code — has resolution at all
 does it catch EVERY case it was       the four above ask whether an instrument can speak;
   written for?                          this asks whether it did, on the cases that motivated it
+which case can you NOT produce?       name it as unproven; someone else can build it for you
 ```
+
+**The fifth question turned outward is the one worth keeping.** A foliage check had three branches and
+its author could only reach two — the third needed a build where the marker is compiled in but no
+sprite renders, which no commit produces. **He flagged it as proven-at-the-function rather than
+counting it as covered**, and another agent stubbed `grove()` to return `[]`, built it, served it,
+and ran the check against it. It chose correctly. **Naming the state you cannot construct is what
+makes it constructible by someone else** — silently counting it as covered makes it permanent.
 
 The fifth was earned late and cost nothing to find: a foliage guard written for two broken sprites
 went red on one and green on the other — 3 ground cells in 16 is 18.75%, under a 25% bar, on a
