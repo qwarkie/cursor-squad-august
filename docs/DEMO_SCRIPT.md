@@ -142,8 +142,11 @@ entire demo path with no network and no backend. The app never calls out.
 | 0:32 adjusting a category | [`docs/screenshots/03-category-sheet.png`](screenshots/03-category-sheet.png) |
 | 0:44 over budget | [`docs/screenshots/04-overspent.png`](screenshots/04-overspent.png) |
 
-> Captured from the submitted build (`78a230a`) with the bundle hash asserted before the first
-> frame, so they cannot drift from the URL silently. Signboards, blue trunk, the dotted underline
+> Captured from **whatever the URL above is serving**, with that bundle's hash asserted before
+> the first frame — not from a named commit. Naming one is how these went stale three times: twice
+> the capture was wrong, and the third time the capture was right and the host moved under it. The
+> check that keeps them honest is *re-capture the submitted URL and compare hashes*, which does not
+> expire; a SHA in this sentence does. Signboards, blue trunk, the dotted underline
 > under the income figure, `Houses, 6 · Residents, 3` on Housing against `Houses, 3` on Food — the
 > narration above is true of these pictures as well as of the live app.
 >
