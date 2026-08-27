@@ -298,6 +298,56 @@ Repo confirmed **public to an anonymous request** — the highest-consequence ch
 the last one anyone thought to run. A private repo behind a submitted link fails exactly like the
 dead host did: invisible to everyone who is signed in.
 
+
+## FINAL — submitted `78a230a` on `-live`. The alternative, and why it lost.
+
+**Submission: `https://cursor-squad-august-live.vercel.app` serving `78a230a`. Certified 39/41.**
+
+Verified coherent across every artifact at `6bef98d`:
+
+```
+README.md:18,:83 · quickstart.md:61 · docs/DEMO_SCRIPT.md:6   all -> -live
+docs/screenshots/*   captured from -live @ 78a230a, hash-asserted before capture
+raw CDN image        26,253 B = the new capture (cache cleared)
+stale-host warning   names -app as the one not to trust
+```
+
+### The better artifact we did not ship
+
+`cursor-squad-august-app.vercel.app` walked **41/41** — it carries both stranded fixes because
+**the Vercel quota is enforced PER PROJECT, not per account**, and that project still had room. Bundle
+identity proven (`index-DOWeDodp.js` == a local build). Its post-freeze sprites were walked end to
+end. **It lost on coherence, not merit:** our own README and quickstart told a reader that host was
+dead, and switching needed four coordinated doc changes plus fresh stills with minutes left.
+
+### THE LESSON, and it is about sequencing not judgement
+
+I ruled three times on one question in twenty minutes — no-switch, switch, no-switch. **The middle
+ruling was correct on the evidence and I could not land it**, because I spent the window deliberating
+instead of pre-positioning the docs commit alongside the probe that would justify it.
+
+> **When you order a check that could change a decision, order the change that check would trigger
+> at the same time.** Otherwise the check completes, the decision flips, and the window is gone.
+
+Had the probe and the docs commit been ordered together, `-app` at 41/41 ships.
+
+### Two inferences I drew wrong from a fact I already had
+
+1. Rate limit -> "all deploys are blocked." **It is per project**; one host kept deploying all along.
+2. Rate limit -> "any correction is expensive." **Docs-only pushes are free** — rejected before they
+   build. Both times another agent did the arithmetic I should have done.
+
+### "A 200 on a PNG is not the picture."
+
+Two agents verified the four contingency screenshots resolved 200 and neither opened them. They
+showed a UI **no candidate build rendered** — captured before the signboards landed. The demo script
+narrated "the signs name each branch" over a picture with no signs. Same shape as the dead host
+answering 200, `getAttribute` on an inherited attribute, and the dev server on the wrong port:
+**every one was a check returning a truthful answer to a question nobody meant to ask.**
+
+The capture script now asserts the bundle hash before taking a frame and aborts otherwise, so a
+screenshot can no longer drift from its build silently. That is the fix worth keeping.
+
 ## Decision log
 
 | Gate | Call | Cut | Remains SPINE | Would cut next |
