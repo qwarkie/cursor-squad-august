@@ -142,10 +142,14 @@ entire demo path with no network and no backend. The app never calls out.
 | 0:32 adjusting a category | [`docs/screenshots/03-category-sheet.png`](screenshots/03-category-sheet.png) |
 | 0:44 over budget | [`docs/screenshots/04-overspent.png`](screenshots/04-overspent.png) |
 
-> Captured from the submitted build (`78a230a`) with the bundle hash asserted before the first
-> frame, so they cannot drift from the URL silently. Signboards, blue trunk, the dotted underline
-> under the income figure, `Houses, 6 · Residents, 3` on Housing against `Houses, 3` on Food — the
-> narration above is true of these pictures as well as of the live app.
+> **Provenance is a stamp, not a currency claim** — see
+> [`docs/screenshots/README.md`](screenshots/README.md) for the stamped hash and the one-line
+> `curl` that tells you whether the stills still match what the URL serves. If they do not, that is
+> an honest lag rather than a defect: re-capture before you rely on them.
+>
+> I wrote a SHA here first, then replaced it with *"whatever the URL is serving"* — which reads
+> better and is the same mistake, because it asserts a match that expires the moment the host
+> deploys unattended. The stamp plus the check is the version that stays true.
 >
 > **One figure differs on purpose.** The overspent still shows `−$400` with Food at `$1,050`,
 > a deeper overspend than the `−$100` the 0:44 beat produces live. Read the number off the picture

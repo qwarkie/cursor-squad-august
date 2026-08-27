@@ -35,6 +35,12 @@ Two other hosts answer **200** and a judge could reach either:
   `7a975a1`), not the submission. It is git-linked and it did deploy; the "hand-deployed corpse
   serving 26 August forever" description that stood for most of the event is **false**. Do not
   cite this host.
+- **`money-river` is TWO hosts and the record conflated them for four hours.** `money-river.vercel.app`
+  resolves to an unrelated stranger's app. **`money-river-dpmailspace-9489s-projects.vercel.app` is
+  ours**, git-linked, and on 27 Aug it was the *only* host serving current `main` — because Vercel's
+  deploy cap is **per project**, and it still had quota when `-live` and `-app` did not. A
+  recommendation to disconnect it (mine, from this file's own stale line) would have destroyed the
+  only working deployment. **Measure a host before citing it; a project name is not a host.**
 - `money-river.vercel.app` — resolves to an **unrelated stranger's app**, and it is the URL somebody
   guesses from the project name.
 
@@ -226,7 +232,19 @@ invisible to 127 passing tests, every one found by a person looking at the runni
 
 ## SUBMITTED BUILD != `main` HEAD — read this first
 
-**Submission: `https://cursor-squad-august-live.vercel.app`, serving `78a230a`.**
+**Submission: `https://cursor-squad-august-live.vercel.app`.**
+
+> **DO NOT trust any SHA written next to that URL, including the ones below.** The host advanced
+> four times on 27 Aug without announcement — `83f7b63` 03:11, `99dca7a` 04:09, `863822d` 05:13 —
+> while every summary in this file and in the channel said it was frozen at `78a230a`. The check
+> that does not expire: `curl -s <url> | grep -o 'assets/index-[A-Za-z0-9_-]*\.js'` and match it
+> against a clean local build. **Name the check, not the conclusion.**
+>
+> Measured 06:06 on 27 Aug: `-live` serves `index-BO7g_gsl.js` = `863822d`, and it scores
+> **46/46** against `walk_demo.py` — better than the 39/41 the certified build scored, because the
+> drift carried in `6478e08` and `22e7a99`, the two fixes stranded at freeze.
+
+Historical: submitted at 02:44 on 27 Aug serving `78a230a`.
 
 The Vercel account hit its **Hobby daily cap of 100 deployments** at ~02:05 UTC. Every commit after
 `78a230a` failed to deploy with *"Deployment rate limited — retry in 24 hours."* So `main` advanced
@@ -512,7 +530,16 @@ does it go red on the broken commit?     it discriminates
 what does it print on an empty one?      it is not vacuous     (an absence is true of a blank page)
 can it ever go green on a correct one?   it is not red-forever (a pixel census sees glyph edges)
 can the observer distinguish the states? the instrument — human or code — has resolution at all
+does it catch EVERY case it was       the four above ask whether an instrument can speak;
+  written for?                          this asks whether it did, on the cases that motivated it
 ```
+
+The fifth was earned late and cost nothing to find: a foliage guard written for two broken sprites
+went red on one and green on the other — 3 ground cells in 16 is 18.75%, under a 25% bar, on a
+sprite with the identical defect. **A check that passes half its own reason for existing would have
+shipped as coverage.** The cheap form: **run the check against the exact broken inputs you wrote it
+for, and count how many it catches.** Fixed by deriving the reference from the field and separating *essentially
+none* from *some* (10%) rather than separating today's two numbers.
 
 Necessary, and **not sufficient**: two checks passed all of these while printing PASS on a screen
 with no river, because "no bad ones found" is vacuously true on an empty set.
@@ -588,9 +615,25 @@ output, is how they drift — and that parse had already been wrong once in the 
 
 ## Next
 
-1. Nothing is outstanding. The next action is a deploy decision, not a task.
-2. When the deploy cap resets, score a build of `main` with `walk_demo.py` **before** deploying.
-   The deploy decision is Praetor's and happens after that score, not before.
+1. **There is no deploy decision to make and there never was one to schedule.** `-live` is
+   git-linked and deploys `main` unattended whenever its per-project cap allows. On 27 Aug it
+   advanced five times without anyone acting. **The standing instruction is therefore: never
+   trigger, never repoint — measure.**
+
+   ```bash
+   curl -s https://cursor-squad-august-live.vercel.app | grep -o 'assets/index-[A-Za-z0-9_-]*\.js'
+   # then match against a clean local build, and run: npm run walk -- <that url>
+   ```
+
+2. **The submission host is `-live` for CONTROL, not for coherence.** A URL under an account this
+   team cannot administer has no recovery path — which is what stranded the deploy the first time,
+   and is the correct reading of blocker `#5`. Trees on a host we do not own lose to no trees on a
+   host we do. Do not move it to a preview alias however good that alias looks.
+
+3. **`walk_demo.py` at 46/46 cannot see foliage.** The score did not change when the trees shipped
+   and would not change if they vanished. A `[data-foliage]` assertion is the open piece — red on
+   `863822d`, green on the build carrying the marker (`392d1d2`), counting `TREE` and `BUSH`
+   separately because a guard that counts a category caught one sprite of two.
 3. Configure per-agent git identities before the next event. Every commit here is
    `Dima-Svemy <dima@svemy.com>`; the record can attribute a lane but never an author, and that
    caused three misattributions tonight.

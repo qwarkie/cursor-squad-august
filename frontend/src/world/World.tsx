@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 
 import type { RiverModel } from '../engine'
 import { GrassField } from './GrassField'
+import { Foliage } from './Foliage'
 import { WORLD_W } from './path'
 
 /**
@@ -59,7 +60,7 @@ type Props = {
  * the acceptance bar on its own: everything else (river, sprites, terminal
  * states) composes inside this box without changing its size or position.
  */
-export function World({ children, overlay }: Props) {
+export function World({ model, children, overlay }: Props) {
   const scale = useIntegerScale()
   const width = WORLD_W * scale
   const height = WORLD_H * scale
@@ -81,6 +82,14 @@ export function World({ children, overlay }: Props) {
           several hundred rects. backgroundColor above stays as the fallback. */}
       <div className="pointer-events-none absolute inset-0" aria-hidden="true">
         <GrassField width={WORLD_W} height={WORLD_H} scale={scale} />
+      </div>
+
+      {/* Foliage sits under the SVG on purpose. grove.ts keeps it clear of the
+          water by construction, and drawing it below the river means that if a
+          keep-out is ever wrong the water covers the tree rather than the tree
+          covering the water — the river always wins. */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <Foliage model={model} worldH={WORLD_H} scale={scale} />
       </div>
 
       <svg

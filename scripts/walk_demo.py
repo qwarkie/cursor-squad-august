@@ -14,6 +14,7 @@ Needs Playwright's Chromium: pip install playwright && playwright install chromi
 """
 import re
 import sys
+import urllib.request
 from playwright.sync_api import sync_playwright
 
 VIEWPORT = {"width": 390, "height": 844}
@@ -26,6 +27,35 @@ def check(name, ok, detail=""):
     results.append((bool(ok), name, detail))
     print(f"  {'PASS' if ok else 'FAIL'}  {name}{'  — ' + str(detail) if detail else ''}")
     return bool(ok)
+
+
+def marker_in_build(url):
+    """
+    Is `data-foliage` present in the served bundle at all?
+
+    Two different failures produce the identical red — zero foliage nodes because
+    the build predates the marker, and zero because the foliage is genuinely gone.
+    Someone reading "0 nodes" against a bundle that demonstrably contains trees
+    would conclude they vanished: a true report about the wrong question, which is
+    the failure this whole file exists to avoid.
+
+    The discriminator is the attribute name, deliberately, and not a row of sprite
+    art. `data-foliage` is already this check's own key, so using it here writes no
+    fact twice; a literal like the canopy's `kheeeek` would duplicate objects.ts and
+    go quietly wrong the next time anyone redraws a bush.
+
+    Returns True / False, or None when it cannot be determined — a dev server with
+    no hashed bundle, or a fetch that failed. None never becomes a verdict.
+    """
+    try:
+        page = urllib.request.urlopen(url, timeout=15).read().decode("utf-8", "replace")
+        asset = re.search(r"assets/index-[A-Za-z0-9_-]+\.js", page)
+        if not asset:
+            return None
+        js = urllib.request.urlopen(url.rstrip("/") + "/" + asset.group(0), timeout=25)
+        return "data-foliage" in js.read().decode("utf-8", "replace")
+    except Exception:
+        return None
 
 
 def paint_audit(pg):
@@ -358,6 +388,57 @@ def walk(url):
         check("the largest expense shows 6 houses", any("Houses, 6" in l for l in labels), labels)
         check("it shows 3 residents", any("Residents, 3" in l for l in labels))
         check("savings ends in a reservoir", any("reservoir" in l.lower() for l in labels))
+
+        # ---- 4b. the open field is planted ---------------------------------------
+        #
+        # Found by `data-foliage`, not by sprite size. A tree is 7x9 and a bush 5x4,
+        # but those numbers already live in objects.ts — writing them here would be
+        # the same fact in two places, which is the defect this repo hit five ways in
+        # one night. Size is also the mechanism: redraw TREE one pixel wider and a
+        # size-based check goes red on correct art, exactly as the `svg line` stroke
+        # assertion did through three refactors.
+        #
+        # Kinds are counted separately on Praetor's point: a total would stay green
+        # if every tree vanished and only bushes remained — the shape of the guard
+        # that went red on one of the two sprites it was written for.
+        print("\n4b. the open field is planted (#59)")
+        flora = pg.evaluate("""() => {
+            const world = document.querySelector('[data-scale]')
+            if (!world) return { world: false }
+            const nodes = [...world.querySelectorAll('[data-foliage]')]
+            const kinds = {}
+            for (const el of nodes) {
+              const k = el.getAttribute('data-foliage') || '?'
+              kinds[k] = (kinds[k] || 0) + 1
+            }
+            const sprites = [...world.querySelectorAll('span,div')]
+              .filter(e => getComputedStyle(e).backgroundImage.startsWith('url('))
+            return { world: true, total: nodes.length, kinds, sprites: sprites.length }
+        }""")
+
+        if not flora.get("world"):
+            check("the open field carries foliage", False, "no world box — nothing was measured")
+        elif flora["sprites"] == 0:
+            # Zero foliage on a screen with zero sprites says nothing about foliage.
+            check("the open field carries foliage", False,
+                  "the world rendered no sprites at all — nothing was measured")
+        else:
+            kinds = flora["kinds"]
+            detail = f"{flora['total']} nodes across {len(kinds)} kinds {kinds}"
+            if flora["total"] == 0:
+                # Say which of the two reds this is, so nobody reads a
+                # not-yet-deployed marker as vanished trees.
+                marker = marker_in_build(url)
+                if marker is False:
+                    detail += " — and `data-foliage` is absent from the served bundle, so this build predates the marker; NOT a foliage regression"
+                elif marker is True:
+                    detail += " — and `data-foliage` IS in the served bundle, so the foliage is genuinely missing"
+                else:
+                    detail += " — could not read the served bundle, so which of the two reds this is was not determined"
+            check("the open field carries foliage", flora["total"] > 0, detail)
+            check("every kind of foliage that renders, renders at least one",
+                  len(kinds) >= 2 and all(n >= 1 for n in kinds.values()),
+                  detail if len(kinds) >= 2 else f"only {len(kinds)} kind present {kinds}")
 
         # ---- 5. pixel art is not smoothed ---------------------------------------
         print("\n5. the river must not be smooth (art-bible §1, non-negotiable #2)")

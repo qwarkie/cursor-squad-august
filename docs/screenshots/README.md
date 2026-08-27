@@ -1,21 +1,52 @@
 # Screenshots
 
-Captured from the **submitted build**, on the live URL, not from a dev server
-and not from `main`:
+## Provenance — a stamp, not a currency claim
 
-    https://cursor-squad-august-live.vercel.app
-    bundle index-Vuol0JCn.js  ==  78a230a, the certified submission
-    headless Chromium, 390 × 844, deviceScaleFactor 2, touch enabled
+    captured from   https://cursor-squad-august-live.vercel.app
+    serving         assets/index-DHlJcBWS.js  ==  8cb5322
+    on              2026-08-27
+    how             headless Chromium, 390 x 844, deviceScaleFactor 2, touch on
 
-The bundle hash was asserted at capture time and the run aborts if the live URL
-is serving anything else, because these are the demo's contingency stills: if the
-network dies at the podium, the presenter narrates the same script over these.
-**A still that shows a UI the live URL does not render is worse than no still.**
+That is a historical fact and it stays true. **These files do not claim to show
+what the URL serves today**, and they must not — the host is git-linked and
+deploys unattended whenever its per-project build quota allows, so any sentence
+here asserting currency expires the moment a push lands. Two earlier versions of
+this file made exactly that claim and both were false within the hour.
 
-An earlier set was captured before the signboards landed and showed coloured
-tributary strokes with no signs — a layout neither the submitted build nor `main`
-renders. They loaded fine and were wrong. Verifying that an image is *served* is
-not verifying what is *in* it.
+## The check
+
+Whether a still still matches the submitted URL is a question you answer, not
+one this file can answer for you:
+
+    curl -s https://cursor-squad-august-live.vercel.app \
+      | grep -o 'assets/index-[A-Za-z0-9_-]*\.js'
+
+If that hash is not the one stamped above, the stills predate the live build.
+**That is an honest lag, not a defect.** Re-capture when someone is about to
+rely on them — before a demo, before a submission — and re-stamp. Nobody
+re-captures on a schedule, and nobody writes "these are current" instead.
+
+`scripts/capture_stills.py <url>` produces a set and prints the stamp above. It
+reads the bundle name before the first frame and again after the last, and
+discards the set if they differ — so a deploy landing mid-run can never leave a
+set silently mixed across two builds. The URL is required; there is no default.
+
+## What went wrong three times, because none of it expires
+
+    1  captured before the signboards landed, committed as current   the capture was wrong
+    2  captured before the header fix, committed as current          the capture was wrong
+    3  captured correctly from 78a230a — and the HOST moved to 863822d
+
+The third is the one this file is now shaped around. **The images did not
+change; the ground under them did.** The `78a230a` set showed a gradient empty
+field — the smooth ramp removed at `768ac6b` for emitting 58 colours, 57 of
+them outside the twenty — so narrating the demo script over it would have shown
+a judge a known art-bible violation on the opening frame.
+
+The check that catches all three is the same one: **does a fresh capture of the
+submitted URL match what is committed.** Hashes, not timestamps — a
+`last-modified` header is CDN revalidation time and has already misled one
+reading tonight.
 
 | File | State |
 |---|---|
@@ -43,3 +74,4 @@ $ curl -o /dev/null -w '%{http_code}' https://gartersnake.communities.buzz.xyz/m
 
 Re-capture against the live URL after a deploy, at the same viewport, and say
 which commit was live when you did.
+
