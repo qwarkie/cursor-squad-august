@@ -8,15 +8,27 @@ interface Props {
   impact: string | null
   busy: boolean
   onStep: (delta: 50 | -50) => void
+  onSetAmount: (amount: number) => void
   onReset: () => void
 }
 
-export function Controls({ selected, amount, impact, busy, onStep, onReset }: Props) {
+const SLIDER_MAX = 3000
+
+export function Controls({
+  selected,
+  amount,
+  impact,
+  busy,
+  onStep,
+  onSetAmount,
+  onReset,
+}: Props) {
   const label = CATEGORY_META[selected].label
   const minusDisabled = busy || amount <= 0
+  const sliderMax = Math.max(SLIDER_MAX, amount)
 
   return (
-    <section className="rounded-xl border border-slate-700 bg-slate-900/80 p-3">
+    <section className="controls">
       <p className="text-sm text-slate-300">
         Selected: <span className="font-semibold text-amber-100">{label}</span>
       </p>
@@ -28,19 +40,27 @@ export function Controls({ selected, amount, impact, busy, onStep, onReset }: Pr
           aria-label={`Decrease ${label} by $50`}
           disabled={minusDisabled}
           onClick={() => onStep(-50)}
-          className="min-h-11 min-w-11 rounded-lg bg-slate-700 text-lg font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+          className="hit"
         >
           −
         </button>
-        <div className="h-3 flex-1 rounded-full bg-slate-700">
-          <div className="h-3 w-1/2 rounded-full bg-amber-300" />
-        </div>
+        <input
+          type="range"
+          min={0}
+          max={sliderMax}
+          step={50}
+          value={amount}
+          disabled={busy}
+          aria-label={`${label} amount`}
+          className="slider"
+          onChange={(event) => onSetAmount(Number(event.target.value))}
+        />
         <button
           type="button"
           aria-label={`Increase ${label} by $50`}
           disabled={busy}
           onClick={() => onStep(50)}
-          className="min-h-11 min-w-11 rounded-lg bg-amber-300 text-lg font-semibold text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+          className="hit hit-plus"
         >
           +
         </button>
@@ -48,12 +68,7 @@ export function Controls({ selected, amount, impact, busy, onStep, onReset }: Pr
 
       {impact && <p className="mt-2 text-sm text-slate-200">{impact}</p>}
 
-      <button
-        type="button"
-        disabled={busy}
-        onClick={onReset}
-        className="mt-3 min-h-11 w-full rounded-lg border border-slate-500 px-3 text-sm font-medium text-slate-100 disabled:opacity-40"
-      >
+      <button type="button" disabled={busy} onClick={onReset} className="hit-reset">
         Reset
       </button>
     </section>

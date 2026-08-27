@@ -46,11 +46,7 @@ export function District({ categoryKey, amount, selected, onSelect }: Props) {
       type="button"
       data-units={String(count)}
       onClick={() => onSelect(categoryKey)}
-      className={`min-h-11 rounded-lg border px-3 py-3 text-left ${
-        selected
-          ? 'border-amber-300 bg-amber-200/15 text-amber-50'
-          : 'border-slate-600 bg-slate-800 text-slate-100'
-      }`}
+      className={`district min-h-11 min-w-11 ${selected ? 'is-selected' : ''}`}
     >
       <p className="text-xs uppercase tracking-wide text-slate-400">{meta.district}</p>
       <p className="mt-0.5 text-sm font-semibold">{meta.label}</p>

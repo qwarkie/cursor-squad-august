@@ -100,6 +100,34 @@ export default function App() {
     }
   }
 
+  async function handleSetAmount(nextAmount: number) {
+    if (!budget || nextAmount === budget.categories[selected] || nextAmount < 0) return
+    const delta = nextAmount - budget.categories[selected]
+    setError(null)
+    if (mode === 'offline') {
+      applyLocal(
+        {
+          month: budget.month,
+          income: budget.income,
+          categories: { ...budget.categories, [selected]: nextAmount },
+        },
+        delta,
+        selected,
+      )
+      return
+    }
+    setBusy(true)
+    try {
+      const next = await api.updateCategory(selected, nextAmount)
+      setBudget(next)
+      setImpact(impactLine(CATEGORY_META[selected].label, delta, -delta))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update that category')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function handleReset() {
     if (!budget) return
     setError(null)
@@ -122,9 +150,16 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-950 px-3 py-6">
-      <main className="flex w-full max-w-[390px] flex-col gap-4 rounded-3xl border border-slate-700 bg-slate-950 px-4 py-5 text-slate-100 shadow-2xl">
-        {loading || !budget ? (
+      <main className="flex w-full max-w-[390px] flex-col gap-4 rounded-3xl border border-slate-700 bg-[#07111f] px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-slate-100 shadow-2xl">
+        {loading ? (
           <p className="py-20 text-center text-sm text-slate-400">Loading…</p>
+        ) : !budget ? (
+          <div className="py-16 text-center">
+            <p className="text-sm text-slate-300">No budget available</p>
+            <button type="button" className="hit-reset mt-3" onClick={() => void refresh()}>
+              Retry
+            </button>
+          </div>
         ) : (
           <>
             <Header budget={budget} />
@@ -148,6 +183,7 @@ export default function App() {
               impact={impact}
               busy={busy}
               onStep={(delta) => void handleStep(delta)}
+              onSetAmount={(amount) => void handleSetAmount(amount)}
               onReset={() => void handleReset()}
             />
           </>

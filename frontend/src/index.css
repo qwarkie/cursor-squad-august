@@ -1,7 +1,50 @@
 @import 'tailwindcss';
 
 body {
-  @apply bg-slate-950 text-slate-100;
+  @apply bg-[#07111f] text-slate-100;
+}
+
+.town {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 3px solid #1e3a2f;
+  border-radius: 12px;
+  background:
+    linear-gradient(#0b3d2c 0 0) 0 70% / 100% 8px no-repeat,
+    repeating-linear-gradient(#14633d 0 8px, #0f4d30 8px 16px);
+  image-rendering: pixelated;
+}
+
+.town-row,
+.town-road {
+  display: grid;
+  gap: 6px;
+}
+
+.town-row {
+  grid-template-columns: 1fr 1fr;
+}
+
+.town-road {
+  grid-template-columns: 1fr;
+}
+
+.district {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 10px;
+  text-align: left;
+  color: #f8fafc;
+  background: #0f172a;
+  border: 3px solid #334155;
+  image-rendering: pixelated;
+}
+
+.district.is-selected {
+  border-color: #fbbf24;
+  background: #1e293b;
 }
 
 .pixel-stage {
@@ -36,9 +79,9 @@ body {
 }
 
 .pixel-transport {
-  width: 16px;
+  width: 18px;
   height: 4px;
-  background: #64748b;
+  background: #94a3b8;
 }
 
 .pixel-car {
@@ -62,6 +105,16 @@ body {
   border: 2px solid #14532d;
 }
 
+.storm-banner {
+  margin: 0;
+  padding: 6px 8px;
+  text-align: center;
+  font-weight: 700;
+  color: #fecaca;
+  background: #7f1d1d;
+  border: 3px solid #f87171;
+}
+
 .world-overspent {
   animation: world-pulse 0.9s ease-in-out infinite;
 }
@@ -70,4 +123,49 @@ body {
   50% {
     box-shadow: 0 0 0 3px rgb(248 113 113 / 0.7);
   }
+}
+
+.controls {
+  padding: 12px;
+  border: 3px solid #334155;
+  background: #0b1220;
+}
+
+.hit,
+.hit-plus,
+.hit-reset {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  font-weight: 700;
+}
+
+.hit {
+  background: #334155;
+  color: #fff;
+}
+
+.hit:disabled,
+.hit-plus:disabled,
+.hit-reset:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.hit-plus {
+  background: #fbbf24;
+  color: #0f172a;
+}
+
+.hit-reset {
+  width: 100%;
+  margin-top: 12px;
+  border: 3px solid #64748b;
+  color: #e2e8f0;
+}
+
+.slider {
+  flex: 1;
+  min-height: 44px;
+  accent-color: #fbbf24;
 }
