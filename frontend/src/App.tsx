@@ -125,6 +125,49 @@ export default function App() {
    * and it does not fire on every pixel of a drag the way `resize` does.
    */
   const wide = useSyncExternalStore(subscribeWide, isWide, () => false)
+
+  /**
+   * How much of the stage's right edge the controls rail floats over, handed
+   * to the world as `--world-inset-right` (see `world/useWorldView.ts`).
+   *
+   * The world cannot see the rail — it is a sibling in another component — so
+   * the layout has to declare the space it is taking. Measured from the rail's
+   * own box rather than written as `380px`: that number already lives in a
+   * Tailwind class on the rail, and a second copy here is the defect this repo
+   * has hit five times tonight. Change `lg:w-[380px]` or `lg:right-6` and this
+   * follows on its own.
+   *
+   * Observed on the stage rather than on the rail, because the rail's *size*
+   * never changes — only its distance from the right edge does, and that moves
+   * when the viewport does, which is exactly when the stage resizes.
+   */
+  const railRef = useRef<HTMLDivElement | null>(null)
+  const [railInset, setRailInset] = useState(0)
+  const stageObs = useRef<ResizeObserver | null>(null)
+  const stageHost = useCallback((node: HTMLDivElement | null) => {
+    stageObs.current?.disconnect()
+    if (!node) {
+      setRailInset(0)
+      return
+    }
+    const measure = () => {
+      const rail = railRef.current
+      if (!rail || getComputedStyle(rail).position !== 'absolute') {
+        // Below `lg` the rail is in flow beneath the world and floats over
+        // nothing. No inset, and the phone layout is a pinned baseline.
+        setRailInset(0)
+        return
+      }
+      const r = rail.getBoundingClientRect()
+      const stage = node.getBoundingClientRect()
+      setRailInset(Math.max(0, Math.round(stage.right - r.left)))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(node)
+    stageObs.current = ro
+  }, [])
+  useLayoutEffect(() => () => stageObs.current?.disconnect(), [])
   const panelStyle = wide
     ? { background: HEX.night, border: `3px solid ${HEX.ink}` }
     : undefined
@@ -284,7 +327,16 @@ export default function App() {
           pinned baseline and the phone already showed the field filling its
           frame, which is why it was never the viewport that complained. */}
       <main className="flex flex-1 flex-col items-center gap-4 py-4 lg:relative lg:block lg:gap-0 lg:p-0">
-        <div className="flex w-full min-w-0 flex-col items-center overflow-hidden lg:absolute lg:inset-0 lg:w-auto lg:items-stretch">
+        <div
+          ref={stageHost}
+          className="flex w-full min-w-0 flex-col items-center overflow-hidden lg:absolute lg:inset-0 lg:w-auto lg:items-stretch"
+          // The river settles in the part of the frame a person can actually
+          // see. The FIELD still fills the whole frame — that is what
+          // full-bleed is for and it does not change — but @Fizz measured
+          // `Select Housing` at 0/9 sample points behind this rail, and
+          // Housing is top-right at every budget, which is where the rail is.
+          style={railInset > 0 ? { '--world-inset-right': `${railInset}px` } as React.CSSProperties : undefined}
+        >
         <World
           model={model}
           overlay={(scale) => (
@@ -323,6 +375,7 @@ export default function App() {
             art-bible forbids alpha compositing over the world (§7), and grass
             showing faintly through a column of figures is unreadable anyway. */}
         <div
+          ref={railRef}
           className="flex w-full flex-col items-center lg:absolute lg:right-6 lg:top-6 lg:bottom-28 lg:z-10 lg:w-[380px] lg:items-stretch lg:overflow-y-auto lg:p-4"
           style={panelStyle}
         >

@@ -9,6 +9,44 @@ def check(name, ok, detail=""):
     results.append((bool(ok), name))
     print(f"  {'PASS' if ok else 'FAIL'}  {name}{'  — ' + str(detail) if detail else ''}")
 
+# The world's own controls, measured once per call from live element
+# references. Never re-found by name across two evaluate() calls: a lookup
+# miss and a covered control both come back falsy, so a miss gets reported as
+# a defect. Everything below leaves the browser as a verdict, not a name.
+WORLD_CONTROLS = """() => {
+  const names = ['Zoom out', 'Zoom in', 'Fit'];
+  const btns = [...document.querySelectorAll('button[aria-label]')]
+    .filter(b => names.some(n => b.getAttribute('aria-label').startsWith(n)));
+  return btns.map(b => {
+    const r = b.getBoundingClientRect();
+    const inView = r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
+    // elementFromPoint returns null for a point outside the viewport, which
+    // is indistinguishable from "something is painted over it". Off-screen is
+    // a different failure and it is not this check's; `reached` stays null
+    // rather than becoming a false verdict.
+    const hit = inView
+      ? document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2)
+      : null;
+    return {
+      label: b.getAttribute('aria-label').slice(0, 12),
+      y: Math.round(r.top),
+      inView,
+      reached: inView ? (hit === b || b.contains(hit)) : null,
+      covering: hit && hit !== b && !b.contains(hit)
+        ? (typeof hit.className === 'string' && hit.className
+            ? '.' + hit.className.split(' ').slice(0, 2).join('.')
+            : hit.tagName)
+        : null,
+    };
+  });
+}"""
+
+
+def dead(controls):
+    """Present, on screen, and something else answers at its centre."""
+    return [c for c in controls if c["reached"] is False]
+
+
 with sync_playwright() as pw:
     b = pw.chromium.launch()
     page = b.new_page(viewport={"width": 390, "height": 844})
@@ -255,26 +293,84 @@ with sync_playwright() as pw:
         # says all three are on screen at 44x44 and says nothing about the
         # panel sitting on top of them, which is exactly what happened: they
         # rendered, they measured, and elementFromPoint returned the panel.
-        occluded = page.evaluate("""() => {
-          const names = ['Zoom out', 'Zoom in', 'Fit'];
-          return [...document.querySelectorAll('button[aria-label]')]
-            .filter(b => names.some(n => b.getAttribute('aria-label').startsWith(n)))
-            .map(b => {
-              const r = b.getBoundingClientRect();
-              const hit = document.elementFromPoint((r.left+r.right)/2, (r.top+r.bottom)/2);
-              return {label: b.getAttribute('aria-label').slice(0, 20),
-                      reached: hit === b || b.contains(hit)};
-            });
-        }""")
+        occluded = page.evaluate(WORLD_CONTROLS)
         check(f"{w}: every world control is clickable, not just present",
-              len(occluded) > 0 and all(c["reached"] for c in occluded),
-              occluded if occluded else "no zoom/fit controls found")
+              len(occluded) > 0 and not dead(occluded),
+              dead(occluded) or f"{len(occluded)} controls, all reached")
 
         check(f"{w}: exactly one Undo control in the DOM",
               page.locator("[data-undo]").count() == 1,
               page.locator("[data-undo]").count())
         page.get_by_role("button", name="Close").click(); page.wait_for_timeout(300)
 
+    # --- the reserved region, below `lg` ---
+    #
+    # Contract (ruled by Praetor, 07:42): below `lg` the world's zoom and Fit
+    # controls live TOP-RIGHT; at `lg` and up they stay bottom-right. The
+    # bottom-anchored sheet is not moving — it is thumb reach and it is the
+    # most common state on a phone — so below `lg` there is no bottom corner
+    # left to reserve and top-right is the only one neither the sheet nor the
+    # header contests.
+    #
+    # This check is written against that contract, not against the current
+    # implementation, and it is RED until the controls move. That is the
+    # order: the gate exists before the work, so it cannot be tuned by
+    # whoever needs it green.
+    #
+    # Measured with a category sheet OPEN, because that is the state the
+    # defect lives in — with no sheet open all three are reachable at 390 and
+    # the check would report a clean build.
+    for w, h in ((390, 844), (768, 1024)):
+        page.set_viewport_size({"width": w, "height": h})
+        page.evaluate("localStorage.clear()"); page.reload(wait_until="networkidle")
+        page.get_by_role("button", name="Load demo budget").click(); page.wait_for_timeout(500)
+
+        before = page.evaluate(WORLD_CONTROLS)
+        check(f"{w}: the world controls are reachable with no sheet open",
+              len(before) > 0 and not dead(before),
+              dead(before) or f"{len(before)} controls, all reached")
+
+        # Open an expense category — the sheet a person spends most of their
+        # time in, and the tall one (it carries the icon picker).
+        page.get_by_role("button", name="Entertainment").first.click()
+        page.wait_for_timeout(600)
+        arrival = page.evaluate(WORLD_CONTROLS)
+        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        page.wait_for_timeout(400)
+        scrolled = page.evaluate(WORLD_CONTROLS)
+        page.evaluate("window.scrollTo(0, 0)")
+        page.wait_for_timeout(400)
+        top = page.evaluate(WORLD_CONTROLS)
+
+        # STRICTER than @Fizz's general occlusion split, deliberately, and the
+        # difference is that there is a contract here.
+        #
+        # responsive_check reports "covered on arrival, a scroll frees it"
+        # without failing, and that is right for a scrollable list under a
+        # fixed bar: they overlap at rest by design and failing would cry wolf
+        # on every correct build. But the ruling puts these three controls
+        # TOP-RIGHT below `lg` — a position the bottom-anchored sheet can
+        # never reach. So "covered at all, in the sheet-open state" is not a
+        # design overlap here, it is the contract broken, and needing to
+        # scroll before you can zoom is the defect @Dmytro reported.
+        #
+        # Same taxonomy, different threshold, because one of us is asserting a
+        # placement and the other is asserting a general property.
+        covered = dead(arrival)
+        freed = [c["label"] for c in covered
+                 if c["label"] not in {d["label"] for d in dead(top)}]
+        if freed:
+            print(f"  note  {w}: a scroll frees {freed} — still a contract breach, not a rescue")
+        check(f"{w}: nothing covers the world controls while a sheet is open",
+              not covered,
+              f"{[c['label'] for c in covered]} covered by "
+              f"{sorted({c['covering'] for c in covered})} — the contract puts these "
+              f"top-right below lg"
+              if covered else f"{len(arrival)} controls, none covered")
+
+        page.get_by_role("button", name="Close").click(); page.wait_for_timeout(300)
+
+    page.set_viewport_size({"width": 390, "height": 844})
     check("no page errors", not errors, errors[:2])
     b.close()
 
