@@ -40,6 +40,13 @@ type Props = {
   model: RiverModel
   /** The SVG river (trunk + tributaries) — a child so world/River.tsx can own its own render obligations without World.tsx reaching into engine geometry itself. */
   children?: ReactNode
+  /**
+   * DOM sprites (settlements, terminal-state art) — CSS pixels, not
+   * art-pixels (art-bible.md §1), so this is a render prop rather than a
+   * plain child: the caller needs `scale` to place anything correctly and
+   * World.tsx is the only place that owns it.
+   */
+  overlay?: (scale: number) => ReactNode
 }
 
 /**
@@ -47,7 +54,7 @@ type Props = {
  * the acceptance bar on its own: everything else (river, sprites, terminal
  * states) composes inside this box without changing its size or position.
  */
-export function World({ children }: Props) {
+export function World({ children, overlay }: Props) {
   const scale = useIntegerScale()
   const width = WORLD_W * scale
   const height = WORLD_H * scale
@@ -74,6 +81,11 @@ export function World({ children }: Props) {
       >
         {children}
       </svg>
+      {overlay && (
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+          {overlay(scale)}
+        </div>
+      )}
     </div>
   )
 }

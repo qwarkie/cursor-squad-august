@@ -10,6 +10,8 @@ import { HEX, hexForCategory } from './components/palette'
 import { TradeOff } from './components/TradeOff'
 import { budgetToRiver } from './engine'
 import { useBudget } from './store/budget'
+import { River } from './world/River'
+import { Settlements } from './world/Settlements'
 import { World } from './world/World'
 
 /**
@@ -114,10 +116,9 @@ export default function App() {
       <TradeOff change={lastChange} />
 
       <main className="flex flex-1 flex-col items-center gap-4 py-4">
-        {/* The river and its sprites mount inside the world shell.
-            world/River.tsx (T011, T015) goes here as `<River model={model} />`
-            — one line, no other change to this file. */}
-        <World model={model} />
+        <World model={model} overlay={(scale) => <Settlements model={model} scale={scale} />}>
+          <River model={model} budget={budget} onSelectTributary={select} />
+        </World>
 
         <ul className="w-full max-w-md px-4" style={{ paddingBottom: selected ? 260 : 96 }}>
           {budget.categories.map((category) => (
