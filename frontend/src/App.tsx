@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import { BottomSheet } from './components/BottomSheet'
 import { CategorySheet } from './components/CategorySheet'
@@ -30,6 +30,25 @@ import { World } from './world/World'
  * reload.
  */
 type OpenSheet = 'none' | 'income' | 'category'
+
+/**
+ * `lg` from tailwind, as a media query. One literal, because the layout below
+ * reads the same breakpoint from class names — if these two ever disagree the
+ * panel gets its border at a width where it is still a plain list.
+ */
+const WIDE = '(min-width: 64rem)'
+
+function subscribeWide(onChange: () => void): () => void {
+  if (typeof window === 'undefined' || !window.matchMedia) return () => {}
+  const mq = window.matchMedia(WIDE)
+  mq.addEventListener('change', onChange)
+  return () => mq.removeEventListener('change', onChange)
+}
+
+function isWide(): boolean {
+  if (typeof window === 'undefined' || !window.matchMedia) return false
+  return window.matchMedia(WIDE).matches
+}
 
 /**
  * The trade-off sentence reports the whole adjustment, not the last tap.
@@ -94,6 +113,21 @@ export default function App() {
     observed.current = ro
   }, [])
   useLayoutEffect(() => () => observed.current?.disconnect(), [])
+
+  /**
+   * The rail's panel treatment, and it is `lg`-only on purpose.
+   *
+   * Tailwind cannot express a breakpoint inside an inline `style`, and the
+   * phone layout is a pinned baseline — giving the list a border and a
+   * background at 390 would move it. `useSyncExternalStore` over the media
+   * query rather than a resize listener: it is the hook that exists for
+   * subscribing to a browser value, it renders correctly on the first paint,
+   * and it does not fire on every pixel of a drag the way `resize` does.
+   */
+  const wide = useSyncExternalStore(subscribeWide, isWide, () => false)
+  const panelStyle = wide
+    ? { background: HEX.night, border: `3px solid ${HEX.ink}` }
+    : undefined
 
   const model = budgetToRiver(budget)
   const selected = budget.categories.find((c) => c.id === selectedId) ?? null
@@ -238,8 +272,19 @@ export default function App() {
           stretched two buttons across 1440px of it. Side by side, the list is
           on screen with the river it describes, which is the whole point of
           the product: you change a number and watch the water move. */}
-      <main className="flex flex-1 flex-col items-center gap-4 py-4 lg:flex-row lg:items-start lg:justify-center lg:gap-8 lg:px-8">
-        <div className="flex w-full min-w-0 flex-col items-center overflow-hidden lg:w-auto lg:flex-1 lg:items-end">
+      {/* From `lg`, the field is the page.
+          The column layout that put the list beside the river also put the
+          river in a 960px box on a 1440px screen — 43% of the width, with
+          night either side of it and ~140px below. Endless grass inside a box
+          is still a box. The stage now spans the whole area under the header
+          and the controls float over it, which is what every open world does
+          with a map and a HUD.
+
+          Below `lg` none of this applies and nothing moves: 390x844 is a
+          pinned baseline and the phone already showed the field filling its
+          frame, which is why it was never the viewport that complained. */}
+      <main className="flex flex-1 flex-col items-center gap-4 py-4 lg:relative lg:block lg:gap-0 lg:p-0">
+        <div className="flex w-full min-w-0 flex-col items-center overflow-hidden lg:absolute lg:inset-0 lg:w-auto lg:items-stretch">
         <World
           model={model}
           overlay={(scale) => (
@@ -261,12 +306,26 @@ export default function App() {
         </World>
         </div>
 
-        {/* The controls rail. `lg:sticky` keeps it beside the river rather
-            than scrolling away from it once the world is taller than the
-            viewport — the one place sticky works here, because this column is
-            not inside the `overflow-x-hidden` root's scroll container the way
-            a full-width row is. Verified at 1440, 1024 and 768. */}
-        <div className="flex w-full flex-col items-center lg:top-4 lg:w-[380px] lg:shrink-0 lg:items-stretch lg:self-start">
+        {/* The controls, floating over the field rather than beside it.
+            Stops short of the bottom edge (`lg:bottom-28`) because the
+            world's own zoom and Fit buttons live in the bottom-right corner
+            of the frame. Full-height, this panel covered all three of them:
+            they rendered, they measured 44px, and `elementFromPoint` at their
+            centres returned this div. @Dmytro asked to be able to zoom out
+            and the layout that was meant to open the world up had made the
+            zoom-out button unclickable — two correct surfaces composing into
+            a dead control. `sandbox_check` asserts the hit test now, so if
+            those buttons move this goes red rather than silently re-covering
+            them.
+            `absolute` inside `main` rather than `fixed`, so the panel is
+            bounded by the stage and cannot end up over the header. A solid
+            `night` panel with an ink border, not a translucent one: the
+            art-bible forbids alpha compositing over the world (§7), and grass
+            showing faintly through a column of figures is unreadable anyway. */}
+        <div
+          className="flex w-full flex-col items-center lg:absolute lg:right-6 lg:top-6 lg:bottom-28 lg:z-10 lg:w-[380px] lg:items-stretch lg:overflow-y-auto lg:p-4"
+          style={panelStyle}
+        >
 
         {/* Clearance for whichever bar is fixed over the bottom of the page.
             The open sheet is measured (see `sheetHost` above); the action bar

@@ -250,6 +250,26 @@ with sync_playwright() as pw:
         sr = page.evaluate("document.querySelector('.sheet-in').getBoundingClientRect().width")
         check(f"{w}: the sheet docks rather than spanning the screen",
               sr < m["vw"] * 0.5, f"sheet {sr:.0f} of {m['vw']}")
+        # The controls rail floats over the field from `lg`. Ask the browser
+        # what is actually under each world control's centre — a rect check
+        # says all three are on screen at 44x44 and says nothing about the
+        # panel sitting on top of them, which is exactly what happened: they
+        # rendered, they measured, and elementFromPoint returned the panel.
+        occluded = page.evaluate("""() => {
+          const names = ['Zoom out', 'Zoom in', 'Fit'];
+          return [...document.querySelectorAll('button[aria-label]')]
+            .filter(b => names.some(n => b.getAttribute('aria-label').startsWith(n)))
+            .map(b => {
+              const r = b.getBoundingClientRect();
+              const hit = document.elementFromPoint((r.left+r.right)/2, (r.top+r.bottom)/2);
+              return {label: b.getAttribute('aria-label').slice(0, 20),
+                      reached: hit === b || b.contains(hit)};
+            });
+        }""")
+        check(f"{w}: every world control is clickable, not just present",
+              len(occluded) > 0 and all(c["reached"] for c in occluded),
+              occluded if occluded else "no zoom/fit controls found")
+
         check(f"{w}: exactly one Undo control in the DOM",
               page.locator("[data-undo]").count() == 1,
               page.locator("[data-undo]").count())

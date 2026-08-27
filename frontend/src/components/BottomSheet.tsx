@@ -116,7 +116,12 @@ export function BottomSheet({
       // Docked to the controls rail from `lg` up rather than spanning the
       // viewport: a sheet 1440px wide to hold a slider and five icons reads as
       // a page, not a sheet, and it covers the river it is there to reshape.
-      className="sheet-in fixed inset-x-0 bottom-0 z-20 w-full px-4 pt-4 lg:inset-x-auto lg:bottom-8 lg:right-8 lg:w-[380px]"
+      // `bottom-28` rather than `bottom-8` for the same reason the rail stops
+      // short — the world's zoom and Fit buttons sit in the bottom-right
+      // corner of the frame, and an open sheet covered all three. That one
+      // was found by the hit-test check rather than by looking, because the
+      // occlusion only exists while a sheet is open.
+      className="sheet-in fixed inset-x-0 bottom-0 z-20 w-full px-4 pt-4 lg:inset-x-auto lg:bottom-28 lg:right-6 lg:w-[380px]"
       style={{
         background: HEX.night,
         border: `3px solid ${HEX.ink}`,
