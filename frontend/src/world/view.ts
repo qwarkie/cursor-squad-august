@@ -111,9 +111,11 @@ export function clampPan(
   frame: Box,
   scale: number,
   insetRight = 0,
+  /** Vertical reach; defaults to the world box for callers that have no month. */
+  reachPx = worldPx.h,
 ): Pan {
   const x = panRange(worldPx.w, frame.w, scale, 'centre', insetRight)
-  const y = panRange(worldPx.h, frame.h, scale, 'start')
+  const y = panRange(Math.max(reachPx, worldPx.h), frame.h, scale, 'start')
   return { x: clamp(pan.x, x.lo, x.hi), y: clamp(pan.y, y.lo, y.hi) }
 }
 
@@ -143,6 +145,17 @@ export function restingPan(
 
 export type View = {
   scale: number
+  /**
+   * How far down the camera may travel, in CSS px — the world box, or the
+   * drawn month if it is taller.
+   *
+   * Distinct from `worldPx` on purpose. The world's own coordinate space is
+   * 96 x 128 and stays that way (FR-015); this is the camera's reach, and a
+   * camera that cannot reach pixels that are on the page is a camera bug, not
+   * a layout opinion. When a month outgrows the canvas the layout is wrong —
+   * but stranding the bottom of it behind a clamp is wrong twice.
+   */
+  reachPx: number
   /** The scale that fills the width — the default view. */
   fit: number
   worldPx: Box
@@ -167,6 +180,8 @@ export function resolveView(
   world: Box,
   request: number | null,
   insetRight = 0,
+  /** The drawn month's own depth in art units; defaults to the world box. */
+  contentH = world.h,
 ): View {
   // Fit the width a person can see, not the width that is painted. The field
   // still fills the whole frame — `frameOf` is untouched — but opening the app
@@ -179,17 +194,19 @@ export function resolveView(
   const minScale = Math.min(MIN_SCALE, fit)
   const scale = clamp(request ?? fit, minScale, maxScale)
   const worldPx = { w: world.w * scale, h: world.h * scale }
+  const reachPx = Math.max(worldPx.h, Math.max(contentH, world.h) * scale)
   const frame = frameOf(worldPx, stage)
   return {
     scale,
     fit,
     worldPx,
+    reachPx,
     frame,
     minScale,
     maxScale,
     pannable: {
       x: !panRange(worldPx.w, frame.w, scale, 'centre', insetRight).locked,
-      y: !panRange(worldPx.h, frame.h, scale, 'start').locked,
+      y: !panRange(reachPx, frame.h, scale, 'start').locked,
     },
   }
 }
@@ -233,7 +250,7 @@ export function fitToggleTarget(view: View, stage: Box, world: Box): number {
 export function fieldBounds(view: View, insetRight = 0): { x0: number; y0: number; w: number; h: number } {
   const { scale, worldPx, frame } = view
   const rx = panRange(worldPx.w, frame.w, scale, 'centre', insetRight)
-  const ry = panRange(worldPx.h, frame.h, scale, 'start')
+  const ry = panRange(view.reachPx, frame.h, scale, 'start')
   // The frame's own edges, in art units, at the two extremes of each axis.
   // Taken from the range rather than assuming the spare space is shared evenly
   // — down, it is not: the world anchors to the top and all of it is below.

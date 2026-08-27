@@ -287,3 +287,45 @@ describe('fitToggleTarget', () => {
     expect(fitToggleTarget(view, phone, WORLD)).toBe(view.scale)
   })
 })
+
+describe('the camera\u2019s reach', () => {
+  const stage = { w: 390, h: 718 }
+
+  it('is the world box when the month fits inside it', () => {
+    const view = resolveView(stage, WORLD, null)
+    expect(view.reachPx).toBe(view.worldPx.h)
+  })
+
+  /**
+   * Seven categories and up put settlements below art-y 128. The pan clamp
+   * knew only about the world box, so at twelve, sixty-six CSS pixels of a
+   * month were drawn and could not be dragged to. Spacing them is spec §3;
+   * being able to SEE what was drawn is the camera's own job.
+   */
+  it('follows the drawn month when it runs past the world box', () => {
+    const view = resolveView(stage, WORLD, null, 0, 196)
+    expect(view.reachPx).toBe(196 * view.scale)
+    expect(view.reachPx).toBeGreaterThan(view.worldPx.h)
+  })
+
+  it('lets the pan reach the bottom of a month that outgrew the canvas', () => {
+    const deep = resolveView(stage, WORLD, null, 0, 196)
+    const shallow = resolveView(stage, WORLD, null)
+    const far = (v: typeof deep) =>
+      clampPan({ x: 0, y: -99999 }, v.worldPx, v.frame, v.scale, 0, v.reachPx).y
+    expect(far(deep)).toBeLessThan(far(shallow))
+    // Far enough that the last drawn row clears the bottom of the frame.
+    expect(-far(deep) + deep.frame.h).toBeGreaterThanOrEqual(196 * deep.scale)
+  })
+
+  it('never shortens the reach below the world box, whatever it is told', () => {
+    const view = resolveView(stage, WORLD, null, 0, 10)
+    expect(view.reachPx).toBe(view.worldPx.h)
+  })
+
+  it('leaves the certified viewport alone — the seeded month fits', () => {
+    const view = resolveView({ w: 390, h: 718 }, WORLD, null, 0, 128)
+    expect(view.worldPx).toEqual({ w: 384, h: 512 })
+    expect(view.reachPx).toBe(512)
+  })
+})

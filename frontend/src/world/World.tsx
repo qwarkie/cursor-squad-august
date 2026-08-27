@@ -4,8 +4,37 @@ import type { RiverModel } from '../engine'
 import { GrassField } from './GrassField'
 import { Foliage } from './Foliage'
 import { WORLD_H, WORLD_W } from './path'
+import { RANK_ART_W, tributaryEnd, trunkWidthAt } from './geometry'
+import { maxHamletHeight } from './hamlet'
 import { fieldBounds } from './view'
 import { useWorldView } from './useWorldView'
+
+/**
+ * How far down the drawn month actually goes, in art units.
+ *
+ * NOT the world's height. `WORLD_H` is the coordinate space the river is
+ * composed in and it stays fixed (FR-015) — this is how far the camera has to
+ * be able to travel to reach what is already on the page.
+ *
+ * At seven categories and up the model puts settlements below art-y 128, and
+ * the pan clamp — which knew only about the world box — stranded them: at
+ * twelve, sixty-six pixels of the month were drawn and could not be dragged
+ * to. Spacing them properly is spec §3 and is not this; letting a person see
+ * what the app drew for them is the camera's own job, and the camera is here.
+ */
+function drawnDepth(model: RiverModel): number {
+  let deepest = WORLD_H
+  const mouth = model.segments[model.segments.length - 1]
+  if (mouth) deepest = Math.max(deepest, mouth.toY)
+  for (const trib of model.tributaries) {
+    const end = tributaryEnd(trib.atY, trib.side, trunkWidthAt(model, trib.atY))
+    deepest = Math.max(
+      deepest,
+      end.y + maxHamletHeight(trib.settlements, RANK_ART_W) / 2,
+    )
+  }
+  return Math.ceil(deepest)
+}
 
 /**
  * The world grid, per art-bible.md §1. Everything in the SVG draws in this
@@ -67,7 +96,7 @@ export function World({ model, children, overlay }: Props) {
     zoomOut,
     toggleFit,
     handlers,
-  } = useWorldView(WORLD_W, WORLD_H)
+  } = useWorldView(WORLD_W, WORLD_H, drawnDepth(model))
 
   const { scale, worldPx, frame } = view
   const width = worldPx.w

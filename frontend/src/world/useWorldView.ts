@@ -75,7 +75,7 @@ export type WorldView = {
  * and a share of the viewport height. The scale follows the width in integer
  * steps; anything the window cannot show is reachable by dragging.
  */
-export function useWorldView(worldW: number, worldH: number) {
+export function useWorldView(worldW: number, worldH: number, contentH = worldH) {
   const stageRef = useRef<HTMLDivElement>(null)
   const frameRef = useRef<HTMLDivElement>(null)
   const insetRef = useRef<HTMLSpanElement>(null)
@@ -94,8 +94,8 @@ export function useWorldView(worldW: number, worldH: number) {
 
   const world = useMemo<Box>(() => ({ w: worldW, h: worldH }), [worldW, worldH])
   const view = useMemo(
-    () => resolveView(stage, world, request, inset),
-    [stage, world, request, inset],
+    () => resolveView(stage, world, request, inset, contentH),
+    [stage, world, request, inset, contentH],
   )
   const pannable = view.pannable.x || view.pannable.y
 
@@ -131,7 +131,7 @@ export function useWorldView(worldW: number, worldH: number) {
   useEffect(() => {
     setPan((p) => {
       const next = touched.current
-        ? clampPan(p, view.worldPx, view.frame, view.scale, inset)
+        ? clampPan(p, view.worldPx, view.frame, view.scale, inset, view.reachPx)
         : restingPan(view.worldPx, view.frame, view.scale, inset)
       return next.x === p.x && next.y === p.y ? p : next
     })
@@ -142,7 +142,7 @@ export function useWorldView(worldW: number, worldH: number) {
   /** Absolute, clamped, and centre-preserving — see `panAfterZoom`. */
   const zoomTo = useCallback(
     (target: number) => {
-      const next = resolveView(stage, world, target, inset)
+      const next = resolveView(stage, world, target, inset, contentH)
       if (next.scale === view.scale) return
       touched.current = true
       setRequest(next.scale)
@@ -153,10 +153,11 @@ export function useWorldView(worldW: number, worldH: number) {
           next.frame,
           next.scale,
           inset,
+          next.reachPx,
         ),
       )
     },
-    [stage, world, view, pan, inset],
+    [stage, world, view, pan, inset, contentH],
   )
 
   const zoomIn = useCallback(() => zoomTo(view.scale + 1), [zoomTo, view.scale])
@@ -241,6 +242,7 @@ export function useWorldView(worldW: number, worldH: number) {
         view.frame,
         view.scale,
         inset,
+        view.reachPx,
       ),
     )
   }
