@@ -354,7 +354,7 @@ export default function App() {
             </>
           )}
         >
-          <River model={model} budget={budget} onSelectTributary={select} />
+          <River model={model} onSelectTributary={select} />
         </World>
         </div>
 

@@ -2,24 +2,11 @@ import { useState, type CSSProperties } from 'react'
 
 import { riverPath, trunkX, WORLD_W } from './path'
 import { tributaryWaterEnd, trunkWidthAt } from './geometry'
-import { branchCurve, branchPath, branchSpans, colorDistance, halfWidthAt, poolRows, type Span } from './water'
-import { PAL } from './palette'
+import { branchCurve, branchPath, branchSpans, halfWidthAt, poolRows, type Span } from './water'
 import type { RiverModel, Segment } from '../engine'
-import type { Budget } from '../types'
 
 type Props = {
   model: RiverModel
-  /**
-   * Category colours for the tributary rim (SC-002) — the world knows
-   * amounts, only the budget knows which colour a category picked.
-   *
-   * Optional so this file stays green without a composition-root change:
-   * the caller is App.tsx, which is nobody's surface on this board. Absent
-   * `budget`, a branch draws exactly as it did before this commit — water,
-   * no rim. Wiring it (`<River budget={budget} .../>`) is a one-line,
-   * Praetor-owned follow-up; see #48.
-   */
-  budget?: Budget
   /** T019 — every tributary is tappable regardless of its drawn width. */
   onSelectTributary?: (categoryId: string) => void
 }
@@ -31,14 +18,6 @@ type Props = {
  * obligation 4: inflate hit areas, don't inflate the model).
  */
 const MIN_HIT_WIDTH = 15
-
-/**
- * RGB distance (water.ts's `colorDistance`) below which a category colour
- * reads too close to the water to carry a branch on hue alone (SC-002).
- * Measured on art-bible.md §2's five hues against `--color-water`: slate and
- * teal fall at ~85-87, the other three clear 115 — this sits in the gap.
- */
-const WEAK_RIM_DISTANCE = 100
 
 /**
  * `shape-rendering="crispEdges"` on the ancestor `<svg>` (World.tsx) is not
@@ -106,7 +85,7 @@ function branchFlow(dir: 1 | -1): CSSProperties {
  * never recompute it). T023 — the three terminal states live here too,
  * because they are drawn on the same curve as the trunk, not overlaid on it.
  */
-export function River({ model, budget, onSelectTributary }: Props) {
+export function River({ model, onSelectTributary }: Props) {
   const last = model.segments[model.segments.length - 1]
   const first = model.segments[0]
   // #67 — the trunk's width already answers "which category takes the
@@ -220,30 +199,6 @@ export function River({ model, budget, onSelectTributary }: Props) {
         // its own curve and the rim slides off the water.
         const curve = branchCurve(trib.categoryId, end.x - start.x, end.y - start.y)
         const body = branchSpans(start, end, trib.width, undefined, curve)
-        const category = budget?.categories.find((c) => c.id === trib.categoryId)
-        const rimColor = category ? PAL[category.color] : null
-        // Hue alone doesn't carry every colour equally: slate and teal sit
-        // close to the water's own blue in RGB space (~85-87 apart) while
-        // the rest clear it by 115+ (WEAK_RIM_DISTANCE splits the two
-        // groups).
-        //
-        // #57 — a weak-rim branch never keeps a water core, at any width.
-        // #54's fix (skip the body when there's no room) only removed the
-        // diluting water pixel on branches narrow enough to hit the floor —
-        // Fizz measured Savings (teal, width 8) keeping a 4-art-px water
-        // core wide enough to read as "water with some teal in it" rather
-        // than as teal, while Transport and Entertainment (both width 2)
-        // read clean only because they happened to be too narrow for any
-        // core to survive. A width accident isn't a fix. If a colour is
-        // close enough to water that it needs the wider inset at all, an
-        // interior water core is exactly the pixels that make it read as
-        // water — so weak branches drop the core unconditionally; strong
-        // branches (hue alone already separates them) keep the width-based
-        // inset, since there the core is a stylistic choice about "the same
-        // river continuing," not a legibility cost.
-        const weakRim = rimColor !== null && colorDistance(rimColor, PAL.b!) < WEAK_RIM_DISTANCE
-        const bodyWidth = trib.width - 2
-        const showBody = rimColor ? !weakRim && bodyWidth >= 1 : true
         const clip = `river-branch-${trib.categoryId}`
         return (
           <g
@@ -265,25 +220,15 @@ export function River({ model, budget, onSelectTributary }: Props) {
             <clipPath id={clip}>
               <Rects spans={body} fill="none" />
             </clipPath>
-            {/* Ink keyline, then the category's colour, then the water body
-                on top — three concentric branchSpans layers, same technique
-                as Pool's ink/rim/body below. Still the same river continuing
-                (the body stays water, not a saturated slab), but now with a
-                rim a stranger can tell apart from the trunk and from its
-                neighbours without reading the signboard. */}
-            {rimColor && (
-              <>
-                <Rects spans={branchSpans(start, end, trib.width + 2, undefined, curve)} fill="var(--color-ink)" />
-                <Rects spans={branchSpans(start, end, trib.width, undefined, curve)} fill={rimColor} />
-              </>
-            )}
-            {showBody && (
-              <Rects
-                spans={branchSpans(start, end, rimColor ? bodyWidth : trib.width, undefined, curve)}
-                fill="var(--color-water)"
-                className="river-width"
-              />
-            )}
+            {/* Ink keyline, then water — the same two layers the trunk gets,
+                because a tributary IS the trunk continuing. A branch carried
+                the category's hue until now; it read as six differently
+                coloured liquids leaving one river, which is not what the
+                metaphor says happens. Identity lives on the signboard and in
+                what the money built at the far end, never in the water.
+                (art-bible.md §2.) */}
+            <Rects spans={branchSpans(start, end, trib.width + 2, undefined, curve)} fill="var(--color-ink)" />
+            <Rects spans={body} fill="var(--color-water)" className="river-width" />
             <g clipPath={`url(#${clip})`} opacity={0.55}>
               <g style={branchFlow(dir)}>
                 {/* Crest thickness tracks the branch the same way the trunk's

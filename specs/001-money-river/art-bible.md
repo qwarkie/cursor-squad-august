@@ -74,7 +74,9 @@ The single-character keys are the ones used in text art. The first eight are alr
 
 Defined once in `frontend/src/world/palette.ts` as a `Palette`, and as CSS custom properties in `frontend/src/index.css`, so sprites and chrome share literal values.
 
-**Category colour is one value in three places** — the tributary stroke, the label, and the bottom-sheet control — so the connection is visible without reading. It lives on `Category.color`.
+**Category colour is one value in three places** — the label, the bottom-sheet control, and what the money built at the tributary's end — so the connection is visible without reading. It lives on `Category.color`.
+
+**Water is never one of those places.** The trunk and every tributary are `water`, `water-lit` and an `ink` keyline, and nothing else: a branch is the same river continuing, not a separate liquid. An earlier revision tinted each branch with its category's hue and the world read as six differently coloured streams leaving one river, which is not what the metaphor says happens. Identity belongs to the bank, not the water.
 
 `alert` and `brick` are both reds and sit close. That is tolerable only because **colour is never the only signal**: overspend is a cracked bed *and* an icon *and* a sentence (FR-012). Never lean on the two being told apart.
 
