@@ -137,6 +137,34 @@ export const MARKET: readonly Art[] = [
  * and it is the only visual that distinguishes a savings category from an
  * expense one (spec US2 scenario 4).
  */
+/**
+ * The waterfront a tributary arrives at.
+ *
+ * §4: a branch used to stop dead under the village, and once settlements
+ * became irregular clusters a house sat squarely on the last of the water.
+ * A river does not end under a building — it widens into something before the
+ * town, and the town stands beside it.
+ *
+ * Two frames, because still water in a world where everything else moves reads
+ * as a hole. The highlight drifts; nothing else does.
+ */
+export const POND: readonly Art[] = [
+  [
+    '..kkkkk..',
+    '.kubbbuk.',
+    'kubbllbuk',
+    '.kubbbuk.',
+    '..kkkkk..',
+  ],
+  [
+    '..kkkkk..',
+    '.kubbbuk.',
+    'kubllbbuk',
+    '.kubbbuk.',
+    '..kkkkk..',
+  ],
+]
+
 export const RESERVOIR: readonly Art[] = [
   [
     '....kkkkkkkkkkkkkkkk....',

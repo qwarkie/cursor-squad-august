@@ -10,6 +10,7 @@ import {
   CLINIC,
   COIN,
   CRACK,
+  POND,
   HOUSE,
   MARKET,
   RESERVOIR,
@@ -68,6 +69,7 @@ const INVENTORY: ReadonlyArray<{
   { name: 'SPRING', art: SPRING, width: 16, height: 12, frames: 2 },
   { name: 'RESERVOIR', art: RESERVOIR, width: 24, height: 16, frames: 2 },
   { name: 'CRACK', art: CRACK, width: 8, height: 8, frames: 1 },
+  { name: 'POND', art: POND, width: 9, height: 5, frames: 2 },
   { name: 'WARNING', art: WARNING, width: 9, height: 9, frames: 2 },
   { name: 'CAR', art: CAR, width: 8, height: 5, frames: 2 },
   { name: 'ARCADE', art: ARCADE, width: 10, height: 10, frames: 2 },
@@ -80,7 +82,7 @@ const framesOf = (art: Art | readonly Art[]): readonly Art[] =>
   Array.isArray(art[0]) ? (art as readonly Art[]) : [art as Art]
 
 describe('the object inventory', () => {
-  it('holds every object in art-bible.md §4 — the eight spine, then the four optional', () => {
+  it('holds every object in art-bible.md §4 — the eight spine, then the rest', () => {
     expect(INVENTORY.map((o) => o.name)).toEqual([
       'COIN',
       'HOUSE',
@@ -89,6 +91,7 @@ describe('the object inventory', () => {
       'SPRING',
       'RESERVOIR',
       'CRACK',
+      'POND',
       'WARNING',
       'CAR',
       'ARCADE',
