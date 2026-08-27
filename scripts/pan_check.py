@@ -50,21 +50,26 @@ def world_box(pg):
         const el = document.querySelector('[data-scale]')
         if (!el) return null
         const b = el.getBoundingClientRect()
-        // The frame is whatever actually CLIPS the world, not its parent. A
-        // parent in a flex column grows to fit its content, so measuring
-        // against it reports "the world fits" at every scale — which made this
-        // script's own precondition vacuous at x12, a world 1536 tall inside a
-        // 900 viewport. Nearest ancestor that clips, else the viewport.
+        // `[data-frame]` — the clipping box says what it is now, so this does
+        // not have to deduce it. @Pollen marked it after auditing their own
+        // surface for the shape that cost this file a patch: the walk below
+        // found App's root, which carries `overflow-x-hidden` and is as tall as
+        // the document, and reported a 1440x2038 frame for a 1440x900 window.
+        // Verified the marker resolves to the SAME element the walk finds, at
+        // 390, 1440 and 1920, before switching.
         let p = null
-        for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) {
+        const framed = document.querySelector('[data-frame]')
+        if (framed) p = framed.getBoundingClientRect()
+        else for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) {
           const o = getComputedStyle(n).overflow
           if (o && o !== 'visible') { p = n.getBoundingClientRect(); break }
         }
         if (!p) p = { left: 0, top: 0, right: innerWidth, bottom: innerHeight }
-        // ...and intersected with the viewport, because the page root carries
-        // `overflow-x-hidden` and so matched the loop above while being as tall
-        // as the whole document. A "frame" taller than the screen cannot clip
-        // anything, and reported 1440x2038 for a 1440x900 window.
+        // Still intersected with the viewport, and it is no longer a
+        // compensation for finding the wrong element. A frame can legitimately
+        // extend past the bottom of the window on a page that scrolls, and what
+        // a person can SEE is the intersection either way. @Pollen's point:
+        // the marker removes the walk, not the intersection.
         const fl = Math.max(p.left, 0), ft = Math.max(p.top, 0)
         const fr = Math.min(p.right, innerWidth), fb = Math.min(p.bottom, innerHeight)
         p = { left: fl, top: ft, width: fr - fl, height: fb - ft }
@@ -120,6 +125,13 @@ def run(url, w, h):
             pg.wait_for_timeout(400)
 
         print(f"\n0. is there a world to drag?  ({w}x{h})")
+        # The fallback below is a guess, and a script that quietly drops back to
+        # one is worse than a script that never had a marker: the numbers keep
+        # arriving and nobody knows they changed provenance.
+        if pg.evaluate("() => !document.querySelector('[data-frame]')"):
+            note("no [data-frame] — falling back to the ancestor-overflow walk,")
+            note("which found App's root and reported a 1440x2038 frame for a")
+            note("1440x900 window the last time this file relied on it.")
         box = world_box(pg)
         if not check("the world rendered", box is not None):
             return
@@ -172,11 +184,14 @@ def run(url, w, h):
             drag(pg, box, dx, dy)
             r = pg.evaluate("""() => {
                 const w = document.querySelector('[data-scale]')
-                let fEl = null, f = null
-                for (let n = w.parentElement; n && n !== document.body; n = n.parentElement) {
-                  const o = getComputedStyle(n).overflow
-                  if (o && o !== 'visible') { fEl = n; f = n.getBoundingClientRect(); break }
+                let fEl = document.querySelector('[data-frame]')
+                if (!fEl) {
+                  for (let n = w.parentElement; n && n !== document.body; n = n.parentElement) {
+                    const o = getComputedStyle(n).overflow
+                    if (o && o !== 'visible') { fEl = n; break }
+                  }
                 }
+                let f = fEl ? fEl.getBoundingClientRect() : null
                 if (!f) f = { left: 0, top: 0, right: innerWidth, bottom: innerHeight }
                 const l = Math.max(f.left, 0), t = Math.max(f.top, 0)
                 const rr = Math.min(f.right, innerWidth), b = Math.min(f.bottom, innerHeight)
