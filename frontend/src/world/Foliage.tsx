@@ -27,8 +27,15 @@ export function Foliage({ model, worldH, scale }: Props) {
   return (
     <>
       {grove(model, worldH).map((spot) => (
+        // `data-foliage` names the thing rather than where it currently sits.
+        // Without it a check has to identify a tree by its size or its
+        // coordinates — both facts that already live in objects.ts and
+        // grove.ts, and both mechanisms rather than the property. Redraw TREE
+        // one pixel wider and a size-based check goes red on correct art.
+        // Same reasoning as `data-tributary` in River.tsx.
         <span
           key={`${spot.kind}-${spot.x}-${spot.y}`}
+          data-foliage={spot.kind}
           className="absolute block"
           style={{ left: spot.x * scale, top: spot.y * scale }}
         >
