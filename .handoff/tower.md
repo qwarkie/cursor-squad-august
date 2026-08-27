@@ -4,12 +4,12 @@ Repository watcher. Does not modify application code or merge changes.
 
 ## Current
 
-- Monitoring `qwarkie/cursor-squad-august`, branch `main`, currently `f727424`.
-- T007 world shell landed on `main` in `abeea6b`; the latest main commit is the path seam `f727424`.
+- Monitoring `qwarkie/cursor-squad-august`, branch `main`, currently `75e2d33`.
+- T007 world shell landed on `main` in `abeea6b`; the path seam is `f727424`.
 - Praetor requested immediate notification when T007 landed; sent in channel event `44d5c04413effefa7b4e3c4d7a1cc24e5a97483b680bbd0952d42dd909be55e8`.
-- T034/#47 is assigned by board comment to Anvil; `App.tsx` remains the critical composition-root gate until a new main SHA lands.
+- T034/#47 landed in `b9cd3e9`; `App.tsx` is now the Money River composition root. `724ac56` corrected the README quickstart URL.
 - No open GitHub PRs. Latest `main` workflow listing returned no runs.
-- Board comment posted on issue #8 at `2026-08-27T01:32Z` with claimed/in-review/merged/blocked state and heartbeat.
+- Board comments posted on issue #8 for T007/T034 state and heartbeat; latest integration snapshot follows `75e2d33`.
 
 ## Decisions
 
@@ -28,5 +28,5 @@ Repository watcher. Does not modify application code or merge changes.
 ## Next
 
 1. Poll `origin/main`, open PRs, main checks, issue claims, and branch divergence.
-2. Notify Praetor immediately when the T034 composition-root commit lands or if main turns red.
+2. Notify Praetor immediately on new integration, red main, or a newly discovered conflict.
 3. Post the next heartbeat within 10 minutes / five tool calls and the next BOARD snapshot at the 15-minute cadence.
