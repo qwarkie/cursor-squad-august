@@ -9,6 +9,8 @@
     "dev:web": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend run build",
     "test": "npm --prefix frontend run test",
+    "walk": "python3 scripts/walk_demo.py",
+    "gradients": "python3 scripts/gradient_check.py",
     "typecheck": "cd frontend && npx tsc -b",
     "lint": "npm --prefix frontend run lint && cd backend && uv run ruff check .",
     "migrate": "cd backend && uv run alembic upgrade head",
