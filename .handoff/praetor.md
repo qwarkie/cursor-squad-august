@@ -482,8 +482,19 @@ on a build nobody had touched since — 10,240 changed pixels of 102,144, then t
 `gradient_check.py` measure `frontend/`; they cannot observe `.handoff/praetor.md` or
 `scripts/README.md` at all.
 
-> **A docs-only push does not invalidate a build certification. Re-certify when `frontend/` or
-> `scripts/` moves; scope the diff otherwise and say nothing.**
+> **Re-certify when anything the result depends on moves. Scope the diff otherwise, and say
+> nothing.**
+
+Stated as a dependency rather than a path list, because path lists expire — this file expired three
+times tonight for exactly that reason. Today the dependencies are the code under test (`frontend/`),
+the scripts that test it (`scripts/`), and **their invocation (root `package.json`)** — the last of
+which a harness structurally cannot observe, for the same reason it cannot see this file. A one-word
+edit to a `test` or `walk` script changes what every green run asserted while `frontend/` and
+`scripts/` sit untouched.
+
+**A file that nothing executes is not a dependency, wherever it lives.** `scripts/README.md` is
+inside a watched path and changing it cannot change a result; the trigger is the dependency, not the
+directory.
 
 Without this the loop does not terminate: someone pushes documentation, someone else certifies,
 a third person notices the SHA differs, and it runs again for zero information. It ran four times
