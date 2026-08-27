@@ -164,6 +164,33 @@ which makes a board useless to anyone hunting for remaining work. Open spine at 
    tasks. At `FREEZE` publish the QUEUE: 5–8 cuts, each under 15 minutes, single file, obvious
    revert, ranked by points-per-minute.
 
+
+## FREEZE QUEUE — pre-vetted, publish at 02:32
+
+Eight changes cut for time, each individually safe: under 15 minutes, single file, obvious revert.
+Ranked by points-per-minute against Technical Execution and Functional Completeness. **Deadlines get
+extended when organizers hit technical problems; this queue converts that window into rank while
+other teams improvise risky edits into a working build. Costs four minutes if no window opens.**
+
+Nothing here is required for the demo to pass. Execute strictly in order, one commit each, verify
+`typecheck && test && build` and the live asset hash after every one.
+
+| # | Change | File | Why it ranks here |
+|---|---|---|---|
+| 1 | Shorten `balanced: 'balanced — all allocated'` to `'balanced'` | `components/Header.tsx:22` | The header wraps to six lines at 390px and this one string is the cause. First thing a judge reads. One word, one file. |
+| 2 | Add bottom padding so the category list clears the button bar | `App.tsx` | `Transport $350` is sliced mid-row by the fixed bar. Reads as a broken layout; one utility class. |
+| 3 | Reference the committed screenshots by relative path | `README.md` | `docs/screenshots/*.png` are on `main` (`82855fb`). Relay media URLs 401 for anonymous readers, so a judge sees broken images. Only needed if Herald's rewrite lands without them. |
+| 4 | `transition: stroke-width 300ms ease-out` on the trunk and tributary paths | `world/River.tsx` | T021, cut at gate 1. Satisfies SC-003 and makes the reshape read as water moving rather than numbers jumping. One CSS property. |
+| 5 | Re-enable width and number transitions at 150ms under `prefers-reduced-motion` | `index.css` | T027. `index.css` collapses every animation to `0.01ms`, which satisfies FR-016 but also kills transitions that carry meaning rather than decoration. |
+| 6 | Unify the minus glyph | `components/Header.tsx` or the overspend string | Header uses `−` U+2212, overspend text uses ASCII `-`. Same number, two shapes, one screen. |
+| 7 | Place `MARKET` on the food tributary | `world/Settlements.tsx` | Sprite is built, tested, and imported nowhere. Brief lists market in its finance-to-world mapping. Drop without discussion if it fights the layout. |
+| 8 | Swap tributaries from straight lines to the meander curve | `world/geometry.ts` | T015 shipped provisional straight lines with the swap point marked. **Last on purpose** — highest visual payoff, highest chance of breaking a working river. Do not attempt under 15 minutes remaining. |
+
+**Explicitly not in the queue and not to be built under any extension: the natural-language AI
+scenario field.** The brief calls it optional and says it must not block the core demo; our spec put
+it out of scope; the July retro found zero repos ran agent loops and deterministic calculators won.
+An extension is exactly enough time to half-wire it and break a working demo.
+
 ## Decision log
 
 | Gate | Call | Cut | Remains SPINE | Would cut next |
