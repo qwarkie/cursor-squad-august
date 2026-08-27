@@ -512,7 +512,15 @@ does it go red on the broken commit?     it discriminates
 what does it print on an empty one?      it is not vacuous     (an absence is true of a blank page)
 can it ever go green on a correct one?   it is not red-forever (a pixel census sees glyph edges)
 can the observer distinguish the states? the instrument — human or code — has resolution at all
+does it catch EVERY case it was       the four above ask whether an instrument can speak;
+  written for?                          this asks whether it did, on the cases that motivated it
 ```
+
+The fifth was earned late and cost nothing to find: a foliage guard written for two broken sprites
+went red on one and green on the other — 3 ground cells in 16 is 18.75%, under a 25% bar, on a
+sprite with the identical defect. **A check that passes half its own reason for existing would have
+shipped as coverage.** Fixed by deriving the reference from the field and separating *essentially
+none* from *some* (10%) rather than separating today's two numbers.
 
 Necessary, and **not sufficient**: two checks passed all of these while printing PASS on a screen
 with no river, because "no bad ones found" is vacuously true on an empty set.
