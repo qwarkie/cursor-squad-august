@@ -14,6 +14,7 @@ import { useBudget } from './store/budget'
 import { iconArt } from './world/icons'
 import { PAL } from './world/palette'
 import { River } from './world/River'
+import { CoinFlow } from './world/CoinFlow'
 import { Settlements } from './world/Settlements'
 import { World } from './world/World'
 
@@ -127,7 +128,14 @@ export default function App() {
       <main className="flex flex-1 flex-col items-center gap-4 py-4">
         <World
           model={model}
-          overlay={(scale) => <Settlements model={model} budget={budget} scale={scale} />}
+          overlay={(scale) => (
+            <>
+              {/* Coins first, so settlements paint over them — money flows behind
+                  the things it built, not in front of them. */}
+              <CoinFlow model={model} scale={scale} />
+              <Settlements model={model} budget={budget} scale={scale} />
+            </>
+          )}
         >
           <River model={model} onSelectTributary={select} />
         </World>
