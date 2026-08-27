@@ -190,7 +190,7 @@ export function River({ model, budget, onSelectTributary }: Props) {
         const rimColor = category ? PAL[category.color] : null
         const clip = `river-branch-${trib.categoryId}`
         return (
-          <g key={trib.categoryId}>
+          <g key={trib.categoryId} data-tributary={trib.categoryId}>
             <clipPath id={clip}>
               <Rects spans={body} fill="none" />
             </clipPath>
