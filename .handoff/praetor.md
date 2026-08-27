@@ -215,6 +215,62 @@ list.** A walk written from the task list asks the questions the task list alrea
 defects tonight — ghost river, round caps, capped settlements, unreachable income edit — every one
 invisible to 127 passing tests, every one found by a person looking at the running product.
 
+
+## SUBMITTED BUILD != `main` HEAD — read this first
+
+**Submission: `https://cursor-squad-august-live.vercel.app`, serving `78a230a`.**
+
+The Vercel account hit its **Hobby daily cap of 100 deployments** at ~02:05 UTC. Every commit after
+`78a230a` failed to deploy with *"Deployment rate limited — retry in 24 hours."* So `main` advanced
+and the site did not.
+
+```
+gh api repos/qwarkie/cursor-squad-august/commits/<sha>/status
+  -> Vercel - cursor-squad-august-live : failure
+     "Deployment rate limited - retry in 24 hours."
+gh api 'repos/.../deployments?per_page=100' | length  -> 100
+```
+
+**Cause: three Vercel projects were Git-linked and every push built all three.** Two were useless —
+`cursor-squad-august-app` (the dead hand-deployed host serving a 26 Aug build) and `money-river`
+(created chasing the failed option B; its public domain serves an unrelated stranger's app). They
+consumed roughly two thirds of the budget for zero value, and that is why three finished fixes are
+stranded.
+
+### Stranded on `main`, green, undeployable
+
+| SHA | Change | Consequence on the shipped build |
+|---|---|---|
+| `6478e08` | Category colour restored on the tributary stroke (SC-002 ruling) | Colour is present on **signboards** but not on strokes. Branching is harder to read mid-river. **One of art-bible §2's three placements, not the signal** — all five category colours are on the live screen as signboard backgrounds. |
+| `22e7a99` | Income control 44 px | Live target is 36 px. Works; fails art-bible non-negotiable #6. |
+| `3d0d60a`, `cc30ab4` | Harness fixes and new assertions | Test-only. The colour and reachable-alert assertions **fail against `78a230a` by design** — the gap is the finding. |
+| `cdf97ac` | Five spend icons | A **feature pushed 30 minutes after FREEZE**. Never deployable. Not reverted: a revert costs a build attempt and changes nothing a judge sees. |
+
+### Also known and deliberately not fixed
+
+The overspend `role="alert"` renders inside `World.tsx`'s `aria-hidden="true"` sprite overlay, so it
+never reaches the accessibility tree. **FR-012 still holds** because the header carries `over budget`
+as ordinary text. Moving a live region out of an aria-hidden container at T-20 was correctly refused.
+
+### THE LESSON
+
+**Count the resource nobody is counting.** FREEZE was framed as protecting code quality. What
+actually needed protecting was a 100-build daily quota that no one — including me — was tracking,
+being spent three-for-one by projects we did not need. Every blocker of the whole event was a
+credential or a plan limit: the Vercel Git link, the `workflow` token scope, and this. **None was
+code.** Next time, enumerate the external quotas before the clock starts and delete redundant
+deploy targets on sight.
+
+### Seven measurement artifacts, zero shipped as false claims
+
+`getAttribute` on an inherited SVG attribute; water-plus-highlight read as two trunk segments; a dev
+server on the wrong port; a hit-test predicate counting ancestors, which made the check unpassable
+for any control in a top-anchored header; a settlement count capped at 3 so the largest expense
+rendered like the second largest; my "11/11 criteria pass" when the README criterion still failed;
+and my "all-blue tributaries" which was true of strokes and misleading about the screen. **Every one
+was caught by its own author or the next reader.** Verify a report against the source before ordering
+work from it - including your own.
+
 ## Decision log
 
 | Gate | Call | Cut | Remains SPINE | Would cut next |
@@ -226,6 +282,7 @@ invisible to 127 passing tests, every one found by a person looking at the runni
 | **gate 2 — 01:36 UTC** (called early) | `CUT T019` | T019 tap-to-select to `optional` (the category list already satisfies the brief's tappable-district line); T023 scoped to the balanced-vs-dry distinction, sprite tail declared droppable | T011 + T015 — `River.tsx` did not exist on **any** remote ref with ~65 min left, all remaining risk in one file with one owner | T023's whole visual treatment; the header text already signals overspend |
 | **gate 3 — 01:43 UTC** | `HOLD` | nothing — spine landed instead | #42 the walk, #43 the README | the meander curve. Tributaries ship as provisional straight lines and nobody is to spend clock on the curve before FREEZE |
 | **FREEZE — 01:57 UTC** (35 min early) | `FREEZE` | nothing further; queue published as the only permitted change set | none — all spine landed and verified, 11/11 brief acceptance criteria pass | queue item 5, the meander curve. It is last for a reason and must not be attempted under 15 minutes remaining |
+| **submission — 02:33 UTC** | `SHIP 78a230a` | option 2 (fresh Vercel account, new URL) refused: trading a verified URL for an unverified one at T-15 | the live URL at `78a230a`, walked end to end by two agents independently | nothing. Ship what is verified. |
 
 ## Grounding
 
