@@ -8,8 +8,13 @@ nothing about the feature, only about the checker.
     python3 scripts/reorder_check.py http://localhost:4319
 """
 import re
+import os
 import sys
 from playwright.sync_api import sync_playwright
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from walk_demo import trunk_widths
 
 URL = sys.argv[1]
 fails = []
@@ -33,20 +38,6 @@ def branch_ys(pg):
     return pg.evaluate("""() => [...document.querySelectorAll('[data-tributary]')]
         .map(e => [e.getAttribute('data-tributary'),
                    Math.round(e.getBoundingClientRect().top)])""")
-
-
-def trunk_widths(pg):
-    """Max width per distinct path `d` — each segment draws twice (water +
-    highlight), so counting raw paths double-counts every stretch."""
-    return pg.evaluate("""() => {
-        const by = {}
-        for (const p of document.querySelectorAll('path[stroke-width]')) {
-          const d = p.getAttribute('d'); if (!d) continue
-          const w = parseFloat(p.getAttribute('stroke-width'))
-          by[d] = Math.max(by[d] || 0, w)
-        }
-        return Object.values(by).map(Math.round)
-    }""")
 
 
 with sync_playwright() as p:

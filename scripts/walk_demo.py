@@ -213,6 +213,7 @@ def river_shapes(pg):
             d: el.getAttribute('d') || [el.getAttribute('x1'), el.getAttribute('y1'),
                                         el.getAttribute('x2'), el.getAttribute('y2')].join(','),
             width: parseFloat(cs.strokeWidth) || 0,
+            stroke: cs.stroke,
             rendering: cs.shapeRendering,
             linecap: cs.strokeLinecap,
             opacity: cs.strokeOpacity,
@@ -254,6 +255,29 @@ def tappable_height(pg, selector):
     }""", selector)
 
 
+def paints(colour):
+    """Whether a declared stroke puts any ink on the screen.
+
+    `rgba(0, 0, 0, 0)` and `transparent` are hit areas, not water. Unparseable
+    values count as painting: a measurement helper that silently drops what it
+    does not understand is how a check goes quietly blind.
+    """
+    c = (colour or "").strip().lower()
+    if c in ("none", "transparent"):
+        return False
+    m = re.match(r"rgba?\(([^)]*)\)", c)
+    if not m:
+        return True
+    parts = [p.strip() for p in re.split(r"[,/]", m.group(1)) if p.strip()]
+    if len(parts) < 4:
+        return True
+    try:
+        alpha = float(parts[3].rstrip("%")) / (100 if parts[3].endswith("%") else 1)
+    except ValueError:
+        return True
+    return alpha > 0
+
+
 def trunk_widths(pg):
     """
     The trunk's stroke widths, spring to mouth.
@@ -262,10 +286,19 @@ def trunk_widths(pg):
     a highlight at ~30% of it — so widths are grouped by path data and the widest
     of each group is the segment. Reading every <path> instead interleaves the
     highlights and reports a monotonic trunk as non-monotonic.
+
+    Since #67 a *third* path shares each `d`: a transparent hit area for tapping
+    the trunk, at a constant ~15 art units. Taking the widest without asking
+    whether it paints reported `[16, 15, 15, 15, 15, 2]` on a river that was in
+    fact still narrowing 16 -> 10 -> 8 -> 6 -> 5 — and that reading passes both
+    trunk assertions below, so the four middle narrowings had gone invisible to
+    this harness. Anything that paints nothing is not part of the river.
     """
     widest, order = {}, []
     for shape in river_shapes(pg):
         if shape["tag"] != "path" or shape["width"] <= 0:
+            continue
+        if not paints(shape.get("stroke", "")):
             continue
         if shape["d"] not in widest:
             order.append(shape["d"])
@@ -389,6 +422,15 @@ def walk(url):
         check("trunk segment widths are monotonically non-increasing", non_increasing, widths)
         check("the trunk starts at full width and ends narrower (FR-006)",
               len(widths) > 1 and widths[0] > widths[-1], f"{widths[0] if widths else '-'} -> {widths[-1] if widths else '-'}")
+        # The two checks above both pass on [16, 15, 15, 15, 15, 2] — a river
+        # that narrows only at the mouth. That is not what US2 promises, and it
+        # is what this harness actually reported for a while after #67. Every
+        # category in the demo seed has a non-zero amount, so every branch must
+        # take water out of the trunk and every step must be a real narrowing.
+        steps = list(zip(widths, widths[1:]))
+        flat = [(a, b) for a, b in steps if b >= a]
+        check("every branch narrows the trunk, not just the last one (US2)",
+              len(steps) >= 4 and not flat, flat or f"{[round(w) for w in widths]}")
 
         # ---- 4. settlements ------------------------------------------------------
         print("\n4. settlements (T016 / FR-007)")
