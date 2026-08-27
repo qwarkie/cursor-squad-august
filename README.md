@@ -1,27 +1,51 @@
-# cursor-squad-august
+# Money River
 
-Starter base: **React 19 + TypeScript + Vite + Tailwind** on the front end,
-**FastAPI + SQLAlchemy + Alembic** on the back end.
-Ships with one working CRUD example (`items`) to copy as a template for your own entities.
+**A month of money is one river.**
+
+**Income** is the spring at the top — it sets how wide the river starts. **Each
+expense category** is a tributary that branches off sideways and carries water
+away, and **below every branch the trunk is visibly narrower**. You do not read
+that you have less money left; you watch the river thin out.
+
+Settlements stand at the end of each tributary — they are what the money turned
+into, and there are more of them where more money went. Savings ends in a
+**reservoir** rather than a village, because that water is held, not consumed.
+What reaches the bottom is what is left.
+
+Mobile-first at 390 × 844, in 8-bit pixel art. Tap a tributary to reshape it and
+every width and figure moves with you.
+
+**Live: https://cursor-squad-august-live.vercel.app**
+
+The demo path is **entirely client-side** — no API, no key, no network call and no
+model call. The world is a pure function of one `Budget` held in `localStorage`,
+so the same budget always draws the same river.
 
 ## Requirements
 
-- Node 20+
-- [uv](https://docs.astral.sh/uv/) — manages Python and backend dependencies (downloads Python 3.12 itself)
+- **Node 20+**
+
+That is everything the demo path needs.
+
+This repository also carries a FastAPI backend. It is **not** on the demo path and
+nothing above depends on it; [`specs/001-money-river/quickstart.md`](specs/001-money-river/quickstart.md)
+documents the full-stack path and the `uv` it needs.
 
 ## Getting started
 
 ```bash
-npm run setup  # installs root/frontend/backend deps and applies migrations
-npm run dev    # starts the API and the front end together
+npm --prefix frontend install
+npm --prefix frontend run dev
 ```
 
-- Front end: http://localhost:5173
-- API: http://127.0.0.1:8000
-- Swagger: http://127.0.0.1:8000/docs
+Open **http://localhost:5173**.
 
-In development Vite proxies `/api` to the backend, so CORS never gets in the way
-and the front end uses relative paths.
+You land on an empty green field with one button. Tap **Add Income**, enter
+`4200`, and a river appears. Tap **Load demo budget** instead and a complete
+seeded month renders in one tap — five tributaries, settlements along their
+banks, and a reservoir for savings.
+
+Both commands were run from a fresh clone before being written here.
 
 ## Layout
 
