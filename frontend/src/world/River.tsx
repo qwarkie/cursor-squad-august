@@ -1,10 +1,10 @@
-import type { CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 
-import { riverPath, trunkX } from './path'
+import { riverPath, trunkX, WORLD_W } from './path'
 import { tributaryEnd, trunkWidthAt } from './geometry'
 import { branchSpans, colorDistance, halfWidthAt, poolRows, type Span } from './water'
 import { PAL } from './palette'
-import type { RiverModel } from '../engine'
+import type { RiverModel, Segment } from '../engine'
 import type { Budget } from '../types'
 
 type Props = {
@@ -109,6 +109,15 @@ function branchFlow(dir: 1 | -1): CSSProperties {
 export function River({ model, budget, onSelectTributary }: Props) {
   const last = model.segments[model.segments.length - 1]
   const first = model.segments[0]
+  // #67 — the trunk's width already answers "which category takes the
+  // biggest bite"; it never answers "how much do I have left after rent
+  // and groceries, before I decide about entertainment." `segment.carried`
+  // is that number, computed by the engine for width already — tapping the
+  // trunk surfaces it as a figure instead of leaving it implicit in a band's
+  // thickness. Lowest hit-test priority in the world (#66's ruling): drawn
+  // and hit-tested before the tributaries below, so an overlapping tap
+  // always resolves to the narrower, more specific target.
+  const [selectedSegment, setSelectedSegment] = useState<number | null>(null)
 
   return (
     <g>
@@ -173,9 +182,21 @@ export function River({ model, budget, onSelectTributary }: Props) {
               {...CRISP}
               {...FLOW}
             />
+            <path
+              d={d}
+              fill="none"
+              stroke="transparent"
+              strokeWidth={Math.max(seg.width, MIN_HIT_WIDTH)}
+              style={{ cursor: 'pointer' }}
+              onClick={() => setSelectedSegment((current) => (current === i ? null : i))}
+            />
           </g>
         )
       })}
+
+      {selectedSegment !== null && model.segments[selectedSegment] && (
+        <RunningTotal segment={model.segments[selectedSegment]} />
+      )}
 
       {model.tributaries.map((trib) => {
         if (trib.width <= 0) return null
@@ -389,4 +410,57 @@ function Pool({ cx, cy, rx, ry, fill, rim, shimmer }: PoolProps) {
 /** Sits just below the last row of trunk, so the water runs into it. */
 function MouthPool({ y, ...pool }: Omit<PoolProps, 'cx' | 'cy'> & { y: number }) {
   return <Pool cx={trunkX(y)} cy={y + Math.round(pool.ry / 3)} {...pool} />
+}
+
+/**
+ * Whole dollars, grouped, no minus sign needed — `segment.carried` is
+ * clamped non-negative at source (`engine/river.ts`), so this is a smaller
+ * copy of `components/money.ts`'s `formatMoney` rather than an import of
+ * it: world stays free of a dependency on chrome, the direction every other
+ * file in this layer already keeps.
+ */
+function formatCarried(amount: number): string {
+  return `$${Math.round(Math.max(0, amount)).toLocaleString('en-US')}`
+}
+
+/**
+ * The figure `segment.carried` drives width with but never states — tapping
+ * the trunk (#67) surfaces it. A `foreignObject` rather than SVG `<text>`:
+ * plain SVG text has no crisp-edges equivalent and would antialias exactly
+ * the way art-bible.md §7 spent tonight ruling out; a `foreignObject` embeds
+ * ordinary DOM, styled like `Settlements.tsx`'s `Signboard`, and needs no
+ * prop threaded through `World.tsx`/`App.tsx` to get there.
+ */
+function RunningTotal({ segment }: { segment: Segment }) {
+  const midY = (segment.fromY + segment.toY) / 2
+  const midX = trunkX(midY)
+  // Open ground is whichever side of the meander has more of it — the
+  // same call Signboard makes by centring over its own village, just
+  // decided here because the trunk (unlike a village) can sit anywhere
+  // across the world's width.
+  const onRight = midX < WORLD_W / 2
+  const label = `${formatCarried(segment.carried)} left`
+  const boxW = Math.min(WORLD_W - 4, Math.max(24, label.length * 4 + 4))
+  const x = onRight ? Math.min(WORLD_W - boxW - 2, midX + 8) : Math.max(2, midX - boxW - 8)
+
+  return (
+    <foreignObject x={x} y={midY - 5} width={boxW} height={10} style={{ overflow: 'visible' }}>
+      <div
+        style={{
+          width: 'fit-content',
+          maxWidth: boxW,
+          background: 'var(--color-ink)',
+          color: 'var(--color-paper)',
+          border: '1px solid var(--color-ink)',
+          padding: '0 2px',
+          fontFamily: 'var(--font-pixel)',
+          fontSize: 5,
+          lineHeight: '10px',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {label}
+      </div>
+    </foreignObject>
+  )
 }
