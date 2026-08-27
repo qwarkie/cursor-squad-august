@@ -1,82 +1,265 @@
 import type { RiverModel } from '../engine'
 
-/**
- * How much money each stretch of the river is carrying, expressed as coins.
- *
- * Density is the data (art-bible.md §5): a thin river must visibly carry fewer
- * coins than a wide one, and the stretch below a branch must carry fewer than
- * the stretch above it. That is the narrowing metaphor stated a second way, in
- * motion rather than in width — so the count is derived from the model, never
- * chosen for looks.
- *
- * Pure and DOM-free so it tests in Node like the rest of the geometry. Nothing
- * here reads the clock or a random source: stagger comes from the index, which
- * is what keeps two loads identical (FR-015, SC-007).
- */
-
-/** Seconds for a coin to travel the whole trunk, spring to mouth (art-bible §5). */
-export const TRAVERSE_SECONDS = 3
-
-/** Art-pixels of trunk width per coin. */
-const PX_PER_COIN = 4
-
-/** Never more than this on one stretch, however wide — past it they read as a shoal. */
-const MAX_PER_SEGMENT = 6
+import { tributaryEnd, trunkWidthAt } from './geometry'
+import { trunkX } from './path'
 
 /**
- * Coins carried by a stretch of trunk of the given width.
+ * Where every coin goes, and when it leaves the spring.
  *
- * A dry bed carries nothing — `width: 0` is the overspent state, and money that
- * is not there should not be shown flowing. Any live stretch carries at least
- * one, so a small category is still visibly moving money.
+ * **One coin is one tenth of the month's income.** A $300 category out of
+ * $3,000 gets one coin, $600 gets two, $1,500 gets five — the count *is* the
+ * percentage, which is the whole point: a reader can compare two branches by
+ * counting, without reading a number anywhere.
+ *
+ * **Every coin is routed, not just drawn.** A coin leaves the spring, runs
+ * down the trunk and turns off onto the branch it belongs to, so the split at
+ * a junction is something the money does rather than something the water is
+ * shaped like. Coins that nothing claims run on to the mouth pool — that is
+ * the surplus, moving.
+ *
+ * Pure and DOM-free so it tests in Node. Nothing here reads the clock or a
+ * random source: stagger comes from the departure index, which is what keeps
+ * two loads identical (FR-015, SC-007).
  */
-export function coinsFor(width: number): number {
-  if (!Number.isFinite(width) || width <= 0) return 0
-  return Math.min(MAX_PER_SEGMENT, Math.max(1, Math.round(width / PX_PER_COIN)))
+
+/** One coin per tenth of income. Ten leave the spring every cycle, whatever the income is. */
+export const COINS_PER_INCOME = 10
+
+/**
+ * Art-pixels a coin travels per second — the same on the trunk and on every
+ * branch, because one current cannot visibly run at two speeds. The whole
+ * trunk is 88 art-px, so a coin takes about nine seconds to cross the world.
+ */
+export const COIN_SPEED = 10
+
+/** Fraction of a route spent fading out, so a coin dissolves into its settlement rather than blinking off. */
+const FADE = 0.12
+
+/**
+ * Art-pixels of trunk a coin uses to drift across to the bank before it turns
+ * off. Without it the coin leaves the centre line on a shallower slope than
+ * the branch River.tsx draws — the two only meet at the settlement — and it
+ * spends the first half of the branch riding the grass beside it. With it the
+ * coin peels away inside the water and then runs down the branch's own centre
+ * line, which is the same line the water was rasterised from.
+ */
+const TURN = 5
+
+export interface Point {
+  x: number
+  y: number
 }
 
-export interface Coin {
-  /** Stable across renders — segment index and position within it. */
+export interface CoinRoute {
+  /** Category id, or `mouth`. Stable across renders — React keys hang off it. */
+  id: string
+  /** Art-pixel polyline: the trunk from the spring, then the turn and the branch. */
+  points: readonly Point[]
+  /** How many leading points belong to the trunk — the rest is the turn-off. */
+  trunkRows: number
+  /** How many coins this route carries — its share of income, in tenths. */
+  coins: number
+  /** Art-pixels along `points`. */
+  length: number
+  /** Seconds to travel it at COIN_SPEED. */
+  duration: number
+}
+
+export interface ScheduledCoin {
   key: string
-  /** Index into `model.segments`; the world builds that segment's path. */
-  segment: number
+  /** Index into `CoinPlan.routes`. */
+  route: number
   /** Seconds. Negative, so the river is already carrying coins on the first frame. */
   delay: number
-  /** Seconds for this coin to cross its own stretch. */
-  duration: number
+  /** Where this coin sits at t = 0, as a percentage of its route — the still frame under reduced motion. */
+  offset: number
+}
+
+export interface CoinPlan {
+  routes: CoinRoute[]
+  coins: ScheduledCoin[]
+  /**
+   * Seconds between one coin leaving the spring and the same coin leaving
+   * again. Every route shares it — a route shorter than the longest one
+   * arrives early and its coin waits out the rest of the cycle, hidden. That
+   * shared period is what keeps the spacing on the trunk even: coins are
+   * evenly spaced *in departure time*, and since they all move at one speed,
+   * evenly spaced in distance too, regardless of where they later turn off.
+   */
+  cycle: number
 }
 
 const round3 = (n: number) => Math.round(n * 1000) / 1000
 
+const EMPTY: CoinPlan = { routes: [], coins: [], cycle: 0 }
+
 /**
- * Every coin on the river, in segment order.
+ * How many coins each branch takes, and how many run on to the mouth.
  *
- * Each coin crosses only its own stretch, and stretches are timed so the coins
- * move at one speed down the whole river — a fixed 3s per segment would make
- * short stretches look faster and break the illusion of one current.
+ * Counted off a running total rather than rounded independently, so what
+ * arrives at a junction always equals what leaves it: `round(a/unit) +
+ * round(b/unit)` is not `round((a+b)/unit)`, and independent rounding makes
+ * coins appear or vanish at a fork for no reason a reader can see.
+ *
+ * A category small enough to round to nothing still gets one coin, taken from
+ * what continues downstream. A branch with money on it and no coins reads as
+ * a dead channel, which is worse than a tenth of a coin's worth of drift.
  */
-export function coinPlan(model: Pick<RiverModel, 'segments'> | undefined): Coin[] {
-  const segments = model?.segments
-  if (!segments || segments.length === 0) return []
+export function coinCounts(model: Pick<RiverModel, 'segments' | 'tributaries'> | undefined): {
+  branches: number[]
+  mouth: number
+} {
+  const segments = model?.segments ?? []
+  const tributaries = model?.tributaries ?? []
+  const income = segments[0]?.carried ?? 0
+  if (!(income > 0)) return { branches: tributaries.map(() => 0), mouth: 0 }
 
-  const lengths = segments.map((seg) => Math.max(0, Math.round(seg.toY) - Math.round(seg.fromY)))
-  const total = lengths.reduce((sum, n) => sum + n, 0)
-  if (total <= 0) return []
+  const unit = income / COINS_PER_INCOME
+  const inTenths = (dollars: number) => Math.max(0, Math.round(Math.max(0, dollars) / unit))
 
-  const coins: Coin[] = []
-  segments.forEach((seg, index) => {
-    const count = coinsFor(seg.width)
-    if (count === 0 || lengths[index] === 0) return
+  let carrying = inTenths(income)
+  const branches = tributaries.map((trib, k) => {
+    const below = inTenths(segments[k + 1]?.carried ?? 0)
+    let take = carrying - below
+    if (take < 1 && trib.amount > 0) take = 1
+    take = Math.max(0, Math.min(carrying, take))
+    carrying -= take
+    return take
+  })
 
-    const duration = round3((TRAVERSE_SECONDS * lengths[index]) / total)
-    for (let i = 0; i < count; i += 1) {
-      coins.push({
-        key: `${index}:${i}`,
-        segment: index,
-        delay: round3(-(i / count) * duration),
-        duration,
-      })
+  return { branches, mouth: carrying }
+}
+
+/** The trunk's centre line, one point per art-pixel row — the same curve `riverPath` draws. */
+function trunkPoints(fromY: number, toY: number): Point[] {
+  const points: Point[] = []
+  for (let y = Math.round(fromY); y <= Math.round(toY); y += 1) points.push({ x: trunkX(y), y })
+  return points
+}
+
+function polylineLength(points: readonly Point[]): number {
+  let length = 0
+  for (let i = 1; i < points.length; i += 1) {
+    length += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y)
+  }
+  return length
+}
+
+/**
+ * Every route on the river, in the order the trunk meets them.
+ *
+ * A branch route is the trunk down to the junction and then the branch itself,
+ * as one polyline — one path per coin, so a coin turning off is a curve
+ * bending, not a handover between two animations that can fall out of step.
+ */
+export function coinRoutes(model: RiverModel | undefined): CoinRoute[] {
+  const segments = model?.segments ?? []
+  const spring = segments[0]?.fromY
+  if (segments.length === 0 || !Number.isFinite(spring)) return []
+
+  const { branches, mouth } = coinCounts(model)
+  const routes: CoinRoute[] = []
+
+  ;(model?.tributaries ?? []).forEach((trib, k) => {
+    if (branches[k] <= 0 || trib.width <= 0) return
+
+    const trunkWidth = trunkWidthAt(model, trib.atY)
+    const end = tributaryEnd(trib.atY, trib.side, trunkWidth)
+    const dir = trib.side === 'right' ? 1 : -1
+
+    // The same point River.tsx starts the branch from: two art-pixels inside
+    // the bank, so the branch welds to the trunk instead of seaming off it.
+    const bank = {
+      x: trunkX(trib.atY) + dir * Math.max(0, Math.round(trunkWidth / 2) - 2),
+      y: trib.atY,
+    }
+
+    const trunk = trunkPoints(spring, Math.max(spring, trib.atY - TURN))
+    routes.push(finish(trib.categoryId, [...trunk, bank, end], trunk.length, branches[k]))
+  })
+
+  // The surplus: whatever no category claimed, running on to the pool. It
+  // stops where the water does, not at MOUTH_Y — an overspent river's last
+  // stretch is dry bed, and coins must not ride down it.
+  const wet = [...segments].reverse().find((seg) => seg.width > 0)
+  if (mouth > 0 && wet) {
+    const trunk = trunkPoints(spring, wet.toY)
+    routes.push(finish('mouth', trunk, trunk.length, mouth))
+  }
+
+  return routes
+}
+
+function finish(id: string, points: Point[], trunkRows: number, coins: number): CoinRoute {
+  const length = polylineLength(points)
+  return {
+    id,
+    points,
+    trunkRows,
+    coins,
+    length,
+    duration: round3(Math.max(0.1, length / COIN_SPEED)),
+  }
+}
+
+/**
+ * The routes plus a departure timetable.
+ *
+ * Departures are spread evenly across the cycle and *interleaved* between
+ * routes: five coins for rent and two for food leave as one mixed stream, not
+ * as five then two. Batched departures make the upper trunk pulse — a clump,
+ * then a gap — and the whole point of the shared cycle is that it does not.
+ */
+export function coinPlan(model: RiverModel | undefined): CoinPlan {
+  const routes = coinRoutes(model)
+  if (routes.length === 0) return EMPTY
+
+  const cycle = round3(Math.max(...routes.map((route) => route.duration)))
+  if (!(cycle > 0)) return EMPTY
+
+  // Each coin claims the middle of its own share of its route's departures;
+  // sorting those claims interleaves the routes by construction, and ties
+  // break on route order so the result is the same on every load.
+  const slots: { route: number; at: number }[] = []
+  routes.forEach((route, index) => {
+    for (let i = 0; i < route.coins; i += 1) {
+      slots.push({ route: index, at: (i + 0.5) / route.coins })
     }
   })
-  return coins
+  slots.sort((a, b) => a.at - b.at || a.route - b.route)
+
+  const coins = slots.map((slot, i) => {
+    const phase = i / slots.length
+    const travelled = (phase * cycle) / routes[slot.route].duration
+    return {
+      key: `${routes[slot.route].id}:${i}`,
+      route: slot.route,
+      delay: round3(-phase * cycle),
+      offset: round3(Math.min(1, travelled) * 100),
+    }
+  })
+
+  return { routes, coins, cycle }
+}
+
+/**
+ * The keyframes for one route, as CSS.
+ *
+ * A route shorter than the cycle finishes early: the coin reaches its
+ * settlement, fades out over the last {@link FADE} of the trip, and stays
+ * hidden until the cycle comes round again. That is what spending looks like,
+ * and it is also what lets every route share one period.
+ */
+export function routeKeyframes(name: string, route: CoinRoute, cycle: number): string {
+  const arrive = Math.min(100, round3((route.duration / cycle) * 100))
+  const solid = round3(arrive * (1 - FADE))
+
+  return [
+    `@keyframes ${name} {`,
+    `  0% { offset-distance: 0%; opacity: 1; }`,
+    `  ${solid}% { opacity: 1; }`,
+    `  ${arrive}% { offset-distance: 100%; opacity: 0; }`,
+    `  100% { offset-distance: 100%; opacity: 0; }`,
+    `}`,
+  ].join('\n')
 }

@@ -1,136 +1,127 @@
 import { describe, expect, it } from 'vitest'
 
-import { budgetToRiver, TRUNK_MAX } from '../engine'
+import { budgetToRiver } from '../engine'
 import { SEEDED_BUDGET } from '../fixtures/budget'
+import type { Budget } from '../types'
 
-import { coinPlan, coinsFor, TRAVERSE_SECONDS } from './coins'
+import { COIN_SPEED, COINS_PER_INCOME, coinCounts, coinPlan, coinRoutes, routeKeyframes } from './coins'
 
-const seeded = budgetToRiver(SEEDED_BUDGET)
+const budget = (income: number, amounts: number[]): Budget => ({
+  ...SEEDED_BUDGET,
+  income,
+  categories: amounts.map((amount, i) => ({
+    id: `c${i}`,
+    label: `C${i}`,
+    amount,
+    color: 'r',
+    kind: 'expense',
+  })) as Budget['categories'],
+})
 
-const perSegment = (model: Parameters<typeof coinPlan>[0]) => {
-  const counts = new Map<number, number>()
-  for (const coin of coinPlan(model)) counts.set(coin.segment, (counts.get(coin.segment) ?? 0) + 1)
-  return counts
-}
+const model = (income: number, amounts: number[]) => budgetToRiver(budget(income, amounts))
 
-describe('coinsFor', () => {
-  it('carries nothing on a dry bed', () => {
-    expect(coinsFor(0)).toBe(0)
-    expect(coinsFor(-5)).toBe(0)
-    expect(coinsFor(Number.NaN)).toBe(0)
+describe('coinCounts', () => {
+  it('gives one coin per tenth of income — the worked example from the brief', () => {
+    // $3,000 income: $300 is a tenth, $600 two, $1,500 five.
+    expect(coinCounts(model(3000, [300, 600, 1500])).branches).toEqual([1, 2, 5])
   })
 
-  it('carries at least one coin on any live stretch', () => {
-    expect(coinsFor(1)).toBeGreaterThanOrEqual(1)
-    expect(coinsFor(2)).toBeGreaterThanOrEqual(1)
+  it('sends the unclaimed remainder on to the mouth', () => {
+    const counts = coinCounts(model(3000, [300, 600, 1500]))
+    expect(counts.mouth).toBe(COINS_PER_INCOME - 8) // $600 left over, two tenths
   })
 
-  it('never crowds, however wide the river', () => {
-    expect(coinsFor(TRUNK_MAX)).toBeLessThanOrEqual(6)
-    expect(coinsFor(1000)).toBeLessThanOrEqual(6)
+  it('conserves coins at every junction', () => {
+    const counts = coinCounts(model(4000, [950, 725, 480, 1145]))
+    const spent = counts.branches.reduce((sum, n) => sum + n, 0)
+    expect(spent + counts.mouth).toBe(COINS_PER_INCOME)
   })
 
-  it('is monotonic in width — more money is never fewer coins', () => {
-    for (let w = 1; w < 60; w += 1) expect(coinsFor(w + 1)).toBeGreaterThanOrEqual(coinsFor(w))
+  it('leaves nothing for the mouth when the month is balanced', () => {
+    expect(coinCounts(budgetToRiver(SEEDED_BUDGET)).mouth).toBe(0)
   })
 
-  it('a wide river visibly carries more than a thin one (art-bible §5)', () => {
-    expect(coinsFor(TRUNK_MAX)).toBeGreaterThan(coinsFor(4))
+  it('still moves a coin down a category too small to round to one', () => {
+    const counts = coinCounts(model(3000, [40, 40]))
+    expect(counts.branches).toEqual([1, 1])
+  })
+
+  it('carries nothing without income', () => {
+    expect(coinCounts(model(0, [100])).branches).toEqual([0])
+    expect(coinCounts(model(0, [100])).mouth).toBe(0)
+    expect(coinCounts(undefined)).toEqual({ branches: [], mouth: 0 })
   })
 })
 
-describe('coinPlan — density is the data', () => {
-  it('thins downstream, because the trunk does', () => {
-    const counts = perSegment(seeded)
-    const inOrder = [...counts.keys()].sort((a, b) => a - b).map((k) => counts.get(k)!)
-    expect(inOrder.length).toBeGreaterThan(1)
-    for (let i = 1; i < inOrder.length; i += 1) {
-      expect(inOrder[i]).toBeLessThanOrEqual(inOrder[i - 1])
+describe('coinRoutes', () => {
+  it('routes one path per funded branch, plus the surplus to the mouth', () => {
+    const routes = coinRoutes(model(3000, [300, 600, 1500]))
+    expect(routes.map((r) => r.id)).toEqual(['c0', 'c1', 'c2', 'mouth'])
+  })
+
+  it('starts every route at the spring and ends a branch off the trunk', () => {
+    const m = model(3000, [300, 600, 1500])
+    const routes = coinRoutes(m)
+    for (const route of routes) {
+      expect(route.points[0].y).toBe(m.segments[0].fromY)
+    }
+    const branch = routes[0]
+    expect(branch.points[branch.points.length - 1].y).toBeGreaterThan(m.tributaries[0].atY)
+  })
+
+  it('times every route at one speed, so nothing on the river outruns anything else', () => {
+    for (const route of coinRoutes(model(3000, [300, 600, 1500]))) {
+      expect(route.duration).toBeCloseTo(route.length / COIN_SPEED, 2)
     }
   })
 
-  it('puts the most coins on the stretch carrying the whole income', () => {
-    const counts = perSegment(seeded)
-    const first = counts.get(0)!
-    for (const [segment, count] of counts) if (segment > 0) expect(count).toBeLessThanOrEqual(first)
+  it('does not run coins down a dry bed', () => {
+    const overspent = coinRoutes(model(1000, [700, 700]))
+    expect(overspent.some((r) => r.id === 'mouth')).toBe(false)
   })
 
-  it('shows no money flowing over a dry bed (US4)', () => {
-    const overspent = budgetToRiver({
-      income: 1000,
-      categories: [
-        { id: 'a', label: 'Rent', amount: 900, kind: 'expense', color: 'r' },
-        { id: 'b', label: 'Food', amount: 400, kind: 'expense', color: 'f' },
-      ],
-      updatedAt: '',
-    })
-    expect(overspent.state).toBe('overspent')
-    const dry = overspent.segments
-      .map((seg, index) => ({ seg, index }))
-      .filter(({ seg }) => seg.width === 0)
-    expect(dry.length).toBeGreaterThan(0)
-    const counts = perSegment(overspent)
-    for (const { index } of dry) expect(counts.get(index) ?? 0).toBe(0)
-  })
-
-  it('carries nothing before there is a river', () => {
-    expect(coinPlan(budgetToRiver({ income: 0, categories: [], updatedAt: '' }))).toEqual([])
-    expect(coinPlan({ segments: [] })).toEqual([])
-    expect(coinPlan(undefined)).toEqual([])
+  it('draws nothing before any income', () => {
+    expect(coinRoutes(model(0, [100]))).toEqual([])
+    expect(coinRoutes(undefined)).toEqual([])
   })
 })
 
-describe('coinPlan — timing', () => {
-  it('moves at one speed down the whole river', () => {
-    // Equal speed means duration is proportional to the stretch's own length.
-    const plan = coinPlan(seeded)
-    const bySegment = new Map(plan.map((c) => [c.segment, c.duration]))
-    const speeds = [...bySegment.entries()].map(([index, duration]) => {
-      const seg = seeded.segments[index]
-      return (seg.toY - seg.fromY) / duration
-    })
-    for (const speed of speeds) expect(speed).toBeCloseTo(speeds[0], 1)
+describe('coinPlan', () => {
+  const plan = coinPlan(model(3000, [300, 600, 1500]))
+
+  it('schedules exactly the coins the counts called for', () => {
+    expect(plan.coins.length).toBe(COINS_PER_INCOME)
   })
 
-  it('times each stretch as its share of the whole traverse', () => {
-    const totalLength = seeded.segments.reduce((sum, seg) => sum + (seg.toY - seg.fromY), 0)
-    for (const coin of coinPlan(seeded)) {
-      const seg = seeded.segments[coin.segment]
-      const share = (seg.toY - seg.fromY) / totalLength
-      expect(coin.duration).toBeCloseTo(TRAVERSE_SECONDS * share, 2)
-    }
+  it('shares one cycle across every route — the longest one sets it', () => {
+    expect(plan.cycle).toBe(Math.max(...plan.routes.map((r) => r.duration)))
   })
 
-  /**
-   * The seeded month is balanced — remaining is exactly $0 — so the stretch
-   * below the last branch carries nothing and shows no coins. That is the
-   * behaviour, not a gap: money that is fully allocated is not still flowing.
-   */
-  it('shows no coins below the last branch when every dollar is allocated', () => {
-    expect(seeded.state).toBe('balanced')
-    const last = seeded.segments.length - 1
-    expect(seeded.segments[last].width).toBe(0)
-    expect(coinPlan(seeded).some((c) => c.segment === last)).toBe(false)
+  it('spreads departures evenly across the cycle', () => {
+    const delays = plan.coins.map((c) => -c.delay).sort((a, b) => a - b)
+    const gaps = delays.slice(1).map((d, i) => d - delays[i])
+    for (const gap of gaps) expect(gap).toBeCloseTo(plan.cycle / plan.coins.length, 2)
   })
 
-  it('starts with the river already carrying coins, not filling up', () => {
-    for (const coin of coinPlan(seeded)) expect(coin.delay).toBeLessThanOrEqual(0)
+  it('interleaves routes rather than sending them in batches', () => {
+    const order = plan.coins.map((c) => c.route)
+    expect(new Set(order.slice(0, 4)).size).toBeGreaterThan(1)
   })
 
-  it('staggers by index and never randomises (FR-015)', () => {
-    expect(coinPlan(seeded)).toEqual(coinPlan(seeded))
+  it('is identical across two builds of the same budget (SC-007)', () => {
+    expect(coinPlan(model(3000, [300, 600, 1500]))).toEqual(plan)
   })
+})
 
-  it('keys are unique and stable', () => {
-    const keys = coinPlan(seeded).map((c) => c.key)
-    expect(new Set(keys).size).toBe(keys.length)
-  })
-
-  it('emits only finite numbers', () => {
-    for (const coin of coinPlan(seeded)) {
-      expect(Number.isFinite(coin.delay)).toBe(true)
-      expect(Number.isFinite(coin.duration)).toBe(true)
-      expect(coin.duration).toBeGreaterThan(0)
-    }
+describe('routeKeyframes', () => {
+  it('holds a short route hidden at its settlement for the rest of the cycle', () => {
+    const short = coinPlan(model(3000, [300, 600, 1500])).routes[0]
+    const css = routeKeyframes('coin-route-0', short, 10)
+    expect(css).toContain('offset-distance: 0%')
+    expect(css).toMatch(/100% \{ offset-distance: 100%; opacity: 0; \}/)
+    // arrives before the cycle is out
+    const arrive = Number(/([\d.]+)% \{ offset-distance: 100%/.exec(css)![1])
+    expect(arrive).toBeLessThan(100)
+    expect(arrive).toBeGreaterThan(0)
   })
 })

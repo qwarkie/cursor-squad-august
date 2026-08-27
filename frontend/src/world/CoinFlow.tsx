@@ -3,27 +3,29 @@ import { useMemo } from 'react'
 import type { RiverModel } from '../engine'
 import { PixelSprite } from '../pixel'
 
-import { coinPlan } from './coins'
+import { coinPlan, routeKeyframes, type CoinRoute } from './coins'
 import { COIN } from './objects'
 import { PAL } from './palette'
 import { riverPath, scalePath } from './path'
 
 /**
- * T013 — money visibly moving down the river.
+ * T013 — money visibly moving down the river, and turning off it.
  *
- * Coins ride `offset-path` on the same curve `River.tsx` draws the water from,
- * scaled from art units into CSS pixels. Two hand-built curves would drift and
- * the coins would slide off the water; `path.ts` is the only thing here allowed
- * to make a path string, so there is one curve and the coins cannot leave it.
+ * Each coin rides one `offset-path` that runs from the spring, down the same
+ * curve `River.tsx` draws the water from, and out along the branch it is
+ * spent on. Routing it as a single path is what makes the split at a junction
+ * smooth: there is no handover between two animations to fall out of step,
+ * and no JavaScript in the frame loop — the browser interpolates one property
+ * on ten elements.
  *
- * How many coins a stretch carries is decided by `coins.ts` from the model, and
- * it is the metaphor stated a second way: below every branch the trunk is
- * narrower, so below every branch it carries visibly fewer coins. A dry bed
- * carries none.
+ * How many coins each route carries is decided by `coins.ts` from the model:
+ * one coin per tenth of income, counted off a running total so a junction
+ * passes on exactly what it received.
  *
- * The whole animation is CSS on the compositor — no timers, no React re-renders
- * per frame — and `prefers-reduced-motion` collapses it globally in `index.css`,
- * where the coins simply stop and every figure stays readable (FR-016).
+ * `prefers-reduced-motion` collapses the animation globally in `index.css`.
+ * Because the fill mode is `none`, the coins then fall back to the inline
+ * `offsetDistance` below — a still frame of the river with its money spread
+ * along it, rather than ten coins stacked at the last village (FR-016).
  */
 
 type Props = {
@@ -32,28 +34,41 @@ type Props = {
   scale: number
 }
 
+/** Stable, so the generated keyframes replace each other instead of accumulating. */
+const keyframeName = (index: number) => `coin-route-${index}`
+
 export function CoinFlow({ model, scale }: Props) {
-  const coins = useMemo(() => coinPlan(model), [model])
+  const plan = useMemo(() => coinPlan(model), [model])
 
-  /** One path per stretch, in CSS pixels, built once per model and scale. */
-  const paths = useMemo(() => {
-    const out = new Map<number, string>()
-    for (const coin of coins) {
-      if (out.has(coin.segment)) continue
-      const seg = model.segments[coin.segment]
-      if (!seg) continue
-      const d = riverPath({ segments: [{ fromY: seg.fromY, toY: seg.toY }] })
-      if (d) out.set(coin.segment, scalePath(d, scale))
-    }
-    return out
-  }, [coins, model, scale])
+  /**
+   * One path per route, in CSS pixels.
+   *
+   * The trunk half comes from `riverPath` — `path.ts` is the only thing
+   * allowed to describe that curve, and two hand-built copies would drift
+   * until the coins rode beside the water instead of on it. The branch is a
+   * single straight `L` to the same `tributaryEnd` that `River.tsx` rasterises
+   * its branch from, so the coin turns off exactly where the water does.
+   */
+  const paths = useMemo(
+    () => plan.routes.map((route) => scalePath(routePath(route), scale)),
+    [plan, scale],
+  )
 
-  if (coins.length === 0) return null
+  const css = useMemo(
+    () =>
+      plan.routes
+        .map((route, i) => routeKeyframes(keyframeName(i), route, plan.cycle))
+        .join('\n'),
+    [plan],
+  )
+
+  if (plan.coins.length === 0) return null
 
   return (
     <>
-      {coins.map((coin) => {
-        const path = paths.get(coin.segment)
+      <style>{css}</style>
+      {plan.coins.map((coin) => {
+        const path = paths[coin.route]
         if (!path) return null
         return (
           <span
@@ -65,11 +80,12 @@ export function CoinFlow({ model, scale }: Props) {
               top: 0,
               lineHeight: 0,
               offsetPath: `path('${path}')`,
+              offsetDistance: `${coin.offset}%`,
               // Without this the element inherits `offset-rotate: auto`, tilts to
               // follow the curve and shears the pixel grid into diagonal mush.
               // Not optional, and not obvious (art-bible.md §5).
               offsetRotate: '0deg',
-              animation: `pixel-flow ${coin.duration}s linear ${coin.delay}s infinite`,
+              animation: `${keyframeName(coin.route)} ${plan.cycle}s linear ${coin.delay}s infinite`,
             }}
           >
             <PixelSprite art={COIN} palette={PAL} scale={scale} fps={8} />
@@ -78,4 +94,20 @@ export function CoinFlow({ model, scale }: Props) {
       })}
     </>
   )
+}
+
+function routePath(route: CoinRoute): string {
+  const { points, trunkRows } = route
+  if (points.length < 2 || trunkRows < 2) return ''
+
+  const trunk = riverPath({
+    segments: [{ fromY: points[0].y, toY: points[trunkRows - 1].y }],
+  })
+  if (!trunk) return ''
+
+  // A mouth route is trunk all the way; a branch route continues with the
+  // drift to the bank and the run out to the settlement.
+  return points
+    .slice(trunkRows)
+    .reduce((d, point) => `${d} L${point.x} ${point.y}`, trunk)
 }
