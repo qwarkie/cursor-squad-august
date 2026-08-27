@@ -2,10 +2,13 @@ import type { CSSProperties } from 'react'
 
 import { riverPath, trunkX } from './path'
 import { tributaryEnd } from './geometry'
+import { PAL } from './palette'
 import type { RiverModel } from '../engine'
+import type { Budget } from '../types'
 
 type Props = {
   model: RiverModel
+  budget: Budget
   /** T019 — every tributary is tappable regardless of its drawn width. */
   onSelectTributary?: (categoryId: string) => void
 }
@@ -31,12 +34,12 @@ const CRISP = { shapeRendering: 'crispEdges' as const, strokeLinecap: 'butt' as 
 
 /**
  * The crest that travels downstream, on the trunk and on every tributary
- * alike. A tributary is the same water as the river it leaves, so it is
- * drawn in the same two blues rather than in its category's colour: six
- * saturated slabs radiating out of a blue river read as bars laid over the
- * map, not as water leaving it. The category's colour now lives on the
- * signboard above its settlement (Settlements.tsx), which is where a reader
- * looks to tell one village from another anyway.
+ * alike — one water sparkle regardless of category, so the flow itself
+ * still reads as one river. The category's *stroke* colour is restored
+ * below (SC-002: art-bible.md §2 puts it in three places — stroke, label,
+ * bottom-sheet control — and the stroke is what makes a branch read as a
+ * cut off the trunk rather than the same water continuing; the signboard
+ * from Settlements.tsx is additive, not a replacement for it).
  *
  * `prefers-reduced-motion` is honoured globally in index.css, so this needs
  * no media query of its own.
@@ -57,7 +60,7 @@ const FLOW = {
  * never recompute it). T023 — the three terminal states live here too,
  * because they are drawn on the same curve as the trunk, not overlaid on it.
  */
-export function River({ model, onSelectTributary }: Props) {
+export function River({ model, budget, onSelectTributary }: Props) {
   const last = model.segments[model.segments.length - 1]
 
   return (
@@ -121,6 +124,8 @@ export function River({ model, onSelectTributary }: Props) {
         // hair-thin $50 tributary still gets exactly one lit pixel rather
         // than a highlight wider than the water under it.
         const crest = Math.max(1, Math.round(trib.width * 0.3))
+        const category = budget.categories.find((c) => c.id === trib.categoryId)
+        const stroke = (category && PAL[category.color]) || 'var(--color-water)'
         return (
           <g key={trib.categoryId}>
             <line
@@ -128,7 +133,7 @@ export function River({ model, onSelectTributary }: Props) {
               y1={trib.atY}
               x2={x2}
               y2={y2}
-              stroke="var(--color-water)"
+              stroke={stroke}
               strokeWidth={trib.width}
               className="river-width"
               {...CRISP}
