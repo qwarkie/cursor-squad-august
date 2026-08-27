@@ -190,6 +190,31 @@ def walk(url):
         check("no river shape uses a round line cap", not round_caps,
               f"{len(round_caps)} round-capped")
 
+        # ---- 5b. category colour on the stroke (art-bible §2) --------------------
+        #
+        # The stroke is one of the three places the category colour must live, and
+        # the only one of the three in the world layer. When it was moved off, the
+        # trunk and all five tributaries rendered in the same two water blues and
+        # the middle of the river read as one braided blob — SC-002, with the
+        # geometry completely unchanged. Every geometric check still passed.
+        #
+        # This asserts the cause, not the effect. Whether the narrowing *reads*
+        # to a stranger is a person's judgement and stays with the human walk.
+        print("\n5b. category colour rides the tributary stroke (art-bible §2)")
+        strokes = pg.evaluate("""() => {
+            const water = ['rgb(43, 127, 212)', 'rgb(92, 179, 255)', 'rgb(23, 83, 143)']
+            const seen = [...document.querySelectorAll('svg line')]
+              .map(e => getComputedStyle(e).stroke)
+              .filter(s => s && s !== 'none' && !s.startsWith('rgba(0, 0, 0, 0'))
+            return {
+              all: [...new Set(seen)],
+              categorical: [...new Set(seen.filter(s => !water.includes(s)))],
+            }
+        }""")
+        check("each tributary strokes in its own category colour, not the trunk's water",
+              len(strokes["categorical"]) >= 5,
+              f"{len(strokes['categorical'])} non-water stroke colours: {strokes['categorical']}")
+
         # ---- 6. SC-007 determinism ----------------------------------------------
         print("\n6. two loads, identical geometry (SC-007 / FR-015)")
         first = geometry_fingerprint(pg)
@@ -277,8 +302,24 @@ def walk(url):
             check("overspending is signalled in words, not colour alone (FR-012)",
                   "over budget" in text.lower(), f"after {presses} presses of +$50")
             check("the overspent figure is negative", "\u2212$" in text or "-$" in text)
-            check("it is announced to assistive tech",
-                  pg.locator('[role="alert"]').count() > 0)
+            # `[role="alert"]` as a CSS selector finds the node in the DOM; it does
+            # not tell you the node is in the accessibility tree. The overspend
+            # mark renders inside World.tsx's sprite overlay, which is correctly
+            # `aria-hidden="true"` because sprites are decorative — so that alert
+            # is inert and `get_by_role("alert")` returns nothing. Honey caught it.
+            #
+            # FR-012 is satisfied by the header, which carries the state as
+            # ordinary text outside the overlay. That is what gets asserted.
+            reachable = pg.evaluate("""() => {
+                const hidden = [...document.querySelectorAll('[aria-hidden="true"]')]
+                return [...document.querySelectorAll('*')]
+                  .filter(e => e.children.length === 0 && /over budget/i.test(e.textContent || ''))
+                  .map(e => ({ hidden: hidden.some(h => h.contains(e)) }))
+            }""")
+            live_nodes = [n for n in reachable if not n["hidden"]]
+            check("the overspent state reaches assistive tech, not just the DOM",
+                  len(live_nodes) > 0,
+                  f"{len(live_nodes)} of {len(reachable)} 'over budget' nodes outside aria-hidden")
 
             minus_h = pg.get_by_role("button", name=re.compile("Reduce Housing"))
             for _ in range(presses):
