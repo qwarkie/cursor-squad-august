@@ -44,31 +44,43 @@ broken:
    visual improvement was reported on a branch that was byte-identical across
    the two builds.
 
-## Where instruments died
+## What separated the instruments that held from the ones that did not
 
-Every instrument that failed here failed at a **selection** or a **parse**.
-Every one that survived had neither.
+Not *selection versus none* — that was the first version of this and it was too
+clean. The survivors select too: a pixel diff selects crops by bounding box, a
+row scan selects a row index, a coordinate crop selects an x range. One of those
+bounding boxes is the same one that contaminated a colour census.
+
+**What separated them is whether the selector's correctness can be checked from
+the output.**
 
 ```
-selection   a colour match caught signboards, because art-bible §2 mandates
-            the same hue in three places
-            a sprite fingerprint matched the art, not the wrapper carrying
-            offset-path, so moving coins were measured as scenery
-            a hit-test counted ancestors, so the scan walked the whole header
-parse       a colour regex knew one spelling of alpha and the app emitted
-            another
-            two attempts at a gradient stop parser were withdrawn rather than
-            tuned — % , deg and clamped zeros, and a legitimate hard-stop
-            conic reads as interpolating
+DID NOT HOLD   the selector was invisible in the result
+  a colour match caught signboards — art-bible §2 mandates the hue in three
+  places, and the count alone could not show it
+  a sprite fingerprint matched the art, not the wrapper carrying offset-path
+  a hit-test counted ancestors, so the scan walked the whole header
+  an absence assertion over an empty set — nothing to see, so it passed
+  a colour regex knew one spelling of alpha and the app emitted another
 
-survived    a whole-crop pixel diff — never asked what a pixel was
-            a run-length scan across one row — no selector to get wrong
-            isolating a band by coordinate rather than by hue
-            rendering one declaration alone on a blank tile — no text in the
-            frame to anti-alias, no syntax interpreted
+HELD           the contamination cancelled, or the evidence was printed beside
+               the verdict
+  a whole-crop pixel diff — the boxes were full of signboard, and signboard is
+  identical across two builds, so common-mode contamination contributes zero
+  a run-length row scan — grass[76] ink[4] slate[160] ink[4] grass[26] IS the
+  evidence; a row through the wrong thing would say so
+  a coordinate crop — the confounder named, its x given, put out of frame, and
+  checkable by a second person without re-running anything
+  the URL as an argument — certified two builds without an edit
+  one declaration rendered alone on a blank tile — no confounder to cancel or
+  print, because nothing else is in the frame
 ```
 
-The limit, because it has one: **no selector and no parser buys freedom from
-contamination. It buys nothing against measuring the wrong quantity.** A
-derivation from `geometry.ts` constants was uncontaminated, correct, and silent
-about the question being asked.
+A stop parser sits in the first column: it prints a verdict, not its reasoning.
+Three were built for the gradient class and all three withdrawn — the last one
+**while it was passing**, on this rule rather than on a red run.
+
+The limit, because it has one: **none of this touches measuring the wrong
+quantity.** A derivation from `geometry.ts` constants prints its own reasoning,
+needs nothing cancelled, and was still about the tributary's path when the
+question turned out to be about its rim.
