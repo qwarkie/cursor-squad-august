@@ -199,11 +199,20 @@ export function River({ model, budget, onSelectTributary }: Props) {
         // Hue alone doesn't carry every colour equally: slate and teal sit
         // close to the water's own blue in RGB space (~85-87 apart) while
         // the rest clear it by 115+ (WEAK_RIM_DISTANCE splits the two
-        // groups). Those two get a wider rim and a thinner water body so
-        // more of the branch shows the colour a person is meant to read,
-        // rather than trying to fix it by shifting a mandated hue.
+        // groups). Those two get a thinner water body so more of the branch
+        // shows the colour a person is meant to read, rather than trying to
+        // fix it by shifting a mandated hue.
+        //
+        // #54 — `branchSpans` floors thickness at 1, so a fixed pixel inset
+        // saturates on any branch at or below its own width: at width 2,
+        // `max(1, 2-4)` and `max(1, 2-2)` are both 1, and Transport (the
+        // branch this exists for) is width 2. Below `bodyWidth`, there is no
+        // room left for a water pixel to mean anything, so the body layer is
+        // skipped rather than forced — the full rim shows instead of a
+        // forced blue pixel diluting it.
         const weakRim = rimColor !== null && colorDistance(rimColor, PAL.b!) < WEAK_RIM_DISTANCE
         const bodyInset = rimColor ? (weakRim ? 4 : 2) : 0
+        const bodyWidth = trib.width - bodyInset
         const clip = `river-branch-${trib.categoryId}`
         return (
           <g key={trib.categoryId} data-tributary={trib.categoryId}>
@@ -222,11 +231,13 @@ export function River({ model, budget, onSelectTributary }: Props) {
                 <Rects spans={branchSpans(start, end, trib.width)} fill={rimColor} />
               </>
             )}
-            <Rects
-              spans={branchSpans(start, end, Math.max(1, trib.width - bodyInset))}
-              fill="var(--color-water)"
-              className="river-width"
-            />
+            {(!rimColor || bodyWidth >= 1) && (
+              <Rects
+                spans={branchSpans(start, end, rimColor ? bodyWidth : trib.width)}
+                fill="var(--color-water)"
+                className="river-width"
+              />
+            )}
             <g clipPath={`url(#${clip})`} opacity={0.55}>
               <g style={branchFlow(dir)}>
                 {/* Crest thickness tracks the branch the same way the trunk's
