@@ -1,3 +1,4 @@
+import { GrassField } from '../world/GrassField'
 import { HEX } from './palette'
 
 /**
@@ -8,9 +9,28 @@ import { HEX } from './palette'
  * empty on purpose: the river has to be something the person makes happen,
  * not something already on screen when they arrive.
  *
- * Colours are art-bible.md §2 literals. They move to the shared CSS custom
- * properties once T002 lands them in index.css.
+ * The field is the world's field. `768ac6b` replaced a `linear-gradient` here
+ * with flat grass — palette-correct, and the only 100%-single-colour surface
+ * in the app, which is what "flat" meant when it was raised. The right texture
+ * was never a chrome invention: two repeating gradients at coincident stops
+ * are palette-clean and render as graph paper. `world/GrassField` already
+ * draws real pixel grass with a wind cycle, so the opening frame now uses it
+ * and the river springs into the same field, with the same green AND the same
+ * blades, rather than into a replacement.
+ *
+ * Chrome importing from `world/` is the established direction here —
+ * `CategorySheet` and `IconPicker` already take `world/icons`, and
+ * `components/palette` takes `world/palette`. Nothing in `world/` imports
+ * chrome.
  */
+/**
+ * Big enough to cover a phone at scale 4 and clipped by the container. The
+ * world's own grid is 96x128; this is a field, not a world, so it is sized to
+ * the viewport rather than to the model.
+ */
+const FIELD_W = 128
+const FIELD_H = 256
+const FIELD_SCALE = 4
 export interface EmptyFieldProps {
   onAddIncome: () => void
   onLoadDemo: () => void
@@ -19,7 +39,7 @@ export interface EmptyFieldProps {
 export function EmptyField({ onAddIncome, onLoadDemo }: EmptyFieldProps) {
   return (
     <div
-      className="flex min-h-dvh w-full flex-col items-center justify-between overflow-x-hidden px-4 pb-8 pt-16"
+      className="relative flex min-h-dvh w-full flex-col items-center justify-between overflow-hidden px-4 pb-8 pt-16"
       style={{
         // Flat grass, one colour from the twenty. The previous
         // `linear-gradient` interpolated: sampling this screen found 58
@@ -37,7 +57,13 @@ export function EmptyField({ onAddIncome, onLoadDemo }: EmptyFieldProps) {
         backgroundColor: HEX.grass,
       }}
     >
-      <header className="flex flex-col items-center gap-3 text-center">
+      {/* Decoration, so it is out of the accessibility tree and cannot take a
+          tap away from the two buttons. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <GrassField width={FIELD_W} height={FIELD_H} scale={FIELD_SCALE} />
+      </div>
+
+      <header className="relative flex flex-col items-center gap-3 text-center">
         <h1
           className="font-pixel text-[16px] leading-relaxed"
           style={{ color: HEX.cream, textShadow: `2px 2px 0 ${HEX.ink}` }}
@@ -50,9 +76,9 @@ export function EmptyField({ onAddIncome, onLoadDemo }: EmptyFieldProps) {
       </header>
 
       {/* Decoration only — the field is the point, and it is deliberately bare. */}
-      <div aria-hidden className="h-24 w-full" />
+      <div aria-hidden className="relative h-24 w-full" />
 
-      <div className="flex w-full max-w-sm flex-col gap-3">
+      <div className="relative flex w-full max-w-sm flex-col gap-3">
         <button
           type="button"
           onClick={onAddIncome}
