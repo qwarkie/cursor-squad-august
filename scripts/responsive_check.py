@@ -36,6 +36,10 @@ WIDTHS = [
 failures = []
 
 
+def note(text):
+    print(f"    ....  {text}")
+
+
 def check(width_name, name, ok, detail=""):
     print(f"    {'PASS' if ok else 'FAIL'}  {name}{'  — ' + str(detail) if detail else ''}")
     if not ok:
@@ -138,6 +142,7 @@ def audit(pg, label):
     # round-trip does not multiply by six viewports.
     small = pg.evaluate("""() => {
         const out = []
+        const covered = []
         for (const el of document.querySelectorAll('button, [role=button], input')) {
           const r = el.getBoundingClientRect()
           if (r.width <= 0 || r.height <= 0) continue
@@ -152,14 +157,78 @@ def audit(pg, label):
             while (bottom + 1 < innerHeight && hits(bottom + 1)) bottom += 1
             tappable = bottom - top + 1
           }
-          if (Math.max(r.height, tappable) < 44) {
-            const name = (el.getAttribute('aria-label') || el.textContent || el.tagName).trim()
+          const name = (el.getAttribute('aria-label') || el.textContent || el.tagName).trim()
+          // Two different failures, and `Math.max` used to merge them into one
+          // that could not fail: a control painted over reports tappable 0, and
+          // the rect height rescued it. @Honey's rail covered all three zoom
+          // buttons at 1440 while every rect check stayed green.
+          // Only meaningful for a point that is actually on the screen:
+          // `elementFromPoint` returns null outside the viewport, so a row
+          // below the fold looks exactly like a row painted over. Reported as
+          // occlusion, that fires on every correct build at every width — the
+          // cry-wolf failure. Off-screen is a different question and the
+          // on-screen check above already asks it.
+          const onScreen = cx >= 0 && cx < innerWidth && cy >= 0 && cy < innerHeight
+          if (onScreen && tappable === 0) {
+            const over = document.elementFromPoint(cx, cy)
+            const overName = over ? (over.getAttribute('aria-label') || over.tagName) : 'nothing'
+            covered.push(`${name.slice(0, 18)} <- ${overName.slice(0, 14)}`)
+          }
+          else if (Math.max(r.height, tappable) < 44) {
             out.push(`${name.slice(0, 20)} ${Math.round(Math.max(r.height, tappable))}px`)
           }
         }
-        return out
+        return { small: out, covered }
     }""")
-    really_small = small
+    really_small = small["small"]
+
+    # Occlusion, decided in one pass over live element references.
+    #
+    # An earlier version detected covered controls in one evaluate and then
+    # re-found them by name in another to test whether scrolling freed them.
+    # Matching by name is a heuristic, and worse, "not found" and "still
+    # covered" both came back `false` — so a lookup miss was reported as a hard
+    # defect. Three of those at 1024/1440/1920 turned out to be nothing at all.
+    # Nothing leaves the browser now except the verdict.
+    occ = pg.evaluate("""() => {
+        const hard = [], soft = []
+        const y0 = scrollY
+        const reaches = (el) => {
+          const r = el.getBoundingClientRect()
+          const cx = Math.round(r.left + r.width / 2)
+          const cy = Math.round(r.top + r.height / 2)
+          if (cx < 0 || cx >= innerWidth || cy < 0 || cy >= innerHeight) return null
+          const hit = document.elementFromPoint(cx, cy)
+          return { ok: !!hit && (hit === el || el.contains(hit)),
+                   over: hit ? (hit.getAttribute('aria-label') || hit.tagName) : 'nothing' }
+        }
+        for (const el of document.querySelectorAll('button, [role=button], input')) {
+          if (el.closest('[data-scale]')) continue
+          const r = el.getBoundingClientRect()
+          if (r.width <= 0 || r.height <= 0) continue
+          const first = reaches(el)
+          if (!first || first.ok) continue          // off screen, or fine
+          const name = (el.getAttribute('aria-label') || el.textContent || el.tagName).trim()
+          el.scrollIntoView({ block: 'center' })
+          const after = reaches(el)
+          const entry = `${name.slice(0, 20)} <- ${first.over.slice(0, 14)}`
+          if (after && after.ok) soft.push(entry)
+          else hard.push(entry)
+          scrollTo(0, y0)
+        }
+        scrollTo(0, y0)
+        return { hard, soft }
+    }""")
+    check(label, "no control stays covered even after scrolling", not occ["hard"],
+          occ["hard"] or "nothing stays covered")
+    # Reported, not failed. A scrollable list under a fixed bar overlaps at rest
+    # by design — that is what the bar's clearance padding is for — so failing
+    # here would fire on every correct build and get the whole gate ignored.
+    # Worth printing because "covered until you happen to scroll" is still how a
+    # control goes unnoticed, and only a person can say which case it is.
+    for entry in occ["soft"]:
+        note(f"covered on arrival, a scroll frees it: {entry}")
+
     check(label, "every control clears 44px", not really_small, really_small or "all clear")
 
 
