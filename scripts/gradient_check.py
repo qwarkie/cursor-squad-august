@@ -2,8 +2,18 @@
 """
 Does any declared gradient interpolate?
 
-    python3 scripts/gradient_check.py                       # localhost:4173
-    python3 scripts/gradient_check.py https://<deployment>  # any build
+    python3 scripts/gradient_check.py http://localhost:4173
+    python3 scripts/gradient_check.py https://<deployment>
+
+The URL is required. It had a default and Pollen showed the default was the
+defect: a well-known dev port means a no-argument run judges whatever happens
+to be listening, and `npm run walk` bare reported an alpha scrim on a build
+where it had been gone for two commits — it had reached another checkout's dev
+server. Printing the judged URL is not enough of a mitigation; Pollen had that
+line in their terminal, from Vite reporting a port collision, and still nearly
+published a result measured against someone else's app. A plausible URL never
+looks wrong. So this exits with usage instead, which turns a silent wrong
+answer into a loud missing one.
 
 art-bible §7 forbids colour outside the twenty and smoothing anywhere. A CSS
 gradient with distinct colours at distinct positions violates both by
@@ -157,4 +167,10 @@ def main(base):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else "http://localhost:4173"))
+    if len(sys.argv) != 2:
+        print("usage: gradient_check.py <url>\n")
+        print("  the URL is required on purpose — a default judges whatever is")
+        print("  listening on a well-known port, which has already produced one")
+        print("  wrong answer on this repo. see scripts/README.md")
+        sys.exit(2)
+    sys.exit(main(sys.argv[1]))

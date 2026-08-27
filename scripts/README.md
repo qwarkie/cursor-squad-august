@@ -9,12 +9,20 @@ npm run gradients -- http://localhost:4173    # every declared gradient
 npm run walk      -- https://<deployment>     # same checks, any build
 ```
 
-**Always pass the URL.** With no argument `walk_demo.py` falls back to
-`localhost:5173` and `gradient_check.py` to `localhost:4173` — well-known dev
-ports, so a no-argument run judges whatever happens to be listening there.
-Running `npm run walk` bare on a clean `main` produced a failure for an alpha
-scrim removed two commits earlier: it had found a stale dev server from another
-checkout. Both print the URL they are judging on the first line. Read it.
+**Always pass the URL, and `gradient_check.py` now refuses to run without it.**
+
+`walk_demo.py` still falls back to `localhost:5173` — a well-known dev port, so
+a no-argument run judges whatever is listening there. Running `npm run walk`
+bare on a clean `main` reported an alpha scrim removed two commits earlier: it
+had reached a stale dev server from another checkout.
+
+Printing the judged URL is not a sufficient mitigation, and the counterexample
+is on this repo. A fresh-clone test was nearly published green after Vite had
+reported a port collision and moved the app to `5176` — the line was in the
+terminal and the run still measured someone else's app. **A plausible URL never
+looks wrong**, so a check whose correctness depends on a person reading a line
+is the class this file exists to remove. Requiring the argument converts a
+silent wrong answer into a loud missing one.
 
 | | asks | answers |
 |---|---|---|
