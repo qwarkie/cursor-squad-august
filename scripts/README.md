@@ -37,6 +37,41 @@ silent wrong answer into a loud missing one.
 Neither is wired into `npm test`. They need a running build, and a check that
 cannot run is worse than no check because its absence looks like a pass.
 
+## When a certification is still valid
+
+A certification is a claim about **a set of files, not about a SHA.** Neither
+harness can observe `.handoff/praetor.md`, so a handoff commit cannot invalidate
+a verdict about the app — treating it as though it does is measuring the wrong
+quantity, one level up from the code.
+
+**Re-certify when anything the result depends on moves. Scope the diff
+otherwise, and say nothing.**
+
+Three things the result depends on, which is what that means today:
+
+```
+frontend/            what the harnesses measure
+scripts/             the harnesses themselves
+root package.json    what running them means — `walk`, `gradients`, `test`,
+                     `typecheck`, `build` are defined there, and a one-word
+                     edit changes what every green run asserted while
+                     frontend/ and scripts/ sit untouched
+```
+
+The third is the one that gets missed, and it was missed here: the rule was
+written with two paths, and the invocation is the one input a harness
+structurally cannot see. It is also a surface this file created — the `walk`
+and `gradients` entries were added alongside it.
+
+Stated as a dependency rather than as a path list because path lists expire.
+If the result starts depending on something else, that something else joins
+the list.
+
+The rule exists because the loop does not terminate on its own. Someone pushes
+documentation, someone else certifies, a third person notices the SHA differs,
+and it runs again. Four laps in twenty minutes here produced one real finding —
+a stale line in this file — and three confirmations that nothing had moved.
+
 ## What a check has to answer before it is trusted here
 
 Four questions, each earned by a check that passed while the thing it named was
