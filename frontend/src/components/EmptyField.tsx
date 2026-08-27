@@ -21,7 +21,20 @@ export function EmptyField({ onAddIncome, onLoadDemo }: EmptyFieldProps) {
     <div
       className="flex min-h-dvh w-full flex-col items-center justify-between overflow-x-hidden px-4 pb-8 pt-16"
       style={{
-        background: `linear-gradient(${HEX.grassLit} 0%, ${HEX.grass} 45%, ${HEX.grassDark} 100%)`,
+        // Flat grass, one colour from the twenty. The previous
+        // `linear-gradient` interpolated: sampling this screen found 58
+        // distinct greens, 57 of them outside the palette — a violation of
+        // art-bible §7 ("no colour outside the 20", "no smoothing anywhere")
+        // on the first screen a judge sees, and the only smooth surface left
+        // in the app.
+        //
+        // Flat rather than textured on purpose. Tufts belong to the world
+        // layer, which draws them as pixel art; faking them here with
+        // repeating gradients produces a lattice, not grass — tried, and it
+        // reads as graph paper. The field is also now exactly the green the
+        // world draws, so the river springs into the field the person was
+        // already looking at instead of replacing it with a different one.
+        backgroundColor: HEX.grass,
       }}
     >
       <header className="flex flex-col items-center gap-3 text-center">
