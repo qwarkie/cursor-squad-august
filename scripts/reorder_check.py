@@ -20,10 +20,15 @@ URL = sys.argv[1]
 fails = []
 
 
+ran = [0]
+
+
 def check(name, ok, detail=""):
+    ran[0] += 1
     print(f"  {'PASS' if ok else 'FAIL'}  {name}{'  — ' + detail if detail else ''}")
     if not ok:
         fails.append(name)
+    return bool(ok)
 
 
 def branch_ys(pg):
@@ -124,5 +129,9 @@ with sync_playwright() as p:
 
     br.close()
 
+EXPECTED_CHECKS = 12   # see walk_demo.py: a vanished section shrinks the total silently
 print(f"\n{'FAILED: ' + ', '.join(fails) if fails else 'all reorder checks passed'}")
+if not fails and ran[0] < EXPECTED_CHECKS:
+    print(f"ONLY {ran[0]} CHECKS RAN, EXPECTED {EXPECTED_CHECKS} — a section was skipped.")
+    sys.exit(1)
 sys.exit(1 if fails else 0)

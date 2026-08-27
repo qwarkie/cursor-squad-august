@@ -18,6 +18,8 @@ import urllib.request
 from playwright.sync_api import sync_playwright
 
 VIEWPORT = {"width": 390, "height": 844}
+# Floor, not a target: see the note in main(). Raise it when you add checks.
+EXPECTED_CHECKS = 49
 SEED = {"income": 4200, "housing": 1500, "food": 650, "remaining_after_housing": 2700}
 
 results = []
@@ -754,6 +756,16 @@ def main():
     failed = [r for r in results if not r[0]]
     print(f"\n{'=' * 60}")
     print(f"{len(results) - len(failed)}/{len(results)} checks passed")
+    # A section that stops running prints nothing and takes its assertions with
+    # it, so the total shrinks and the ratio still reads green. That happened
+    # tonight in a sibling script: a guard predicate with no `return` made every
+    # assertion inside it vanish and the run exited 0. The count is the only
+    # thing that notices. Raise this deliberately when checks are added.
+    if len(results) < EXPECTED_CHECKS:
+        print(f"\nONLY {len(results)} CHECKS RAN, EXPECTED AT LEAST {EXPECTED_CHECKS}.")
+        print("Something stopped early or a section was skipped. A smaller total is")
+        print("not a smaller job — it is a missing verdict, and the ratio hides it.")
+        sys.exit(1)
     if failed:
         print("\nFAILED:")
         for _, name, detail in failed:
