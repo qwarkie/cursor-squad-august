@@ -103,7 +103,23 @@ npm run build               -> exit 0, dist/assets/index-BddyzR6M.js  198.54 kB 
 
 ## Next
 
-0. **#5 is authorized to proceed as option B** — redeploy `main` fresh under an account an agent can
+1. **Run the remaining gates: `01:59`, `02:19`, FREEZE `02:32`.** One word — `HOLD` | `CUT <what>` |
+   `FREEZE` — plus one line. At FREEZE publish the QUEUE: 5–8 cuts, each under 15 minutes, single
+   file, obvious revert, ranked by points-per-minute. Deadlines get extended when organizers hit
+   technical problems; a pre-vetted queue converts that window into rank. Costs four minutes if no
+   window opens.
+2. **Watch #47 T034 (composition root).** It is the single task whose slippage breaks the demo —
+   every lane is building a piece and `App.tsx` was still the items-CRUD starter at gate 1.
+3. **Watch #43** — the README still names the stale URL.
+
+### Superseded (kept for the reasoning)
+
+0. **~~#5 authorized as option B~~** — B failed: `create_git_project` returned 404 on read and 403
+   on deployments, so the connector had create rights and nothing else. A happened instead and #5
+   is closed. Lesson worth keeping: a connector that can create is not a connector that can
+   administer, and the failure surfaced only on the *second* call.
+
+**Original option-B rationale:** — redeploy `main` fresh under an account an agent can
    actually reach, accepting a new URL, because Git links at project-create time and auto-deploy
    works from then on. Rationale: #5 is SPINE and had **zero** agent-side path, and SPINE may not
    depend on work this team does not control. Option A (owner links the existing project, URL
