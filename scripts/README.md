@@ -9,19 +9,24 @@ npm run gradients -- http://localhost:4173    # every declared gradient
 npm run walk      -- https://<deployment>     # same checks, any build
 ```
 
-**Always pass the URL, and `gradient_check.py` now refuses to run without it.**
+**Both require the URL. Neither has a default, and neither should get one.**
 
-`walk_demo.py` still falls back to `localhost:5173` — a well-known dev port, so
-a no-argument run judges whatever is listening there. Running `npm run walk`
-bare on a clean `main` reported an alpha scrim removed two commits earlier: it
-had reached a stale dev server from another checkout.
+A default is a hardcoded target wearing an argument's clothes. The parameter is
+the single design decision that survived everything here — one unedited harness
+certified two deployments at 39/41 and 41/41, in opposite directions — and a
+fallback returns it to the class it was built to escape, silently, at exactly
+the moment nobody would check.
 
-Printing the judged URL is not a sufficient mitigation, and the counterexample
+It had already produced two wrong answers. `npm run walk` bare on a clean `main`
+reported an alpha scrim removed two commits earlier: it had reached a stale dev
+server from another checkout on a well-known port.
+
+**Printing the judged URL is not a sufficient mitigation** and the counterexample
 is on this repo. A fresh-clone test was nearly published green after Vite had
 reported a port collision and moved the app to `5176` — the line was in the
-terminal and the run still measured someone else's app. **A plausible URL never
-looks wrong**, so a check whose correctness depends on a person reading a line
-is the class this file exists to remove. Requiring the argument converts a
+terminal, and the run still measured someone else's app. A plausible URL never
+looks wrong, so printing it only helps under the rule below when a wrong value
+is *visible as wrong*, and this one is not. Requiring the argument converts a
 silent wrong answer into a loud missing one.
 
 | | asks | answers |
